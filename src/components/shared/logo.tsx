@@ -1,0 +1,52 @@
+import { cn } from "@/lib/utils/cn";
+
+/**
+ * NivaasBhoomi wordmark + mark. The mark is a house roofline resolving into a
+ * horizon line - "nivaas" (home) meeting "bhoomi" (land). Pure inline SVG, so
+ * it costs nothing and stays crisp on any DPI. Ink by default; the roof carries
+ * the clay accent so the brand's two colours are present in the logo itself.
+ */
+export function Logo({
+  className,
+  showWordmark = true,
+}: {
+  className?: string;
+  showWordmark?: boolean;
+}) {
+  return (
+    <span className={cn("inline-flex items-center gap-2", className)}>
+      <svg
+        viewBox="0 0 32 32"
+        className="size-8 shrink-0"
+        role="img"
+        aria-label="NivaasBhoomi"
+      >
+        {/* roof / land */}
+        <path
+          d="M4 15 L16 5 L28 15"
+          fill="none"
+          stroke="var(--color-clay-600)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* house body */}
+        <path
+          d="M7 14 V25 H25 V14"
+          fill="none"
+          stroke="var(--color-ink-900)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* horizon / doorway */}
+        <path d="M13 25 V19 H19 V25" fill="var(--color-ink-900)" />
+      </svg>
+      {showWordmark && (
+        <span className="font-display text-lg font-extrabold tracking-tight text-ink-950">
+          Nivaas<span className="text-clay-600">Bhoomi</span>
+        </span>
+      )}
+    </span>
+  );
+}

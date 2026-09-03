@@ -1,0 +1,1407 @@
+================================================================
+PROPERTY PORTAL - DEVELOPER SPECIFICATION
+Multi-city pan-India property listing platform
+Lead engine for Zenith Code WhatsApp AI Agent
+Version 1.0
+================================================================
+
+
+HOW TO USE THIS DOCUMENT
+========================
+Ye document Claude Code / developer ke liye hai.
+
+- Section 1-4 ek baar padho, ye foundation hai
+- Har build session me relevant section paste karo
+- Section 18 me phase-wise build prompts hain -
+  ek session me ek prompt
+- Koi bhi ambiguity ho to Section 13 (business rules)
+  authoritative hai
+
+IMPORTANT: Har package ka LATEST STABLE version use
+karna. Version numbers hardcode mat karna - install
+ke waqt latest le lena.
+
+
+================================================================
+SECTION 1: TECH STACK
+================================================================
+
+FRONTEND + BACKEND (single Next.js app)
+---------------------------------------
+- Next.js (App Router, latest stable)
+- TypeScript (strict mode ON)
+- Tailwind CSS
+- shadcn/ui for base components
+- React Hook Form + Zod for all forms
+- Zustand for client state (minimal - mostly server
+  components)
+
+DATABASE
+--------
+- MongoDB Atlas
+- Mongoose ODM
+
+AUTH
+----
+- Dealer: WhatsApp OTP (custom, no NextAuth)
+- Admin: email + password, JWT httpOnly cookie
+- Session: JWT in httpOnly cookie, 30 day expiry
+
+MEDIA
+-----
+- Cloudinary (signed uploads from client)
+
+EXTERNAL
+--------
+- Meta WhatsApp Cloud API
+- n8n (AI orchestration - already running)
+- Google Maps JavaScript API + Places Autocomplete
+- Razorpay (Phase 7)
+
+HOSTING
+-------
+- Vercel (production)
+- MongoDB Atlas
+- n8n on existing infra
+
+RENDERING STRATEGY
+------------------
+- Public pages: ISR, revalidate 3600
+- Dealer panel: client-side, dynamic
+- Admin panel: client-side, dynamic
+- API routes: Next.js Route Handlers
+
+
+================================================================
+SECTION 2: FOLDER STRUCTURE
+================================================================
+
+/src
+  /app
+    /(public)
+      page.tsx                    home
+      /[city]
+        page.tsx                  city page
+        /[locality]
+          page.tsx                locality page
+          /[filter]
+            page.tsx              type/bhk/budget/rent
+      /property
+        /[slug]
+          page.tsx
+      /dealer
+        /[slug]
+          page.tsx                public dealer profile
+      /blog
+        page.tsx
+        /[slug]
+          page.tsx
+      layout.tsx
+      sitemap.ts                  sitemap index
+      /sitemap
+        /[city]
+          route.ts                per-city sitemap
+      robots.ts
+
+    /(dealer)
+      /dealer
+        /login
+        /dashboard
+        /listings
+          /new
+          /[id]/edit
+        /leads
+        /verification
+        /plan
+        layout.tsx
+
+    /(admin)
+      /admin
+        /login
+        /dashboard
+        /listings
+        /dealers
+        /locations
+        /leads
+        /blogs
+        layout.tsx
+
+    /api
+      /auth
+        /dealer/send-otp/route.ts
+        /dealer/verify-otp/route.ts
+        /admin/login/route.ts
+        /logout/route.ts
+      /locations
+        /states/route.ts
+        /cities/route.ts
+        /localities/route.ts
+        /locality-request/route.ts
+      /listings
+        /route.ts
+        /[id]/route.ts
+        /[id]/refresh/route.ts
+      /dealers
+        /route.ts
+        /[id]/route.ts
+        /[id]/verify/route.ts
+      /leads
+        /route.ts
+        /[id]/route.ts
+      /whatsapp
+        /webhook/route.ts
+      /upload
+        /signature/route.ts
+      /admin
+        /...
+
+  /components
+    /ui                           shadcn
+    /public                       listing card, filters, gallery
+    /dealer                       form steps, dashboard widgets
+    /admin
+    /shared
+
+  /lib
+    /db
+      connect.ts
+      /models
+        State.ts
+        City.ts
+        Locality.ts
+        Dealer.ts
+        Listing.ts
+        Lead.ts
+        Conversation.ts
+        Blog.ts
+    /auth
+      jwt.ts
+      middleware.ts
+    /seo
+      metadata.ts
+      jsonld.ts
+      sitemap.ts
+    /whatsapp
+      client.ts
+      templates.ts
+    /leads
+      routing.ts                  CORE LOGIC
+    /utils
+      slug.ts
+      price.ts
+      validation.ts
+  /types
+  /scripts
+    seed-locations.ts             India Post dataset import
+
+
+================================================================
+SECTION 3: ENVIRONMENT VARIABLES
+================================================================
+
+# Database
+MONGODB_URI=
+
+# Auth
+JWT_SECRET=
+ADMIN_EMAIL=
+ADMIN_PASSWORD_HASH=
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+
+# Google Maps
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
+
+# WhatsApp Cloud API
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_BUSINESS_ACCOUNT_ID=
+WHATSAPP_ACCESS_TOKEN=
+WHATSAPP_VERIFY_TOKEN=
+WHATSAPP_APP_SECRET=
+
+# n8n
+N8N_WEBHOOK_URL=
+N8N_API_KEY=
+
+# Razorpay (Phase 7)
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+
+# App
+NEXT_PUBLIC_SITE_URL=
+NEXT_PUBLIC_WHATSAPP_NUMBER=      # portal ka display number
+
+
+================================================================
+SECTION 4: DATA MODELS
+================================================================
+
+Saare models me common:
+  timestamps: true
+  toJSON: { virtuals: true }
+
+
+--- State ---
+{
+  name:        String, required, unique
+  slug:        String, required, unique, lowercase
+  code:        String, required          // "JH"
+  isActive:    Boolean, default false
+  reraPortalUrl: String                  // verification ke liye
+  stampDutyRate: {                       // Phase 8 calculator
+    male: Number, female: Number, joint: Number
+  }
+}
+
+
+--- City ---
+{
+  name:        String, required
+  slug:        String, required, unique  // COLLISION HANDLED
+  stateId:     ObjectId ref State, required
+  tier:        Number, enum [1,2,3], default 3
+  isActive:    Boolean, default false    // LAUNCH CONTROL
+
+  lat:         Number
+  lng:         Number
+
+  // SEO content
+  introText:   String                    // 200+ words
+  metaTitle:   String
+  metaDescription: String
+  faq:         [{ question: String, answer: String }]
+
+  // auto-maintained counters
+  listingCount:  Number, default 0
+  dealerCount:   Number, default 0
+  localityCount: Number, default 0
+
+  popularLocalities: [ObjectId ref Locality]
+}
+
+
+--- Locality ---
+{
+  name:        String, required
+  slug:        String, required, lowercase
+  cityId:      ObjectId ref City, required
+  stateId:     ObjectId ref State, required
+  pincodes:    [String]
+
+  lat:         Number
+  lng:         Number
+
+  introText:   String                    // 150+ words MANDATORY
+  connectivity: String
+  metaTitle:   String
+  metaDescription: String
+  faq:         [{ question: String, answer: String }]
+
+  rateRange: {                           // auto-calculated
+    saleMin: Number, saleMax: Number,
+    rentMin: Number, rentMax: Number,
+    avgPricePerSqft: Number,
+    lastCalculated: Date
+  }
+
+  listingCount: Number, default 0
+  isActive:     Boolean, default false
+  status:       String, enum ['approved','pending'],
+                default 'pending'
+  requestedBy:  ObjectId ref Dealer      // agar dealer ne request ki
+}
+
+UNIQUE COMPOUND INDEX: { cityId: 1, slug: 1 }
+
+
+--- Dealer ---
+{
+  // identity
+  name:         String, required
+  businessName: String, required
+  phone:        String, required, unique   // WhatsApp number
+  email:        String
+  slug:         String, unique             // public profile URL
+  profilePhoto: String
+
+  // coverage - LEAD ROUTING KA BASE
+  coverageCities:     [ObjectId ref City]
+  coverageLocalities: [ObjectId ref Locality]
+
+  // verification
+  verificationTier: Number, enum [0,1,2,3,4], default 0
+  documents: {
+    pan:        { url: String, verified: Boolean },
+    aadhaar:    { url: String, verified: Boolean },
+    gst:        { number: String, url: String, verified: Boolean },
+    udyam:      { number: String, url: String, verified: Boolean },
+    rera:       { number: String, stateId: ObjectId,
+                  url: String, verified: Boolean },
+    officePhoto:{ url: String, lat: Number, lng: Number,
+                  verified: Boolean }
+  }
+  verificationNotes: String                // admin internal
+  verifiedAt:  Date
+  verifiedBy:  ObjectId
+
+  // rating
+  rating:      Number, default 0
+  ratingCount: Number, default 0
+
+  // performance (public trust signals)
+  avgResponseMinutes: Number
+  totalLeadsReceived: Number, default 0
+  totalSiteVisits:    Number, default 0
+
+  // plan
+  plan:               String, enum ['free','starter','pro'],
+                      default 'free'
+  maxLeadsPerMonth:   Number, default 10
+  leadsUsedThisMonth: Number, default 0
+  quotaResetAt:       Date
+  planExpiresAt:      Date
+
+  // status
+  status:      String, enum ['active','paused','banned'],
+               default 'active'
+  listingCount: Number, default 0
+}
+
+
+--- Listing ---
+{
+  // ownership
+  dealerId:    ObjectId ref Dealer, required
+
+  // basic
+  purpose:     String, enum ['sale','rent'], required
+  propertyType: String, enum ['flat','independent-house',
+                'villa','plot','commercial-shop','office',
+                'pg','warehouse'], required
+  title:       String, required
+  description: String, required, minlength 100
+
+  // location
+  stateId:     ObjectId ref State, required
+  cityId:      ObjectId ref City, required
+  localityId:  ObjectId ref Locality, required
+  subLocality: String
+  projectName: String
+  landmark:    String
+  fullAddress: String              // NEVER exposed publicly
+  lat:         Number, required
+  lng:         Number, required
+  pincode:     String
+
+  // details
+  bhk:         String     // '1rk','1','2','3','4','5plus'
+  bathrooms:   Number
+  balconies:   Number
+  carpetArea:  Number
+  builtUpArea: Number
+  plotArea:    Number
+  floor:       Number
+  totalFloors: Number
+  facing:      String
+  ageOfProperty: String
+
+  // furnishing
+  furnishing:  String, enum ['furnished','semi-furnished',
+               'unfurnished']
+  furnishingDetails: [String]
+  amenities:   [String]
+  parking:     String
+  waterSource: [String]
+
+  // price - SALE
+  expectedPrice:    Number
+  pricePerSqft:     Number        // auto
+  priceNegotiable:  Boolean
+  bookingAmount:    Number
+
+  // price - RENT
+  monthlyRent:      Number
+  securityDeposit:  Number
+  rentNegotiable:   Boolean
+  preferredTenant:  [String]
+  availableFrom:    Date
+  minLeasePeriod:   String
+
+  // common price
+  maintenanceCharge: Number
+  brokerage:         String       // PUBLIC - transparency
+
+  // legal
+  possessionStatus: String
+  possessionDate:   Date
+  ownershipType:    String
+  reraNumber:       String
+  reraStateId:      ObjectId ref State
+  approvedBy:       [String]
+
+  // media
+  photos:      [{ url: String, publicId: String,
+                  width: Number, height: Number }]
+  coverPhotoIndex: Number, default 0
+  video:       { url: String, publicId: String,
+                 duration: Number }
+  floorPlan:   { url: String, publicId: String }
+
+  // trust badges
+  badges: {
+    documentsChecked: Boolean, default false
+    photosVerified:   Boolean, default false
+    siteVisited:      Boolean, default false
+  }
+
+  // system
+  slug:        String, unique, required
+  status:      String, enum ['draft','pending','approved',
+               'rejected','expired','pending-location'],
+               default 'draft'
+  rejectionReason: String
+  lastRefreshedAt: Date, required
+  expiresAt:       Date, required     // lastRefreshedAt + 30d
+  viewCount:   Number, default 0
+  leadCount:   Number, default 0
+
+  // SEO
+  metaTitle:       String
+  metaDescription: String
+}
+
+
+--- Lead ---
+{
+  // buyer
+  phone:       String, required
+  name:        String
+  waProfileName: String
+
+  // source
+  source:      String, enum ['listing','generic','ad'],
+               required
+  listingId:   ObjectId ref Listing      // null if generic
+
+  // location intent
+  cityId:      ObjectId ref City
+  localityId:  ObjectId ref Locality
+
+  // qualification (AI fills these)
+  purpose:        String   // 'buy' | 'rent'
+  propertyType:   String
+  bhk:            String
+  budgetMin:      Number
+  budgetMax:      Number
+  timeline:       String   // 'immediate','1-3m','3-6m','6m+'
+  loanRequired:   Boolean
+  siteVisitSlot:  String
+  qualificationScore: Number, 0-100
+
+  // assignment - EXCLUSIVE
+  assignedDealerId: ObjectId ref Dealer
+  assignedAt:       Date
+  isLocked:         Boolean, default true   // NEVER reassign
+
+  // lifecycle
+  status:      String, enum ['new','assigned','contacted',
+               'site-visit-scheduled','site-visit-done',
+               'converted','lost','unmatched'],
+               default 'new'
+  dealerNotes: String
+
+  // review
+  reviewRating:  Number
+  reviewComment: String
+  reviewedAt:    Date
+
+  firstResponseMinutes: Number   // response time badge ke liye
+}
+
+
+--- Conversation ---
+{
+  phone:       String, required, index
+  leadId:      ObjectId ref Lead
+  messages:    [{
+    direction: String, enum ['in','out'],
+    type:      String,
+    body:      String,
+    templateName: String,
+    waMessageId:  String,
+    timestamp:    Date
+  }]
+  lastMessageAt: Date
+  windowExpiresAt: Date       // 24-hour service window
+}
+
+
+--- Blog ---
+{
+  title, slug, content (HTML), excerpt,
+  coverImage, cityId (optional), tags [String],
+  metaTitle, metaDescription,
+  status: enum ['draft','published'],
+  publishedAt
+}
+
+
+================================================================
+SECTION 5: DATABASE INDEXES
+================================================================
+
+Listing:
+  { cityId:1, localityId:1, purpose:1, propertyType:1,
+    status:1 }                              // main query
+  { slug:1 } unique
+  { dealerId:1, status:1 }
+  { status:1, expiresAt:1 }                 // expiry cron
+  { cityId:1, status:1, createdAt:-1 }      // city page
+  { localityId:1, status:1, expectedPrice:1 }
+  { lat:1, lng:1 } 2dsphere                 // future map search
+
+Locality:
+  { cityId:1, slug:1 } unique
+  { cityId:1, isActive:1 }
+
+City:
+  { slug:1 } unique
+  { stateId:1, isActive:1 }
+
+Dealer:
+  { phone:1 } unique
+  { slug:1 } unique
+  { coverageCities:1, status:1 }
+  { coverageLocalities:1, verificationTier:-1, rating:-1 }
+
+Lead:
+  { phone:1, createdAt:-1 }
+  { assignedDealerId:1, status:1 }
+  { status:1, createdAt:-1 }
+  { listingId:1 }
+
+Conversation:
+  { phone:1 } unique
+
+
+================================================================
+SECTION 6: SLUG & ID RULES
+================================================================
+
+CITY SLUG (collision handling)
+------------------------------
+function generateCitySlug(cityName, stateName):
+  base = slugify(cityName)
+  if (no existing city with slug === base):
+      return base
+  else:
+      return base + '-' + slugify(stateName)
+
+  // Aurangabad Maharashtra -> 'aurangabad'  (first one wins)
+  // Aurangabad Bihar       -> 'aurangabad-bihar'
+
+RULE: Seeding ke waqt tier-1 city ko priority do,
+      wo plain slug lega.
+RULE: Ek baar assign hone ke baad slug NEVER change.
+      Change karna pada to 301 redirect table maintain karo.
+
+
+LOCALITY SLUG
+-------------
+  slugify(localityName)
+  Unique WITHIN city only (compound index)
+  "kanke-road" Ranchi aur Patna dono me ho sakta hai
+
+
+LISTING SLUG
+------------
+  {bhk}-{propertyType}-{locality}-{city}-{price}-{nanoid6}
+
+  Example:
+  3-bhk-flat-kanke-road-ranchi-52-lakh-a7x9k2
+
+  Rules:
+  - Price humanize karo: 5200000 -> "52-lakh"
+                         12500000 -> "1-25-crore"
+  - Rent: 25000 -> "25k-rent"
+  - nanoid(6) lowercase alphanumeric
+  - Slug NEVER regenerate on edit (price change pe bhi nahi)
+  - Reason: URL stable rehna chahiye SEO ke liye
+
+
+DEALER SLUG
+-----------
+  slugify(businessName) + '-' + city.slug
+  collision -> append nanoid(4)
+
+
+================================================================
+SECTION 7: API CONTRACT
+================================================================
+
+Common response shape:
+  Success: { success: true, data: ... }
+  Error:   { success: false, error: { code, message } }
+
+Error codes:
+  UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR,
+  QUOTA_EXCEEDED, DUPLICATE, RATE_LIMITED, SERVER_ERROR
+
+
+AUTH
+----
+POST /api/auth/dealer/send-otp
+  body: { phone }
+  -> sends WhatsApp OTP template
+  -> rate limit: 3 per phone per 10 min
+
+POST /api/auth/dealer/verify-otp
+  body: { phone, otp }
+  -> sets httpOnly JWT cookie
+  -> returns { dealer, isNewUser }
+
+POST /api/auth/admin/login
+  body: { email, password }
+
+POST /api/auth/logout
+
+
+LOCATIONS (public, cached)
+--------------------------
+GET /api/locations/states?active=true
+  -> [{ _id, name, slug, code }]
+
+GET /api/locations/cities?stateId=&active=true
+  -> [{ _id, name, slug, tier }]
+
+GET /api/locations/localities?cityId=&active=true
+  -> [{ _id, name, slug }]
+
+POST /api/locations/locality-request       [dealer auth]
+  body: { cityId, name, pincode, lat, lng }
+  -> creates Locality with status 'pending'
+  -> returns localityId (listing isse link ho sakti hai)
+
+
+LISTINGS
+--------
+GET /api/listings
+  query: city, locality, purpose, propertyType, bhk,
+         minPrice, maxPrice, furnishing, page, limit, sort
+  -> paginated, only status='approved'
+
+GET /api/listings/[id]
+
+POST /api/listings                          [dealer auth]
+  -> validates with Zod
+  -> generates slug
+  -> status = 'pending' (ya 'pending-location' agar
+     locality pending hai)
+  -> sets lastRefreshedAt = now, expiresAt = now + 30d
+
+PATCH /api/listings/[id]                    [dealer auth, owner]
+  -> slug NEVER regenerated
+
+POST /api/listings/[id]/refresh             [dealer auth, owner]
+  -> lastRefreshedAt = now
+  -> expiresAt = now + 30d
+  -> status: 'expired' -> 'approved'
+
+DELETE /api/listings/[id]                   [dealer auth, owner]
+  -> soft delete (status = 'deleted')
+
+
+DEALERS
+-------
+GET  /api/dealers/[id]                      public profile
+PATCH /api/dealers/[id]                     [dealer auth, self]
+POST /api/dealers/[id]/documents            [dealer auth, self]
+POST /api/dealers/[id]/verify               [admin auth]
+  body: { tier, notes }
+
+
+LEADS
+-----
+GET   /api/leads                            [dealer auth]
+  -> only assignedDealerId === self
+PATCH /api/leads/[id]                       [dealer auth]
+  -> status, dealerNotes only
+GET   /api/leads/unmatched                  [admin auth]
+POST  /api/leads/[id]/assign                [admin auth]
+
+
+UPLOAD
+------
+POST /api/upload/signature                  [auth]
+  body: { folder, resourceType }
+  -> returns Cloudinary signed params
+  -> client uploads directly to Cloudinary
+
+
+WHATSAPP
+--------
+GET  /api/whatsapp/webhook                  Meta verification
+POST /api/whatsapp/webhook                  incoming messages
+  -> verify X-Hub-Signature-256
+  -> ALWAYS return 200 fast, process async
+
+
+================================================================
+SECTION 8: AUTH & AUTHORIZATION
+================================================================
+
+DEALER OTP FLOW
+---------------
+1. POST send-otp
+   - generate 6-digit OTP
+   - store in Redis/Mongo with 10 min TTL
+   - send via WhatsApp template 'login_otp'
+   - rate limit 3/10min per phone
+
+2. POST verify-otp
+   - match OTP
+   - if dealer doesn't exist -> create with status 'active',
+     verificationTier 0
+   - sign JWT { dealerId, role: 'dealer' }
+   - httpOnly, secure, sameSite lax, 30 days
+
+MIDDLEWARE RULES
+----------------
+/dealer/*  -> requires role 'dealer'
+/admin/*   -> requires role 'admin'
+/api/*     -> per-route check
+
+OWNERSHIP CHECK
+---------------
+Listing edit/delete: listing.dealerId === session.dealerId
+Lead read/update:    lead.assignedDealerId === session.dealerId
+
+NEVER trust client-sent dealerId. Always session se lo.
+
+
+================================================================
+SECTION 9: PAGE ROUTES & RENDERING
+================================================================
+
+/                          ISR 3600   city selector + featured
+/[city]                    ISR 3600   generateStaticParams:
+                                      only isActive cities
+/[city]/[locality]         ISR 3600   only isActive localities
+/[city]/[locality]/[filter] ISR 3600  filter segment parsing
+/property/[slug]           ISR 3600
+/dealer/[slug]             ISR 3600
+/blog, /blog/[slug]        ISR 3600
+/dealer/*                  dynamic, no cache
+/admin/*                   dynamic, no cache
+
+
+FILTER SEGMENT PARSING
+----------------------
+Third segment ko parse karna hai. Supported patterns:
+
+  flats                        -> propertyType
+  plots                        -> propertyType
+  3-bhk-flats                  -> bhk + propertyType
+  flats-for-rent               -> propertyType + purpose
+  3-bhk-flats-for-rent         -> bhk + propertyType + purpose
+  flats-under-50-lakh          -> propertyType + maxPrice
+  furnished-flats-for-rent     -> furnishing + type + purpose
+
+Implementation:
+  - Ek FILTER_PATTERNS registry banao (regex array)
+  - Match na ho -> notFound()
+  - IMPORTANT: unmatched pattern pe 404 do, warna
+    infinite junk URLs index ho jayenge
+
+
+404 / EMPTY STATE RULES
+-----------------------
+- City isActive false           -> 404
+- Locality isActive false       -> 404
+- Locality me 0 approved listing -> 404 (page render mat karo)
+- Listing expired                -> 301 to locality page
+- Listing deleted                -> 410 Gone
+
+
+================================================================
+SECTION 10: SEO IMPLEMENTATION
+================================================================
+
+METADATA (generateMetadata per route)
+-------------------------------------
+City page:
+  title: "{City} me Property - Flats, Plots aur Ghar |
+          {Brand}"
+  description: "{City} me {count}+ verified property
+          listings. {locality1}, {locality2} aur aur
+          bhi areas me flats, plots aur ghar."
+
+Locality page:
+  title: "{Locality}, {City} me {Type} - {count} Listings"
+  description: "{Locality} {City} me {count} verified
+          {type}. Rate Rs {min} se Rs {max}. Direct
+          WhatsApp pe details."
+
+Property page:
+  title: "{bhk} BHK {type} for {purpose} in {locality},
+          {city} - Rs {price}"
+  description: first 155 chars of description
+
+RULES:
+  - title 55-60 chars target
+  - description 150-160 chars
+  - canonical = absolute URL, always self-referencing
+  - openGraph image = cover photo
+
+
+JSON-LD (lib/seo/jsonld.ts)
+---------------------------
+Property page:
+  - RealEstateListing
+  - Product + Offer (price, availability)
+  - BreadcrumbList (Home > City > Locality > Property)
+
+Locality page:
+  - BreadcrumbList
+  - FAQPage (from locality.faq)
+  - ItemList (listings)
+
+City page:
+  - BreadcrumbList
+  - FAQPage
+
+Dealer profile:
+  - LocalBusiness (with aggregateRating if ratingCount > 0)
+
+Home:
+  - Organization
+  - WebSite + SearchAction
+
+
+SITEMAP INDEX
+-------------
+/sitemap.xml (app/sitemap.ts) returns index:
+  - /sitemap/[city].xml   for each isActive city
+  - /sitemap/blogs.xml
+  - /sitemap/static.xml
+
+Per-city sitemap includes:
+  - city page
+  - all isActive localities
+  - all valid filter combinations that have >= 3 listings
+  - all approved listings in that city
+  - all dealers with coverage in that city
+
+RULES:
+  - max 50,000 URL per file - agar cross ho to
+    /sitemap/[city]-2.xml me split karo
+  - lastModified = actual updatedAt
+  - changeFrequency: listing 'daily', locality 'weekly',
+    city 'weekly'
+  - ONLY isActive cities. Inactive city ka koi URL nahi.
+
+
+ROBOTS.TXT
+----------
+  Allow: /
+  Disallow: /dealer/
+  Disallow: /admin/
+  Disallow: /api/
+  Sitemap: {SITE_URL}/sitemap.xml
+
+NOTE: /dealer/[slug] public profile hai, /dealer/dashboard
+      private. Route group alag rakho taaki disallow me
+      confusion na ho. Public profile ko /agent/[slug]
+      rakhna behtar hoga.
+
+
+CORE WEB VITALS
+---------------
+  - next/image everywhere, explicit width/height
+  - Cover photo: priority={true}
+  - Baaki photos: loading="lazy"
+  - Map: dynamic import, ssr:false, load on scroll
+  - Fonts: next/font, display swap
+  - Target: LCP < 2.5s, CLS < 0.1, INP < 200ms
+
+
+THIN PAGE GUARD (build me enforce karo)
+---------------------------------------
+generateStaticParams me filter lagao:
+  - City: listingCount >= 25 AND dealerCount >= 5
+  - Locality: listingCount >= 3
+  - Filter page: matching listings >= 3
+
+Ye rule code me hard-coded hona chahiye, manual nahi.
+
+
+================================================================
+SECTION 11: WHATSAPP + AI INTEGRATION
+================================================================
+
+CTA LINK FORMAT (listing card / property page)
+----------------------------------------------
+https://wa.me/{PORTAL_NUMBER}?text={encoded}
+
+encoded text:
+  "Hi, mujhe ye property dekhni hai:
+   {title}
+   {SITE_URL}/property/{slug}
+   [Ref: {listingId}]"
+
+  - listingId chhupa hua ref hai
+  - AI isse listing identify karega
+
+
+WEBHOOK FLOW
+------------
+POST /api/whatsapp/webhook
+
+1. Verify X-Hub-Signature-256 (HMAC SHA256 with APP_SECRET)
+   -> fail = 403
+2. Return 200 IMMEDIATELY (Meta 20s me timeout karta hai)
+3. Process async:
+
+   a. Extract: from, messageId, text, profileName
+   b. Upsert Conversation by phone
+   c. Append message, set windowExpiresAt = now + 24h
+   d. Parse "[Ref: xxx]" from message
+      -> if found: listingId mil gaya
+   e. Forward to n8n:
+
+      POST {N8N_WEBHOOK_URL}
+      {
+        phone, profileName, message, messageId,
+        listingId,              // null if generic
+        listingContext: {       // if listingId present
+          title, price, bhk, propertyType,
+          locality, city, area, furnishing,
+          possessionStatus, amenities
+        },
+        conversationHistory: [last 10 messages],
+        existingLead: { ...lead } | null
+      }
+
+   f. n8n returns:
+      {
+        reply: "text to send",
+        extracted: {
+          name, purpose, propertyType, bhk,
+          budgetMin, budgetMax, timeline,
+          loanRequired, cityName, localityName,
+          siteVisitSlot
+        },
+        qualificationScore: 0-100,
+        isQualified: boolean,
+        stage: 'greeting'|'qualifying'|'qualified'|'closing'
+      }
+
+   g. Send reply via Cloud API
+   h. Upsert Lead with extracted fields
+   i. If isQualified === true AND lead.assignedDealerId
+      is null -> run routing (Section 12)
+
+
+SENDING MESSAGES
+----------------
+Inside 24h window  -> free-form message
+Outside 24h window -> approved template only
+
+Templates needed:
+  login_otp              (utility)
+  lead_assigned          (utility) - dealer ko
+  listing_expiry_warning (utility) - dealer ko, day 25
+  site_visit_reminder    (utility) - buyer ko
+  review_request         (utility) - buyer ko, visit ke baad
+  followup_nudge         (marketing) - dormant lead
+
+
+RATE LIMIT & RETRY
+------------------
+  - Cloud API: exponential backoff on 429/5xx
+  - Max 3 retries
+  - Failed messages -> dead letter collection, admin dashboard
+
+
+================================================================
+SECTION 12: LEAD ROUTING ALGORITHM (CORE)
+================================================================
+
+File: /lib/leads/routing.ts
+
+RULE 1: Ek lead ek hi dealer ko. isLocked = true.
+        Kabhi reassign nahi (admin override chhod ke).
+
+
+function routeLead(lead):
+
+  // CASE A: listing-based lead
+  if (lead.listingId) {
+      listing = getListing(lead.listingId)
+      dealer  = getDealer(listing.dealerId)
+
+      if (dealer.status !== 'active')
+          -> unmatched queue
+      if (dealer.leadsUsedThisMonth >= dealer.maxLeadsPerMonth)
+          -> mark lead 'quota-exceeded', admin queue,
+             notify dealer to upgrade
+      else
+          -> assign(lead, dealer)
+      return
+  }
+
+  // CASE B: generic lead
+  candidates = Dealer.find({
+      status: 'active',
+      coverageCities: lead.cityId,
+      $expr: { $lt: ['$leadsUsedThisMonth',
+                     '$maxLeadsPerMonth'] }
+  })
+
+  // narrow by locality if known
+  if (lead.localityId) {
+      localityMatch = candidates.filter(d =>
+          d.coverageLocalities.includes(lead.localityId))
+      if (localityMatch.length > 0)
+          candidates = localityMatch
+  }
+
+  if (candidates.length === 0)
+      -> lead.status = 'unmatched'
+      -> admin queue
+      -> THIS IS A SALES SIGNAL: us city me dealer chahiye
+      return
+
+  // ranking
+  sort candidates by:
+      1. verificationTier   DESC
+      2. rating             DESC
+      3. lastAssignedAt     ASC     // round robin fairness
+
+  assign(lead, candidates[0])
+
+
+function assign(lead, dealer):
+  lead.assignedDealerId = dealer._id
+  lead.assignedAt       = now
+  lead.isLocked         = true
+  lead.status           = 'assigned'
+  save
+
+  dealer.leadsUsedThisMonth += 1
+  dealer.totalLeadsReceived += 1
+  dealer.lastAssignedAt      = now
+  save
+
+  if (lead.listingId)
+      listing.leadCount += 1
+
+  sendWhatsAppTemplate(dealer.phone, 'lead_assigned', {
+      name, phone, budget, locality, timeline
+  })
+
+
+QUOTA RESET (cron, daily 00:05 IST)
+-----------------------------------
+  Dealers where quotaResetAt <= now:
+      leadsUsedThisMonth = 0
+      quotaResetAt = now + 30 days
+
+
+================================================================
+SECTION 13: BUSINESS RULES (AUTHORITATIVE)
+================================================================
+
+LISTING LIFECYCLE
+-----------------
+  draft  -> dealer form incomplete
+  pending -> submitted, admin review pending
+  pending-location -> locality approval pending
+  approved -> live on public site
+  rejected -> admin rejected, reason stored
+  expired  -> 30 days without refresh
+  deleted  -> soft deleted
+
+Transitions:
+  draft -> pending           dealer submit
+  pending -> approved        admin approve
+  pending -> rejected        admin reject
+  pending-location -> pending   admin approves locality
+  approved -> expired        cron, expiresAt < now
+  expired -> approved        dealer refresh
+  any -> deleted             dealer/admin delete
+
+
+EXPIRY CRON (daily 02:00 IST)
+-----------------------------
+  1. status='approved' AND expiresAt < now
+     -> status = 'expired'
+     -> recalculate locality.listingCount
+     -> recalculate city.listingCount
+     -> if locality.listingCount < 3 -> locality.isActive = false
+     -> if city.listingCount < 25 -> DO NOT auto-deactivate
+        city (manual decision), but alert admin
+
+  2. expiresAt within 5 days AND status='approved'
+     -> send 'listing_expiry_warning' template
+
+
+CITY ACTIVATION (admin manual, with guard)
+------------------------------------------
+  Admin can set isActive = true ONLY IF:
+      approvedListingCount >= 25
+      verifiedDealerCount  >= 5   (tier >= 1)
+      activeLocalityCount  >= 3
+
+  API me ye check enforce karo, UI pe bharosa mat karo.
+
+
+LOCALITY ACTIVATION (automatic)
+-------------------------------
+  isActive = true when:
+      status === 'approved'
+      AND introText.length >= 500 chars
+      AND approvedListingCount >= 3
+
+  Recalculate on every listing approve/expire.
+
+
+VERIFICATION TIER RULES
+-----------------------
+  Tier 0: default
+  Tier 1: pan.verified AND aadhaar.verified
+  Tier 2: Tier 1 AND (gst.verified OR udyam.verified)
+  Tier 3: Tier 2 AND rera.verified
+  Tier 4: Tier 3 AND officePhoto.verified
+          AND totalSiteVisits >= 5
+          AND rating >= 4.0
+
+  Tier compute automatic ho, par admin manually
+  downgrade kar sake.
+
+  Tier 0 dealer ki listing NEVER goes live.
+
+
+RATING RULES
+------------
+  - Review only from Lead where status === 'site-visit-done'
+  - One review per lead
+  - dealer.rating = average of all reviewComment ratings
+  - If rating < 3.0 AND ratingCount >= 5
+    -> dealer.status = 'paused', no new leads
+    -> admin alert
+
+
+PRIVACY RULES (hard)
+--------------------
+  NEVER expose publicly:
+      listing.fullAddress
+      dealer.phone
+      dealer.email
+      dealer.documents.*
+      lead.* (except to assigned dealer)
+
+  Public dealer profile shows only:
+      businessName, slug, profilePhoto, verificationTier,
+      rating, ratingCount, coverage city names,
+      listing count, avgResponseMinutes
+
+
+VALIDATION RULES
+----------------
+  - description >= 100 chars
+  - photos >= 3
+  - Sale: expectedPrice required
+  - Rent: monthlyRent required
+  - possessionStatus 'under-construction' -> reraNumber
+    AND reraStateId required
+  - propertyType 'plot' -> bhk, bathrooms, floor not allowed
+  - lat/lng must be within city bounding box (sanity check)
+
+
+================================================================
+SECTION 14: MEDIA PIPELINE
+================================================================
+
+UPLOAD FLOW
+-----------
+1. Client -> POST /api/upload/signature
+   { folder: "listings/{cityslug}/{localityslug}",
+     resourceType: "image" }
+2. Server returns signed params (timestamp, signature)
+3. Client uploads DIRECTLY to Cloudinary
+4. Client sends back { url, publicId, width, height }
+5. Server saves to listing.photos
+
+Never proxy the file through your server.
+
+
+TRANSFORMATIONS
+---------------
+  Card thumbnail: w_400,h_300,c_fill,g_auto,f_auto,q_auto
+  Gallery:        w_1200,h_900,c_fill,g_auto,f_auto,q_auto
+  OG image:       w_1200,h_630,c_fill,g_auto,f_auto
+
+  Upload validation:
+    - min width 1200px (reject smaller)
+    - max 5MB per image
+    - allowed: jpg, jpeg, png, webp
+
+
+VIDEO
+-----
+  - max 50MB, max 60 seconds
+  - Cloudinary eager transform to HLS
+  - Player: muted, playsInline, controls, NOT autoplay
+    on mobile data
+
+
+================================================================
+SECTION 15: ADMIN OPERATIONS
+================================================================
+
+DASHBOARD WIDGETS
+-----------------
+  - Pending listings count (action required)
+  - Pending locality requests
+  - Pending dealer verifications
+  - Unmatched leads (BY CITY - ye sales signal hai)
+  - Listings expiring in 7 days
+  - City readiness table: city | listings | dealers |
+    localities | can activate?
+
+LISTING REVIEW SCREEN
+---------------------
+  - Photos gallery
+  - All fields
+  - Dealer info + tier
+  - Actions: Approve / Reject (reason required) /
+    Mark documents checked / Mark photos verified
+
+LOCATION MANAGER
+----------------
+  - Pending locality requests queue
+  - Approve -> generate slug, write introText (required),
+    write FAQ
+  - City activation with guard check
+
+
+================================================================
+SECTION 16: ERROR HANDLING & OBSERVABILITY
+================================================================
+
+  - Sentry for exceptions
+  - All API routes wrapped in try/catch, return
+    structured error
+  - WhatsApp webhook: NEVER throw, always 200
+  - Failed n8n calls -> retry queue collection
+  - Log every lead assignment (audit trail collection)
+  - Rate limit: 100 req/min per IP on public API,
+    10 req/min on OTP
+
+
+================================================================
+SECTION 17: ACCEPTANCE CRITERIA PER PHASE
+================================================================
+
+PHASE 0 - Setup
+  [ ] Next.js app deploys to Vercel
+  [ ] MongoDB connects
+  [ ] Tailwind + shadcn working
+  [ ] TypeScript strict, no errors
+
+PHASE 1 - Location system
+  [ ] 3 schemas created with indexes
+  [ ] Seed script imports India Post dataset
+  [ ] Collision handling verified (Aurangabad test case)
+  [ ] Cascading dropdown API returns correct data
+  [ ] Admin can approve locality request
+  [ ] City activation guard rejects premature activation
+
+PHASE 2 - Data layer + admin
+  [ ] All 8 models with indexes
+  [ ] Admin login works
+  [ ] Admin can create/approve/reject listing
+  [ ] Cloudinary upload works
+  [ ] Counters (listingCount) update correctly
+
+PHASE 3 - Public site + SEO
+  [ ] All page routes render
+  [ ] generateStaticParams excludes inactive cities
+  [ ] Filter segment parsing works, unmatched -> 404
+  [ ] Thin page guard enforced
+  [ ] Sitemap index + per-city sitemaps valid XML
+  [ ] All JSON-LD validates in Rich Results Test
+  [ ] Lighthouse: Performance > 90, SEO 100
+  [ ] Canonical tags correct on every page
+
+PHASE 4 - Dealer panel
+  [ ] WhatsApp OTP login works
+  [ ] 8-step form saves draft between steps
+  [ ] Cascading location dropdown works
+  [ ] Map pin drop saves lat/lng
+  [ ] Request-new-locality flow works
+  [ ] Photo upload with preview and reorder
+  [ ] Ownership check: dealer cannot edit others' listing
+
+PHASE 5 - WhatsApp + AI + leads
+  [ ] Webhook signature verification works
+  [ ] Webhook returns 200 within 1s
+  [ ] listingId parsed from Ref tag
+  [ ] n8n round-trip works
+  [ ] Lead created and qualified
+  [ ] Routing assigns to correct dealer
+  [ ] Quota enforced
+  [ ] Lead locked - cannot be reassigned
+  [ ] Unmatched leads reach admin queue
+
+PHASE 6 - Trust layer
+  [ ] Tier auto-computed from documents
+  [ ] Badges render on listing and dealer profile
+  [ ] Expiry cron marks listings expired
+  [ ] Expiry warning template sends on day 25
+  [ ] Review only from site-visit-done leads
+  [ ] Rating < 3.0 pauses dealer
+
+PHASE 7 - Billing
+  [ ] Razorpay subscription create
+  [ ] Webhook updates plan and quota
+  [ ] Quota enforcement on routing
+  [ ] Invoice generated
+
+PHASE 8 - Polish
+  [ ] EMI calculator
+  [ ] State-wise stamp duty calculator
+  [ ] Price trend chart
+  [ ] City expansion dashboard
+
+
+================================================================
+SECTION 18: BUILD ORDER SUMMARY
+================================================================
+
+P0  Setup                     2-3 runs
+P1  Location system           4-5 runs   <- FOUNDATION
+P2  Data layer + admin        6-8 runs
+P3  Public site + SEO        14-17 runs  <- BIGGEST
+P4  Dealer panel              9-11 runs
+P5  WhatsApp + AI + leads     9-11 runs
+P6  Trust layer               5-7 runs
+P7  Billing                   4-5 runs
+P8  Polish + growth           6-9 runs
+                             ----------
+                             59-76 runs
+
+HARD RULES:
+  1. P1 se pehle kuch aur mat banao
+  2. P3 ke baad turant 25-30 real listing daalo aur
+     Ranchi activate karo
+  3. P7 sabse aakhir
+  4. Har phase ke acceptance criteria pass hone ke
+     baad hi agla phase
+
+================================================================
