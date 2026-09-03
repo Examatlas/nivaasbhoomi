@@ -14,12 +14,16 @@
     "check": "npm run typecheck && npm run lint && npm run format:check",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "seed:locations": "tsx src/scripts/seed-locations.ts",
-    "db:test": "tsx src/scripts/test-db.ts"
+    "db:test": "tsx src/scripts/test-db.ts",
+    "admin:hash": "tsx src/scripts/hash-password.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.11.0",
     "clsx": "^2.1.1",
+    "jose": "^6.2.10",
     "lucide-react": "^1.40.0",
     "mongoose": "^9.9.4",
     "next": "16.3.4",
@@ -34,6 +38,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^26.4.1",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",

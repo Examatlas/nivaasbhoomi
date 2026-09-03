@@ -11,7 +11,7 @@ import { parseListQuery, paginated, escapeRegExp } from "@/lib/api/pagination";
  * Searchable, paginated list of states for the admin location manager.
  */
 export const GET = withErrorHandling(async (req: NextRequest) => {
-  const auth = requireAdmin();
+  const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
 
   await connectDB();

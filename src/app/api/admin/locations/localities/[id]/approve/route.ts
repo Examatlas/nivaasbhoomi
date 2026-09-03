@@ -23,7 +23,7 @@ export const POST = withErrorHandling(
     _req: NextRequest,
     ctx: RouteContext<"/api/admin/locations/localities/[id]/approve">,
   ) => {
-    const auth = requireAdmin();
+    const auth = await requireAdmin();
     if ("error" in auth) return auth.error;
 
     const { id } = await ctx.params;

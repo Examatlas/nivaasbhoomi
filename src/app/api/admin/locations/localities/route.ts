@@ -15,7 +15,7 @@ import { parseListQuery, paginated, escapeRegExp } from "@/lib/api/pagination";
  * `cityId` scope is strongly encouraged.
  */
 export const GET = withErrorHandling(async (req: NextRequest) => {
-  const auth = requireAdmin();
+  const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
 
   await connectDB();

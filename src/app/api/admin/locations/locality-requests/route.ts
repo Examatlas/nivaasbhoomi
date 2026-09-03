@@ -16,7 +16,7 @@ import { parseListQuery, paginated, escapeRegExp } from "@/lib/api/pagination";
  * context without an extra lookup.
  */
 export const GET = withErrorHandling(async (req: NextRequest) => {
-  const auth = requireAdmin();
+  const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
 
   await connectDB();

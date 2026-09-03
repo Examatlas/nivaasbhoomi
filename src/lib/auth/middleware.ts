@@ -1,58 +1,82 @@
+import { cookies } from "next/headers";
+
 import { fail } from "@/lib/api/response";
+import { verifySession } from "@/lib/auth/jwt";
+import { ADMIN_COOKIE, DEALER_COOKIE } from "@/lib/auth/cookie";
 
 /**
- * AUTH STUBS - Phase 1 placeholder.
+ * Server-side auth guards for route handlers (DEV-SPEC.txt Section 8).
  *
- * Real auth arrives later: dealer WhatsApp-OTP + JWT cookie in Phase 4, admin
- * email/password + JWT cookie in Phase 2 (DEV-SPEC.txt Section 8). Until then
- * these functions stand in for the real guards so routes can be written against
- * a stable interface and simply have their bodies swapped later.
+ * Admin auth is REAL: the guard reads the httpOnly session cookie and verifies
+ * the JWT. Role and id come only from the verified token - never from anything
+ * the client sends ("NEVER trust client-sent dealerId. Always session se lo").
  *
- * SAFETY: in production these DENY by default (return an UNAUTHORIZED response),
- * so nothing dealer- or admin-gated is ever exposed on a real deployment before
- * auth is wired. In development they allow through with a stub identity so the
- * admin location manager and the locality-request flow are usable now.
+ * Dealer auth is Phase 4. requireDealer already verifies a real dealer cookie
+ * when one is present; until dealer login exists it falls back to a dev-only
+ * stub so the locality-request flow stays testable in development, and denies in
+ * production.
  *
- * Each returns either an identity object (authorized) or a NextResponse error
- * (blocked) - callers check with `if ("error" in result) return result.error`.
+ * Each guard returns either { identity } (authorized) or { error } (a ready
+ * NextResponse) - callers do `if ("error" in r) return r.error;`.
  */
-
-const isDev = process.env.NODE_ENV !== "production";
-
-export interface DealerIdentity {
-  dealerId: string | null; // null in the dev stub - no dealers exist yet
-  role: "dealer";
-}
 
 export interface AdminIdentity {
   adminId: string;
   role: "admin";
 }
 
+export interface DealerIdentity {
+  dealerId: string | null;
+  role: "dealer";
+}
+
 type Guarded<T> = { identity: T } | { error: ReturnType<typeof fail> };
 
-/**
- * Dealer guard. Wire to JWT-cookie verification in Phase 4.
- * TODO(phase-4): read the httpOnly JWT, verify it, load the dealer.
- */
-export function requireDealer(): Guarded<DealerIdentity> {
-  if (isDev) {
-    return { identity: { dealerId: null, role: "dealer" } };
+const isDev = process.env.NODE_ENV !== "production";
+
+/** Verified admin identity from the session cookie, or null. */
+export async function getAdminSession(): Promise<AdminIdentity | null> {
+  const token = (await cookies()).get(ADMIN_COOKIE)?.value;
+  const claims = await verifySession(token);
+  if (!claims || claims.role !== "admin") return null;
+  return { adminId: claims.adminId, role: "admin" };
+}
+
+export async function requireAdmin(): Promise<Guarded<AdminIdentity>> {
+  const identity = await getAdminSession();
+  if (!identity) {
+    return { error: fail("UNAUTHORIZED", "Admin authentication required.") };
   }
-  return {
-    error: fail("UNAUTHORIZED", "Dealer authentication is not available yet."),
-  };
+  return { identity };
+}
+
+/** Verified dealer identity from the session cookie, or null (Phase 4). */
+export async function getDealerSession(): Promise<DealerIdentity | null> {
+  const token = (await cookies()).get(DEALER_COOKIE)?.value;
+  const claims = await verifySession(token);
+  if (!claims || claims.role !== "dealer") return null;
+  return { dealerId: claims.dealerId, role: "dealer" };
+}
+
+export async function requireDealer(): Promise<Guarded<DealerIdentity>> {
+  const identity = await getDealerSession();
+  if (identity) return { identity };
+  // Phase-4 fallback: dev stub keeps the locality-request flow usable.
+  if (isDev) return { identity: { dealerId: null, role: "dealer" } };
+  return { error: fail("UNAUTHORIZED", "Dealer authentication is not available yet.") };
 }
 
 /**
- * Admin guard. Wire to admin JWT-cookie verification in Phase 2.
- * TODO(phase-2): read the httpOnly JWT, verify it carries the admin role.
+ * Upload signature is available to any authenticated user (admin now, dealer in
+ * Phase 4). Returns the role so callers can shape the upload folder if needed.
  */
-export function requireAdmin(): Guarded<AdminIdentity> {
-  if (isDev) {
-    return { identity: { adminId: "dev-admin", role: "admin" } };
-  }
-  return {
-    error: fail("UNAUTHORIZED", "Admin authentication is not available yet."),
-  };
+export async function requireUploader(): Promise<
+  Guarded<AdminIdentity | DealerIdentity>
+> {
+  const admin = await getAdminSession();
+  if (admin) return { identity: admin };
+  const dealer = await getDealerSession();
+  if (dealer) return { identity: dealer };
+  if (isDev) return { identity: { dealerId: null, role: "dealer" } };
+  return { error: fail("UNAUTHORIZED", "Authentication required to upload.") };
 }

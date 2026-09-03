@@ -12,7 +12,7 @@ import { parseListQuery, paginated, escapeRegExp } from "@/lib/api/pagination";
  * Searchable, paginated city browser. Server-side only - never loads all cities.
  */
 export const GET = withErrorHandling(async (req: NextRequest) => {
-  const auth = requireAdmin();
+  const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
 
   await connectDB();

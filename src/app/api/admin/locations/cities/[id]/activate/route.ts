@@ -27,7 +27,7 @@ export const POST = withErrorHandling(
     req: NextRequest,
     ctx: RouteContext<"/api/admin/locations/cities/[id]/activate">,
   ) => {
-    const auth = requireAdmin();
+    const auth = await requireAdmin();
     if ("error" in auth) return auth.error;
 
     const { id } = await ctx.params;
@@ -76,7 +76,7 @@ export const GET = withErrorHandling(
     _req: NextRequest,
     ctx: RouteContext<"/api/admin/locations/cities/[id]/activate">,
   ) => {
-    const auth = requireAdmin();
+    const auth = await requireAdmin();
     if ("error" in auth) return auth.error;
 
     const { id } = await ctx.params;

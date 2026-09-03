@@ -27,7 +27,7 @@ const patchSchema = z.object({
  */
 export const GET = withErrorHandling(
   async (_req: NextRequest, ctx: RouteContext<"/api/admin/locations/cities/[id]">) => {
-    const auth = requireAdmin();
+    const auth = await requireAdmin();
     if ("error" in auth) return auth.error;
 
     const { id } = await ctx.params;
@@ -72,7 +72,7 @@ export const GET = withErrorHandling(
  */
 export const PATCH = withErrorHandling(
   async (req: NextRequest, ctx: RouteContext<"/api/admin/locations/cities/[id]">) => {
-    const auth = requireAdmin();
+    const auth = await requireAdmin();
     if ("error" in auth) return auth.error;
 
     const { id } = await ctx.params;

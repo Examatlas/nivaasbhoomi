@@ -39,7 +39,7 @@ const bodySchema = z.object({
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
   // Dealer-gated (stubbed until Phase 4). Denies in production, dev stub allows.
-  const auth = requireDealer();
+  const auth = await requireDealer();
   if ("error" in auth) return auth.error;
 
   let json: unknown;
