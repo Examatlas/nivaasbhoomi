@@ -352,10 +352,18 @@ async function main() {
   }
 
   // --- 3. Localities (slug unique WITHIN city; pincodes merged) ---
-  // Per-city used-slug sets, seeded from existing DB localities.
-  const usedLocSlugByCity = new Map<string, Set<string>>();
-  for (const l of await Locality.find({}, { slug: 1, cityId: 1 }).lean()) {
+  // A locality's stable identity is (cityId, name) - the slug can drift between
+  // runs because its collision suffix depends on what is already in the DB. So
+  // we upsert on (cityId, name) and REUSE an existing locality's slug rather
+  // than generating a fresh (suffixed) one. This is what makes re-seeding truly
+  // idempotent: a second run matches by name and merges pincodes instead of
+  // inserting "adalahatu-2".
+  const existingSlugByCityName = new Map<string, Map<string, string>>(); // cityKey -> (name -> slug)
+  const usedLocSlugByCity = new Map<string, Set<string>>(); // cityKey -> slugs in use
+  for (const l of await Locality.find({}, { name: 1, slug: 1, cityId: 1 }).lean()) {
     const key = String(l.cityId);
+    if (!existingSlugByCityName.has(key)) existingSlugByCityName.set(key, new Map());
+    existingSlugByCityName.get(key)!.set(l.name, l.slug);
     if (!usedLocSlugByCity.has(key)) usedLocSlugByCity.set(key, new Set());
     usedLocSlugByCity.get(key)!.add(l.slug);
   }
@@ -379,14 +387,23 @@ async function main() {
     if (!usedLocSlugByCity.has(cityKey)) usedLocSlugByCity.set(cityKey, new Set());
     const used = usedLocSlugByCity.get(cityKey)!;
 
-    const slug = generateLocalitySlug(l.name, (s) => used.has(s));
-    used.add(slug);
+    // Reuse the existing slug if this (city, name) is already seeded; otherwise
+    // generate a fresh unique-within-city slug and reserve it.
+    const existingSlug = existingSlugByCityName.get(cityKey)?.get(l.name);
+    let slug: string;
+    if (existingSlug) {
+      slug = existingSlug;
+    } else {
+      slug = generateLocalitySlug(l.name, (s) => used.has(s));
+      used.add(slug);
+    }
 
     const pincodes = [...l.pincodes].sort();
 
     localityOps.push({
       updateOne: {
-        filter: { cityId, slug },
+        // Identity is (cityId, name) - NOT slug, which can differ between runs.
+        filter: { cityId, name: l.name },
         update: {
           // Immutable identity + activation state only set on insert.
           $setOnInsert: {

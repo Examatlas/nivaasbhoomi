@@ -62,6 +62,11 @@ const localitySchema = new Schema(
 
 // Section 5 indexes.
 localitySchema.index({ cityId: 1, slug: 1 }, { unique: true }); // scoped uniqueness
+// A locality's true identity is (cityId, name). This unique index enforces it
+// structurally, so a re-run of the seed (or any code path) can never insert a
+// second document for the same locality under a drifted slug like
+// "adalahatu-2" - the class of bug that duplicated the whole collection once.
+localitySchema.index({ cityId: 1, name: 1 }, { unique: true });
 localitySchema.index({ cityId: 1, isActive: 1 }); // active-locality lookups
 
 export type LocalityDoc = InferSchemaType<typeof localitySchema>;

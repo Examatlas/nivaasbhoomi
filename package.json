@@ -15,7 +15,8 @@
     "test": "tsx --test \"src/**/*.test.ts\"",
     "seed:locations": "tsx src/scripts/seed-locations.ts",
     "db:test": "tsx src/scripts/test-db.ts",
-    "admin:hash": "tsx src/scripts/hash-password.ts"
+    "admin:hash": "tsx src/scripts/hash-password.ts",
+    "dedupe:localities": "tsx src/scripts/dedupe-localities.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
