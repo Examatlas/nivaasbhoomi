@@ -29,6 +29,7 @@
  * changes an assigned slug or undoes an admin activation. Bulk writes only.
  */
 
+import "@/scripts/load-env";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import Papa from "papaparse";

@@ -13,7 +13,8 @@
     "format:check": "prettier --check .",
     "check": "npm run typecheck && npm run lint && npm run format:check",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "seed:locations": "tsx src/scripts/seed-locations.ts"
+    "seed:locations": "tsx src/scripts/seed-locations.ts",
+    "db:test": "tsx src/scripts/test-db.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
