@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils/cn";
  * and listing meta (furnishing, freshness) all render through this so the
  * vocabulary of chips stays consistent across the site.
  *
- * As with Button, there is no green "success = whatsapp" variant. The `verified`
- * tone uses ink, not green, so green stays exclusively the WhatsApp action.
+ * The `verified` tone is a soft green *tint* with dark green text (not a solid
+ * fill) so it reads clearly at any size and stays visually distinct from the
+ * saturated WhatsApp-green CTA, which remains the only solid green on the site.
  */
 const badgeVariants = cva(
   "inline-flex items-center gap-1 rounded-full font-medium whitespace-nowrap [&_svg]:shrink-0",
@@ -18,7 +19,7 @@ const badgeVariants = cva(
         neutral: "border border-border bg-surface-muted text-sand-700",
         ink: "border border-ink-100 bg-ink-50 text-ink-800",
         clay: "border border-clay-100 bg-clay-50 text-clay-800",
-        verified: "border border-ink-900 bg-ink-900 text-primary-foreground",
+        verified: "border border-success-100 bg-success-50 text-success-700",
         success: "border border-success-100 bg-success-50 text-success-700",
         warning: "border border-warning-100 bg-warning-50 text-warning-700",
         danger: "border border-danger-100 bg-danger-50 text-danger-700",
