@@ -72,12 +72,39 @@ async function main() {
     });
   }
 
-  // Give the locality intro text (only if empty) so it can auto-activate.
-  if (!locality.introText || locality.introText.trim().length < 500) {
-    await Locality.updateOne(
-      { _id: locality._id },
-      { $set: { introText: LOCALITY_INTRO, status: "approved" } },
-    );
+  // Give the locality intro text + FAQs (only when missing) so it can
+  // auto-activate and exercise the FAQ accordion + FAQPage JSON-LD. Admin edits
+  // are preserved.
+  const needsIntro = !locality.introText || locality.introText.trim().length < 500;
+  const needsFaq = !locality.faq || locality.faq.length === 0;
+  if (needsIntro || needsFaq) {
+    const set: Record<string, unknown> = { status: "approved" };
+    if (needsIntro) set.introText = LOCALITY_INTRO;
+    if (needsFaq) {
+      set.faq = [
+        {
+          question: `What is the average property price in ${locality.name}, ${city.name}?`,
+          answer:
+            "Prices vary by configuration and society, but 2-3 BHK flats here " +
+            "typically range from the high-20s to mid-50s in lakhs, with independent " +
+            "houses and villas going higher. Use the listings above for current rates.",
+        },
+        {
+          question: `Is ${locality.name} a good area to buy property in ${city.name}?`,
+          answer:
+            "Kanke is a well-established, family-friendly pocket with good schools, " +
+            "hospitals and connectivity via Kanke Road. It offers a mix of flats, " +
+            "independent houses and plots at relatively approachable prices.",
+        },
+        {
+          question: "How do I contact the seller for a listing?",
+          answer:
+            "Every listing has a WhatsApp button - tap it to message the portal " +
+            "directly. There are no spam calls and no hidden phone numbers.",
+        },
+      ];
+    }
+    await Locality.updateOne({ _id: locality._id }, { $set: set });
   }
 
   const base = {
@@ -240,6 +267,73 @@ async function main() {
       priceNegotiable: true,
       brokerage: "No brokerage",
       photos: [photo("plot-land"), photo("land-plot"), photo("house-exterior")],
+      coverPhotoIndex: 0,
+    },
+    {
+      ...base,
+      purpose: "sale" as const,
+      propertyType: "flat" as const,
+      title: "Demo: Compact 2 BHK flat for sale near Kanke",
+      description:
+        "A smartly laid-out 2 BHK flat for sale in a friendly residential building near Kanke. Efficient use of " +
+        "space with a bright living room, a separate kitchen with utility, two bedrooms with wardrobes and a " +
+        "balcony. Covered parking, lift and power backup. Great value for a first home or a compact investment, " +
+        "close to markets, schools and the main road - clean paperwork and ready to register.",
+      lat: 23.4048,
+      lng: 85.3089,
+      bhk: "2",
+      bathrooms: 2,
+      balconies: 1,
+      carpetArea: 920,
+      builtUpArea: 1100,
+      floor: 3,
+      totalFloors: 6,
+      facing: "West",
+      ageOfProperty: "0-5 years",
+      furnishing: "unfurnished" as const,
+      amenities: ["Lift", "Power backup", "Covered parking"],
+      parking: "1 covered",
+      expectedPrice: 4_200_000,
+      priceNegotiable: true,
+      brokerage: "No brokerage",
+      maintenanceCharge: 1800,
+      photos: [
+        photo("apt-exterior"),
+        photo("bedroom"),
+        photo("kitchen"),
+        photo("living-room"),
+      ],
+      coverPhotoIndex: 0,
+    },
+    {
+      ...base,
+      purpose: "sale" as const,
+      propertyType: "flat" as const,
+      title: "Demo: Affordable 1 BHK starter flat near Kanke",
+      description:
+        "A budget-friendly 1 BHK flat for sale, ideal as a first home or a rental investment near Kanke. Neat, " +
+        "well-ventilated layout with a comfortable bedroom, a functional kitchen and a small balcony. The building " +
+        "has a lift, two-wheeler parking and reliable water and power. Walking distance to daily-needs shops and " +
+        "public transport on Kanke Road - low maintenance and easy to hold or let out.",
+      lat: 23.4059,
+      lng: 85.307,
+      bhk: "1",
+      bathrooms: 1,
+      balconies: 1,
+      carpetArea: 560,
+      builtUpArea: 680,
+      floor: 1,
+      totalFloors: 4,
+      facing: "South",
+      ageOfProperty: "5-10 years",
+      furnishing: "unfurnished" as const,
+      amenities: ["Lift", "Two-wheeler parking", "Water supply"],
+      parking: "1 two-wheeler",
+      expectedPrice: 2_800_000,
+      priceNegotiable: true,
+      brokerage: "No brokerage",
+      maintenanceCharge: 900,
+      photos: [photo("living-room2"), photo("bedroom"), photo("kitchen")],
       coverPhotoIndex: 0,
     },
   ];
