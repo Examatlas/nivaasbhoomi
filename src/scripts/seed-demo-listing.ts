@@ -64,12 +64,33 @@ async function main() {
       businessName: "Ranchi Prime Properties",
       phone: DEMO_PHONE,
       slug: "ranchi-prime-properties-demo",
+      coverageCities: [city._id],
+      coverageLocalities: [locality._id],
       documents: { pan: { verified: true }, aadhaar: { verified: true } },
       rating: 4.6,
       ratingCount: 23,
       avgResponseMinutes: 12,
       status: "active",
     });
+  }
+
+  // Backfill coverage on an already-seeded dealer so the /agent profile is
+  // reachable and appears in the city sitemap (idempotent).
+  if (
+    !(dealer.coverageCities ?? []).some((c) => String(c) === String(city._id))
+  ) {
+    dealer.coverageCities = [...(dealer.coverageCities ?? []), city._id];
+    if (
+      !(dealer.coverageLocalities ?? []).some(
+        (l) => String(l) === String(locality._id),
+      )
+    ) {
+      dealer.coverageLocalities = [
+        ...(dealer.coverageLocalities ?? []),
+        locality._id,
+      ];
+    }
+    await dealer.save();
   }
 
   // City intro + FAQ (only when missing) so the city page shows them + FAQPage.
