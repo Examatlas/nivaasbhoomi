@@ -15,6 +15,7 @@ import {
   formatPropertyType,
 } from "@/lib/utils/price";
 import { buildListingEnquiry } from "@/lib/utils/whatsapp";
+import { photoUrl } from "@/lib/media/transforms";
 import type { ListingCardData } from "@/types/listing";
 
 /**
@@ -45,6 +46,7 @@ export function PropertyCard({
   className?: string;
 }) {
   const {
+    id,
     slug,
     title,
     purpose,
@@ -70,10 +72,13 @@ export function PropertyCard({
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   const enquiryHref = buildListingEnquiry({
     phone: whatsappNumber,
+    listingId: id,
     title,
     slug,
     siteUrl,
   });
+  // Card thumbnail delivered via the Cloudinary card-thumb transform (S14).
+  const coverSrc = photo ? photoUrl(photo, "cardThumb") : null;
 
   const isPlot = propertyType === "plot";
   const trustCount =
@@ -97,10 +102,10 @@ export function PropertyCard({
         className="relative block aspect-[4/3] overflow-hidden bg-sand-200 outline-none"
         aria-label={title}
       >
-        {photo ? (
+        {coverSrc ? (
           <Image
-            src={photo.url}
-            alt={photo.alt ?? title}
+            src={coverSrc}
+            alt={photo?.alt ?? title}
             fill
             // Widths match the real column layout so we never download an
             // oversized image on a phone.

@@ -24,6 +24,8 @@ export type Furnishing = "furnished" | "semi-furnished" | "unfurnished";
 
 export interface ListingPhoto {
   url: string;
+  /** Cloudinary public id, when the photo is a Cloudinary asset. */
+  publicId?: string;
   width: number;
   height: number;
   alt?: string;

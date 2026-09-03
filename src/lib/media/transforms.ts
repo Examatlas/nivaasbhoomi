@@ -50,3 +50,24 @@ export function listingFolder(citySlug: string, localitySlug: string): string {
       .replace(/^-|-$/g, "");
   return `listings/${safe(citySlug)}/${safe(localitySlug)}`;
 }
+
+/**
+ * Resolve a delivery URL for a listing photo at a preset. Uses the Cloudinary
+ * transform when the photo has a publicId; falls back to the stored URL (e.g.
+ * local sample images) otherwise.
+ */
+export function photoUrl(
+  photo: { url: string; publicId?: string },
+  preset: CloudinaryPreset,
+): string {
+  return photo.publicId ? cloudinaryUrl(photo.publicId, preset) : photo.url;
+}
+
+/** OG image for a listing (1200x630), from its cover photo. */
+export function ogImageUrl(photo?: {
+  url: string;
+  publicId?: string;
+}): string | undefined {
+  if (!photo) return undefined;
+  return photo.publicId ? cloudinaryUrl(photo.publicId, "ogImage") : photo.url;
+}
