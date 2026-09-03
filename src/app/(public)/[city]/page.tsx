@@ -19,6 +19,7 @@ import { formatPrice, formatRent } from "@/lib/utils/price";
 
 import { JsonLd } from "@/components/shared/json-ld";
 import { ListingGrid } from "@/components/public/listing-grid";
+import { CityFilters } from "@/components/public/city-filters";
 import { FaqAccordion } from "@/components/public/faq-accordion";
 import type { ListingCardData } from "@/types/listing";
 
@@ -138,6 +139,13 @@ export default async function CityPage({ params }: PageProps<"/[city]">) {
               />
             )}
           </div>
+        )}
+
+        {/* Filters -> route to indexable locality/filter pages */}
+        {data.localities.length > 0 && (
+          <section className="mb-6">
+            <CityFilters citySlug={data.city.slug} localities={data.localities} />
+          </section>
         )}
 
         {/* Popular localities */}

@@ -232,3 +232,39 @@ export function localBusinessJsonLd(a: AgentJsonLdInput): JsonLdObject {
       : {}),
   };
 }
+
+// ---- blog ----
+
+export interface ArticleJsonLdInput {
+  slug: string;
+  title: string;
+  description?: string;
+  image?: string;
+  datePublished?: string;
+  dateModified?: string;
+}
+
+/**
+ * BlogPosting (blog article). headline is required by Google's Article rich
+ * result; datePublished/image/author/publisher are recommended and included
+ * when available. Author + publisher are the portal Organization.
+ */
+export function articleJsonLd(a: ArticleJsonLdInput): JsonLdObject {
+  const url = absoluteUrl(`/blog/${a.slug}`);
+  const org = { "@type": "Organization", name: BRAND, url: SITE_URL };
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: a.title,
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    url,
+    ...(a.description ? { description: a.description } : {}),
+    ...(a.image ? { image: a.image } : {}),
+    ...(a.datePublished ? { datePublished: a.datePublished } : {}),
+    ...(a.dateModified ? { dateModified: a.dateModified } : {}),
+    author: org,
+    // publisher.logo is omitted deliberately: no brand logo asset exists yet,
+    // and a broken logo URL fails Rich Results validation worse than none.
+    publisher: org,
+  };
+}

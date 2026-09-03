@@ -256,8 +256,7 @@ export async function getCitySitemapPage(
 
 // ---- blogs ----
 
-/** Published blog posts. The /blog index route does not exist yet, so it is
- *  deliberately NOT emitted (a sitemap must never list a URL that 404s). */
+/** The /blog index + every published post. */
 export async function getBlogSitemapEntries(): Promise<SitemapEntry[]> {
   await connectDB();
   const posts = await Blog.find(
@@ -267,11 +266,21 @@ export async function getBlogSitemapEntries(): Promise<SitemapEntry[]> {
     .sort({ slug: 1 })
     .lean();
 
-  return posts.map((p) => ({
-    url: absoluteUrl(`/blog/${p.slug}`),
-    lastModified: p.updatedAt ?? p.publishedAt ?? new Date(),
-    changeFrequency: "monthly" as const,
-  }));
+  const entries: SitemapEntry[] = [
+    {
+      url: absoluteUrl("/blog"),
+      lastModified: posts[0]?.updatedAt ?? new Date(),
+      changeFrequency: "weekly",
+    },
+  ];
+  for (const p of posts) {
+    entries.push({
+      url: absoluteUrl(`/blog/${p.slug}`),
+      lastModified: p.updatedAt ?? p.publishedAt ?? new Date(),
+      changeFrequency: "monthly",
+    });
+  }
+  return entries;
 }
 
 // ---- index ----

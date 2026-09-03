@@ -325,3 +325,61 @@
     animation: var(--animate-shimmer);
   }
 }
+
+@layer components {
+  /* Scoped article typography for blog content (no typography plugin). Targets
+     the sanitized HTML rendered inside .nb-prose on /blog/[slug]. */
+  .nb-prose {
+    color: var(--color-foreground);
+    line-height: 1.75;
+    font-size: 1rem;
+  }
+  .nb-prose > * + * {
+    margin-top: 1.25em;
+  }
+  .nb-prose h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    margin-top: 2em;
+    color: var(--color-ink-950);
+  }
+  .nb-prose h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-top: 1.6em;
+    color: var(--color-ink-950);
+  }
+  .nb-prose a {
+    color: var(--color-clay-700);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .nb-prose ul,
+  .nb-prose ol {
+    padding-left: 1.5rem;
+  }
+  .nb-prose ul {
+    list-style: disc;
+  }
+  .nb-prose ol {
+    list-style: decimal;
+  }
+  .nb-prose li + li {
+    margin-top: 0.4em;
+  }
+  .nb-prose blockquote {
+    border-left: 3px solid var(--color-clay-300);
+    padding-left: 1rem;
+    color: var(--color-muted-foreground);
+    font-style: italic;
+  }
+  .nb-prose img {
+    border-radius: var(--radius-card);
+  }
+  .nb-prose strong {
+    color: var(--color-ink-950);
+    font-weight: 600;
+  }
+}

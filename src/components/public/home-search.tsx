@@ -29,6 +29,13 @@ export function HomeSearch({ cities }: { cities: CityOption[] }) {
 
   const goTo = (slug: string) => router.push(`/${slug}`);
   const submit = () => {
+    const term = q.trim();
+    // Exact city name wins; a partial that matches exactly one city goes there;
+    // otherwise fall through to the site-wide search results view.
+    const exact = cities.find((c) => c.name.toLowerCase() === term.toLowerCase());
+    if (exact) return goTo(exact.slug);
+    if (term && matches.length === 1) return goTo(matches[0]!.slug);
+    if (term) return router.push(`/search?q=${encodeURIComponent(term)}`);
     if (matches[0]) goTo(matches[0].slug);
   };
 
@@ -50,7 +57,9 @@ export function HomeSearch({ cities }: { cities: CityOption[] }) {
               if (e.key === "Enter") submit();
             }}
             placeholder={
-              cities.length ? "Search a city…" : "No cities live yet — check back soon"
+              cities.length
+                ? "Search city, locality or keyword…"
+                : "No cities live yet — check back soon"
             }
             disabled={cities.length === 0}
             className="w-full bg-transparent py-3 text-sm text-foreground outline-none placeholder:text-subtle-foreground"

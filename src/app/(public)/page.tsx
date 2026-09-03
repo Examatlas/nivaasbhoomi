@@ -14,8 +14,12 @@ import { HomeSearch } from "@/components/public/home-search";
 import { JsonLd } from "@/components/shared/json-ld";
 import { getFeaturedListings, getActiveCities } from "@/lib/listings/query";
 import { organizationJsonLd, webSiteJsonLd } from "@/lib/seo/jsonld";
+import { homeMetadata } from "@/lib/seo/metadata";
 
 export const revalidate = 3600; // ISR
+
+// Self-referencing canonical + OpenGraph for the home page (Section 10).
+export const metadata = homeMetadata();
 
 /**
  * Home. Real hero + city selector (active cities only) + newest listings across
