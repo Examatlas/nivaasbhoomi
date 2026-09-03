@@ -202,9 +202,13 @@ export async function recalculateLocalityActivation(
   }
 
   const isActive = reasons.length === 0;
-  if (isActive !== locality.isActive) {
-    await Locality.updateOne({ _id }, { $set: { isActive } });
-  }
+  // Persist both the activation flag and the approved-listing counter so the
+  // locality's own listingCount stays accurate (used by the admin UI and the
+  // expiry cron's < 3 check).
+  await Locality.updateOne(
+    { _id },
+    { $set: { isActive, listingCount: approvedListings } },
+  );
 
   return { isActive, reasons, counts: { approvedListings, introTextChars } };
 }

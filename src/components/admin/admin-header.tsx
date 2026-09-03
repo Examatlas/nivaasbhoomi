@@ -8,8 +8,10 @@ import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api/client";
 
-// Only Locations exists in Phase 1-2; the rest arrive in their own phases.
-const NAV = [{ href: "/admin/locations", label: "Locations" }];
+const NAV = [
+  { href: "/admin/listings", label: "Listings" },
+  { href: "/admin/locations", label: "Locations" },
+];
 
 /**
  * Admin top bar. Hidden on the login page (the only admin route without a
