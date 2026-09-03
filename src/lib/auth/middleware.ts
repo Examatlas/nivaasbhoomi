@@ -26,13 +26,11 @@ export interface AdminIdentity {
 }
 
 export interface DealerIdentity {
-  dealerId: string | null;
+  dealerId: string;
   role: "dealer";
 }
 
 type Guarded<T> = { identity: T } | { error: ReturnType<typeof fail> };
-
-const isDev = process.env.NODE_ENV !== "production";
 
 /** Verified admin identity from the session cookie, or null. */
 export async function getAdminSession(): Promise<AdminIdentity | null> {
@@ -50,25 +48,25 @@ export async function requireAdmin(): Promise<Guarded<AdminIdentity>> {
   return { identity };
 }
 
-/** Verified dealer identity from the session cookie, or null (Phase 4). */
+/** Verified dealer identity from the session cookie, or null. */
 export async function getDealerSession(): Promise<DealerIdentity | null> {
   const token = (await cookies()).get(DEALER_COOKIE)?.value;
   const claims = await verifySession(token);
-  if (!claims || claims.role !== "dealer") return null;
+  if (!claims || claims.role !== "dealer" || !claims.dealerId) return null;
   return { dealerId: claims.dealerId, role: "dealer" };
 }
 
 export async function requireDealer(): Promise<Guarded<DealerIdentity>> {
   const identity = await getDealerSession();
   if (identity) return { identity };
-  // Phase-4 fallback: dev stub keeps the locality-request flow usable.
-  if (isDev) return { identity: { dealerId: null, role: "dealer" } };
-  return { error: fail("UNAUTHORIZED", "Dealer authentication is not available yet.") };
+  // Dealer login (WhatsApp OTP) is live, so a real session is always required -
+  // no dev stub. The dealerId comes only from the verified JWT.
+  return { error: fail("UNAUTHORIZED", "Please sign in as a dealer.") };
 }
 
 /**
- * Upload signature is available to any authenticated user (admin now, dealer in
- * Phase 4). Returns the role so callers can shape the upload folder if needed.
+ * Upload signature is available to any authenticated user (admin or dealer).
+ * Returns the role so callers can shape the upload folder if needed.
  */
 export async function requireUploader(): Promise<
   Guarded<AdminIdentity | DealerIdentity>
@@ -77,6 +75,5 @@ export async function requireUploader(): Promise<
   if (admin) return { identity: admin };
   const dealer = await getDealerSession();
   if (dealer) return { identity: dealer };
-  if (isDev) return { identity: { dealerId: null, role: "dealer" } };
   return { error: fail("UNAUTHORIZED", "Authentication required to upload.") };
 }
