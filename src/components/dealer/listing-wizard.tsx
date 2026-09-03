@@ -1,0 +1,844 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useForm, type UseFormRegisterReturn } from "react-hook-form";
+import { useRouter } from "next/navigation";
+import { Loader2, Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { ImageUploader } from "@/components/shared/image-uploader";
+import { MapPicker } from "@/components/shared/map-picker";
+import { CascadingLocation, type LocationValue } from "@/components/admin/cascading-location";
+import { apiFetch, ApiClientError } from "@/lib/api/client";
+import { listingFolder } from "@/lib/media/transforms";
+import { formatListingPrice } from "@/lib/utils/price";
+import type { UploadedImage } from "@/types/media";
+
+const STEPS = [
+  "Basic",
+  "Location",
+  "Property details",
+  "Furnishing & amenities",
+  "Price",
+  "Possession & legal",
+  "Media",
+  "Review & submit",
+] as const;
+
+const PROPERTY_TYPES = [
+  { value: "flat", label: "Flat / Apartment" },
+  { value: "independent-house", label: "Independent House" },
+  { value: "villa", label: "Villa" },
+  { value: "plot", label: "Plot / Land" },
+  { value: "commercial-shop", label: "Commercial Shop" },
+  { value: "office", label: "Office" },
+  { value: "pg", label: "PG" },
+  { value: "warehouse", label: "Warehouse" },
+];
+const BHKS = [
+  { value: "1rk", label: "1 RK" },
+  { value: "1", label: "1 BHK" },
+  { value: "2", label: "2 BHK" },
+  { value: "3", label: "3 BHK" },
+  { value: "4", label: "4 BHK" },
+  { value: "5plus", label: "5+ BHK" },
+];
+const FACING = ["East", "West", "North", "South", "North-East", "North-West", "South-East", "South-West"];
+const AGE = ["New", "<1 year", "1-5 years", "5-10 years", "10+ years"];
+const FURNISHING_DETAILS = ["AC", "Beds", "Wardrobe", "Sofa", "Fridge", "Washing Machine", "TV", "Modular Kitchen", "Geyser", "Curtains"];
+const AMENITIES = ["Lift", "Power Backup", "24x7 Security", "CCTV", "Gym", "Swimming Pool", "Clubhouse", "Children's Park", "Gas Pipeline", "Rainwater Harvesting", "Visitor Parking", "Intercom"];
+const WATER_SOURCES = ["Municipal", "Borewell", "Tanker"];
+const TENANTS = ["Family", "Bachelors", "Company", "Any"];
+
+interface FormValues {
+  purpose: "sale" | "rent";
+  propertyType: string;
+  title: string;
+  description: string;
+  subLocality?: string;
+  projectName?: string;
+  landmark?: string;
+  fullAddress?: string;
+  pincode?: string;
+  bhk?: string;
+  bathrooms?: number;
+  balconies?: number;
+  carpetArea?: number;
+  builtUpArea?: number;
+  plotArea?: number;
+  floor?: number;
+  totalFloors?: number;
+  facing?: string;
+  ageOfProperty?: string;
+  furnishing?: string;
+  parking?: string;
+  expectedPrice?: number;
+  bookingAmount?: number;
+  priceNegotiable?: boolean;
+  monthlyRent?: number;
+  securityDeposit?: number;
+  rentNegotiable?: boolean;
+  availableFrom?: string;
+  minLeasePeriod?: string;
+  maintenanceCharge?: number;
+  brokerage?: string;
+  possessionStatus?: string;
+  possessionDate?: string;
+  ownershipType?: string;
+  reraNumber?: string;
+}
+
+export interface ListingWizardInitial extends Partial<FormValues> {
+  id?: string;
+  stateId?: string;
+  cityId?: string;
+  localityId?: string;
+  reraStateId?: string;
+  lat?: number;
+  lng?: number;
+  photos?: UploadedImage[];
+  coverPhotoIndex?: number;
+  furnishingDetails?: string[];
+  amenities?: string[];
+  waterSource?: string[];
+  preferredTenant?: string[];
+}
+
+export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
+  const router = useRouter();
+  const [step, setStep] = useState(0);
+  const [draftId, setDraftId] = useState<string | null>(initial?.id ?? null);
+
+  const { register, watch, setValue, getValues } = useForm<FormValues>({
+    defaultValues: {
+      purpose: initial?.purpose ?? "sale",
+      propertyType: initial?.propertyType ?? "flat",
+      title: initial?.title ?? "",
+      description: initial?.description ?? "",
+      subLocality: initial?.subLocality,
+      projectName: initial?.projectName,
+      landmark: initial?.landmark,
+      fullAddress: initial?.fullAddress,
+      pincode: initial?.pincode,
+      bhk: initial?.bhk,
+      bathrooms: initial?.bathrooms,
+      balconies: initial?.balconies,
+      carpetArea: initial?.carpetArea,
+      builtUpArea: initial?.builtUpArea,
+      plotArea: initial?.plotArea,
+      floor: initial?.floor,
+      totalFloors: initial?.totalFloors,
+      facing: initial?.facing,
+      ageOfProperty: initial?.ageOfProperty,
+      furnishing: initial?.furnishing,
+      parking: initial?.parking,
+      expectedPrice: initial?.expectedPrice,
+      bookingAmount: initial?.bookingAmount,
+      priceNegotiable: initial?.priceNegotiable,
+      monthlyRent: initial?.monthlyRent,
+      securityDeposit: initial?.securityDeposit,
+      rentNegotiable: initial?.rentNegotiable,
+      availableFrom: initial?.availableFrom?.slice(0, 10),
+      minLeasePeriod: initial?.minLeasePeriod,
+      maintenanceCharge: initial?.maintenanceCharge,
+      brokerage: initial?.brokerage,
+      possessionStatus: initial?.possessionStatus,
+      possessionDate: initial?.possessionDate?.slice(0, 10),
+      ownershipType: initial?.ownershipType,
+      reraNumber: initial?.reraNumber,
+    },
+  });
+
+  // Controlled bits that live outside RHF's register.
+  const [loc, setLoc] = useState<LocationValue>({
+    stateId: initial?.stateId ?? "",
+    cityId: initial?.cityId ?? "",
+    localityId: initial?.localityId ?? "",
+  });
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    initial?.lat != null && initial?.lng != null
+      ? { lat: initial.lat, lng: initial.lng }
+      : null,
+  );
+  const [reraStateId, setReraStateId] = useState(initial?.reraStateId ?? "");
+  const [reraStates, setReraStates] = useState<{ _id: string; name: string }[]>([]);
+  const [photos, setPhotos] = useState<UploadedImage[]>(initial?.photos ?? []);
+  const [coverIndex, setCoverIndex] = useState(initial?.coverPhotoIndex ?? 0);
+  const [furnishingDetails, setFurnishingDetails] = useState<string[]>(initial?.furnishingDetails ?? []);
+  const [amenities, setAmenities] = useState<string[]>(initial?.amenities ?? []);
+  const [waterSource, setWaterSource] = useState<string[]>(initial?.waterSource ?? []);
+  const [preferredTenant, setPreferredTenant] = useState<string[]>(initial?.preferredTenant ?? []);
+
+  // Locality request (pending).
+  const [reqOpen, setReqOpen] = useState(false);
+  const [reqName, setReqName] = useState("");
+  const [reqPincode, setReqPincode] = useState("");
+  const [requested, setRequested] = useState<{ id: string; name: string } | null>(null);
+  const [reqBusy, setReqBusy] = useState(false);
+
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const purpose = watch("purpose");
+  const propertyType = watch("propertyType");
+  const possessionStatus = watch("possessionStatus");
+  const isPlot = propertyType === "plot";
+  const effectiveLocalityId = requested?.id ?? loc.localityId;
+
+  // ---- build the API payload from current state ----
+  function buildPayload(): Record<string, unknown> {
+    const v = getValues();
+    const num = (n?: number) => (typeof n === "number" && !Number.isNaN(n) ? n : undefined);
+    const str = (s?: string) => (s && s.trim() ? s.trim() : undefined);
+    const payload: Record<string, unknown> = {
+      purpose: v.purpose,
+      propertyType: v.propertyType,
+      title: str(v.title),
+      description: str(v.description),
+      stateId: loc.stateId || undefined,
+      cityId: loc.cityId || undefined,
+      localityId: effectiveLocalityId || undefined,
+      subLocality: str(v.subLocality),
+      projectName: str(v.projectName),
+      landmark: str(v.landmark),
+      fullAddress: str(v.fullAddress),
+      pincode: str(v.pincode),
+      lat: coords?.lat,
+      lng: coords?.lng,
+      facing: str(v.facing),
+      ageOfProperty: str(v.ageOfProperty),
+      totalFloors: num(v.totalFloors),
+      balconies: num(v.balconies),
+      carpetArea: num(v.carpetArea),
+      builtUpArea: num(v.builtUpArea),
+      furnishing: str(v.furnishing),
+      furnishingDetails,
+      amenities,
+      parking: str(v.parking),
+      waterSource,
+      maintenanceCharge: num(v.maintenanceCharge),
+      brokerage: str(v.brokerage),
+      possessionStatus: str(v.possessionStatus),
+      possessionDate: str(v.possessionDate),
+      ownershipType: str(v.ownershipType),
+      photos,
+      coverPhotoIndex: coverIndex,
+    };
+    if (!isPlot) {
+      payload.bhk = str(v.bhk);
+      payload.bathrooms = num(v.bathrooms);
+      payload.floor = num(v.floor);
+    } else {
+      payload.plotArea = num(v.plotArea);
+    }
+    if (v.purpose === "sale") {
+      payload.expectedPrice = num(v.expectedPrice);
+      payload.bookingAmount = num(v.bookingAmount);
+      payload.priceNegotiable = Boolean(v.priceNegotiable);
+    } else {
+      payload.monthlyRent = num(v.monthlyRent);
+      payload.securityDeposit = num(v.securityDeposit);
+      payload.rentNegotiable = Boolean(v.rentNegotiable);
+      payload.preferredTenant = preferredTenant;
+      payload.availableFrom = str(v.availableFrom);
+      payload.minLeasePeriod = str(v.minLeasePeriod);
+    }
+    if (possessionStatus === "under-construction") {
+      payload.reraNumber = str(v.reraNumber);
+      if (reraStateId) payload.reraStateId = reraStateId;
+    }
+    // Drop undefined so a draft doesn't send noise.
+    for (const k of Object.keys(payload)) {
+      if (payload[k] === undefined) delete payload[k];
+    }
+    return payload;
+  }
+
+  async function persist(submit: boolean): Promise<{ id: string; status: string; slug: string | null } | null> {
+    setError(null);
+    setFieldErrors({});
+    const body = JSON.stringify({ ...buildPayload(), submit });
+    try {
+      const res = draftId
+        ? await apiFetch<{ id: string; status: string; slug: string | null }>(
+            `/api/listings/${draftId}`,
+            { method: "PATCH", body },
+          )
+        : await apiFetch<{ id: string; status: string; slug: string | null }>(
+            "/api/listings",
+            { method: "POST", body },
+          );
+      setDraftId(res.id);
+      return res;
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+        const fe = (err.details as { fieldErrors?: Record<string, string> })?.fieldErrors;
+        if (fe) setFieldErrors(fe);
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
+      return null;
+    }
+  }
+
+  async function next() {
+    setBusy(true);
+    await persist(false); // autosave draft on every step forward
+    setBusy(false);
+    setStep((s) => Math.min(STEPS.length - 1, s + 1));
+  }
+  function prev() {
+    setStep((s) => Math.max(0, s - 1));
+  }
+  async function saveDraft() {
+    setBusy(true);
+    const res = await persist(false);
+    setBusy(false);
+    if (res) router.push("/dealer/listings");
+  }
+  async function submitListing() {
+    setBusy(true);
+    const res = await persist(true);
+    setBusy(false);
+    if (res) router.push("/dealer/listings?submitted=1");
+  }
+
+  async function requestLocality() {
+    if (!loc.cityId || reqName.trim().length < 2) {
+      setError("Pick a city and enter the locality name.");
+      return;
+    }
+    setReqBusy(true);
+    setError(null);
+    try {
+      const res = await apiFetch<{ localityId: string; existing: boolean }>(
+        "/api/locations/locality-request",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            cityId: loc.cityId,
+            name: reqName.trim(),
+            ...(reqPincode.trim() ? { pincode: reqPincode.trim() } : {}),
+            ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
+          }),
+        },
+      );
+      setRequested({ id: res.localityId, name: reqName.trim() });
+      setLoc((l) => ({ ...l, localityId: "" }));
+      setReqOpen(false);
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : "Could not request locality.");
+    } finally {
+      setReqBusy(false);
+    }
+  }
+
+  const folder = useMemo(
+    () => listingFolder(loc.cityId || "misc", effectiveLocalityId || "misc"),
+    [loc.cityId, effectiveLocalityId],
+  );
+
+  return (
+    <div>
+      {/* Stepper */}
+      <ol className="mb-6 flex flex-wrap gap-1 text-meta">
+        {STEPS.map((label, i) => (
+          <li key={label}>
+            <button
+              type="button"
+              onClick={() => setStep(i)}
+              className={
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-colors " +
+                (i === step
+                  ? "bg-ink-900 text-primary-foreground"
+                  : i < step
+                    ? "bg-success-50 text-success-700"
+                    : "bg-surface-muted text-muted-foreground hover:bg-sand-200")
+              }
+            >
+              <span className="tabular">{i + 1}</span> {label}
+            </button>
+          </li>
+        ))}
+      </ol>
+
+      <div className="rounded-card border border-border bg-surface p-5 sm:p-6">
+        <h2 className="mb-4 text-lg font-semibold text-ink-950">
+          {step + 1}. {STEPS[step]}
+        </h2>
+
+        {/* ---- Step 1: Basic ---- */}
+        {step === 0 && (
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Purpose" required>
+                <Select value={purpose} onValueChange={(v) => setValue("purpose", v as "sale" | "rent")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sale">For Sale</SelectItem>
+                    <SelectItem value="rent">For Rent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Property type" required>
+                <Select value={propertyType} onValueChange={(v) => setValue("propertyType", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PROPERTY_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <Field label="Title" required error={fieldErrors.title}>
+              <Input {...register("title")} placeholder="e.g. Spacious 2 BHK flat in Kanke" maxLength={160} />
+            </Field>
+            <Field
+              label="Description"
+              required
+              error={fieldErrors.description}
+              hint="At least 100 characters. Describe the property honestly - rooms, condition, neighbourhood."
+            >
+              <Textarea {...register("description")} rows={6} placeholder="Describe the property…" />
+            </Field>
+          </div>
+        )}
+
+        {/* ---- Step 2: Location ---- */}
+        {step === 1 && (
+          <div className="flex flex-col gap-4">
+            <CascadingLocation
+              value={loc}
+              onChange={(v) => {
+                setRequested(null);
+                setLoc(v);
+              }}
+              onCityCenter={setMapCenter}
+            />
+
+            {/* Request new locality */}
+            {requested ? (
+              <div className="rounded-card border border-warning-100 bg-warning-50 px-3 py-2 text-meta text-warning-700">
+                Requested locality <b>{requested.name}</b> — pending admin approval. Your
+                listing will be filed as “pending-location” until it&apos;s approved.
+                <button type="button" className="ml-2 underline" onClick={() => setRequested(null)}>
+                  undo
+                </button>
+              </div>
+            ) : (
+              <div>
+                {!reqOpen ? (
+                  <button
+                    type="button"
+                    className="text-meta font-medium text-clay-700 hover:underline"
+                    onClick={() => setReqOpen(true)}
+                    disabled={!loc.cityId}
+                  >
+                    + Can&apos;t find your locality? Request it
+                  </button>
+                ) : (
+                  <div className="rounded-card border border-border bg-surface-muted p-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="New locality name">
+                        <Input value={reqName} onChange={(e) => setReqName(e.target.value)} placeholder="Locality name" />
+                      </Field>
+                      <Field label="Pincode (optional)">
+                        <Input value={reqPincode} onChange={(e) => setReqPincode(e.target.value)} placeholder="6-digit pincode" maxLength={6} />
+                      </Field>
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <Button size="sm" onClick={requestLocality} disabled={reqBusy}>
+                        {reqBusy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                        Request locality
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setReqOpen(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Sub-locality"><Input {...register("subLocality")} /></Field>
+              <Field label="Project / society"><Input {...register("projectName")} /></Field>
+              <Field label="Landmark"><Input {...register("landmark")} /></Field>
+            </div>
+            <Field label="Full address (never shown publicly)" hint="For our records only - buyers never see this.">
+              <Input {...register("fullAddress")} />
+            </Field>
+
+            <div>
+              <Label required>Pin the exact location on the map</Label>
+              <p className="mb-2 text-meta text-muted-foreground">
+                Drag the pin, or paste a Google Maps link.
+              </p>
+              <MapPicker
+                value={coords}
+                onChange={(lat, lng) => setCoords({ lat, lng })}
+                center={mapCenter}
+              />
+              {coords && (
+                <p className="mt-1 text-meta text-muted-foreground tabular">
+                  {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                </p>
+              )}
+              {fieldErrors.lat && <p className="mt-1 text-meta text-danger-700">Please drop a map pin.</p>}
+            </div>
+          </div>
+        )}
+
+        {/* ---- Step 3: Property details ---- */}
+        {step === 2 && (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {isPlot ? (
+              <Field label="Plot area (sq.ft.)"><NumInput reg={register("plotArea", { valueAsNumber: true })} /></Field>
+            ) : (
+              <>
+                <Field label="BHK">
+                  <Select value={watch("bhk") ?? undefined} onValueChange={(v) => setValue("bhk", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {BHKS.map((b) => <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Bathrooms"><NumInput reg={register("bathrooms", { valueAsNumber: true })} /></Field>
+                <Field label="Balconies"><NumInput reg={register("balconies", { valueAsNumber: true })} /></Field>
+                <Field label="Carpet area (sq.ft.)"><NumInput reg={register("carpetArea", { valueAsNumber: true })} /></Field>
+                <Field label="Built-up area (sq.ft.)"><NumInput reg={register("builtUpArea", { valueAsNumber: true })} /></Field>
+                <Field label="Floor"><NumInput reg={register("floor", { valueAsNumber: true })} /></Field>
+                <Field label="Total floors"><NumInput reg={register("totalFloors", { valueAsNumber: true })} /></Field>
+              </>
+            )}
+            <Field label="Facing">
+              <Select value={watch("facing") ?? undefined} onValueChange={(v) => setValue("facing", v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>{FACING.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
+            <Field label="Age of property">
+              <Select value={watch("ageOfProperty") ?? undefined} onValueChange={(v) => setValue("ageOfProperty", v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>{AGE.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
+          </div>
+        )}
+
+        {/* ---- Step 4: Furnishing & amenities ---- */}
+        {step === 3 && (
+          <div className="flex flex-col gap-5">
+            <Field label="Furnishing">
+              <Select value={watch("furnishing") ?? undefined} onValueChange={(v) => setValue("furnishing", v)}>
+                <SelectTrigger className="max-w-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="furnished">Furnished</SelectItem>
+                  <SelectItem value="semi-furnished">Semi-furnished</SelectItem>
+                  <SelectItem value="unfurnished">Unfurnished</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <CheckGroup label="Furnishing details" options={FURNISHING_DETAILS} value={furnishingDetails} onChange={setFurnishingDetails} />
+            <CheckGroup label="Amenities" options={AMENITIES} value={amenities} onChange={setAmenities} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Parking"><Input {...register("parking")} placeholder="e.g. 1 covered" /></Field>
+              <CheckGroup label="Water source" options={WATER_SOURCES} value={waterSource} onChange={setWaterSource} inline />
+            </div>
+          </div>
+        )}
+
+        {/* ---- Step 5: Price ---- */}
+        {step === 4 && (
+          <div className="flex flex-col gap-4">
+            {purpose === "sale" ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Expected price (₹)" required error={fieldErrors.expectedPrice}>
+                  <NumInput reg={register("expectedPrice", { valueAsNumber: true })} />
+                </Field>
+                <Field label="Booking amount (₹)"><NumInput reg={register("bookingAmount", { valueAsNumber: true })} /></Field>
+                <CheckOne label="Price negotiable" checked={Boolean(watch("priceNegotiable"))} onChange={(c) => setValue("priceNegotiable", c)} />
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Monthly rent (₹)" required error={fieldErrors.monthlyRent}>
+                  <NumInput reg={register("monthlyRent", { valueAsNumber: true })} />
+                </Field>
+                <Field label="Security deposit (₹)"><NumInput reg={register("securityDeposit", { valueAsNumber: true })} /></Field>
+                <Field label="Available from"><Input type="date" {...register("availableFrom")} /></Field>
+                <Field label="Minimum lease"><Input {...register("minLeasePeriod")} placeholder="e.g. 11 months" /></Field>
+                <CheckGroup label="Preferred tenants" options={TENANTS} value={preferredTenant} onChange={setPreferredTenant} inline />
+                <CheckOne label="Rent negotiable" checked={Boolean(watch("rentNegotiable"))} onChange={(c) => setValue("rentNegotiable", c)} />
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Maintenance / month (₹)"><NumInput reg={register("maintenanceCharge", { valueAsNumber: true })} /></Field>
+              <Field label="Brokerage" hint="Shown publicly for transparency."><Input {...register("brokerage")} placeholder="e.g. No brokerage / 15 days rent" /></Field>
+            </div>
+          </div>
+        )}
+
+        {/* ---- Step 6: Possession & legal ---- */}
+        {step === 5 && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Possession status">
+              <Select value={possessionStatus ?? undefined} onValueChange={(v) => setValue("possessionStatus", v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ready-to-move">Ready to move</SelectItem>
+                  <SelectItem value="under-construction">Under construction</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Possession date"><Input type="date" {...register("possessionDate")} /></Field>
+            <Field label="Ownership type">
+              <Select value={watch("ownershipType") ?? undefined} onValueChange={(v) => setValue("ownershipType", v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="freehold">Freehold</SelectItem>
+                  <SelectItem value="leasehold">Leasehold</SelectItem>
+                  <SelectItem value="co-operative-society">Co-operative society</SelectItem>
+                  <SelectItem value="power-of-attorney">Power of attorney</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            {possessionStatus === "under-construction" && (
+              <>
+                <Field label="RERA number" required error={fieldErrors.reraNumber}>
+                  <Input {...register("reraNumber")} placeholder="RERA registration number" />
+                </Field>
+                <Field label="RERA state" required error={fieldErrors.reraStateId}>
+                  <ReraStateSelect value={reraStateId} onChange={setReraStateId} states={reraStates} setStates={setReraStates} />
+                </Field>
+                <p className="text-meta text-warning-700 sm:col-span-2">
+                  Under-construction listings require a valid RERA number and state.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ---- Step 7: Media ---- */}
+        {step === 6 && (
+          <div className="flex flex-col gap-3">
+            <Label required>Photos (at least 3)</Label>
+            <ImageUploader
+              folder={folder}
+              value={photos}
+              onChange={setPhotos}
+              coverIndex={coverIndex}
+              onCoverChange={setCoverIndex}
+              minCount={3}
+              maxCount={15}
+            />
+            {fieldErrors.photos && <p className="text-meta text-danger-700">{fieldErrors.photos}</p>}
+          </div>
+        )}
+
+        {/* ---- Step 8: Review ---- */}
+        {step === 7 && (
+          <Review
+            values={getValues()}
+            loc={loc}
+            requested={requested}
+            coords={coords}
+            photos={photos}
+            amenities={amenities}
+          />
+        )}
+
+        {error && <p className="mt-4 text-sm text-danger-700">{error}</p>}
+      </div>
+
+      {/* Footer nav */}
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <Button variant="outline" onClick={prev} disabled={step === 0 || busy}>
+          <ChevronLeft className="size-4" /> Back
+        </Button>
+        {step < STEPS.length - 1 ? (
+          <Button onClick={next} disabled={busy}>
+            {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+            Save & continue <ChevronRight className="size-4" />
+          </Button>
+        ) : (
+          <Button onClick={submitListing} disabled={busy} size="lg">
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+            Submit for review
+          </Button>
+        )}
+        <Button variant="ghost" onClick={saveDraft} disabled={busy}>
+          Save draft & exit
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ---- small field helpers ----
+
+function Field({
+  label,
+  required,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label required={required}>{label}</Label>
+      {children}
+      {hint && !error && <p className="text-meta text-muted-foreground">{hint}</p>}
+      {error && <p className="text-meta text-danger-700">{error}</p>}
+    </div>
+  );
+}
+
+function NumInput({ reg }: { reg: UseFormRegisterReturn }) {
+  return <Input type="number" inputMode="numeric" {...reg} />;
+}
+
+function CheckOne({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (c: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 self-end pb-2 text-sm">
+      <Checkbox checked={checked} onCheckedChange={(c) => onChange(Boolean(c))} /> {label}
+    </label>
+  );
+}
+
+function CheckGroup({
+  label,
+  options,
+  value,
+  onChange,
+  inline,
+}: {
+  label: string;
+  options: string[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  inline?: boolean;
+}) {
+  const toggle = (opt: string, on: boolean) =>
+    onChange(on ? [...value, opt] : value.filter((x) => x !== opt));
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>{label}</Label>
+      <div className={inline ? "flex flex-wrap gap-3" : "grid grid-cols-2 gap-2 sm:grid-cols-3"}>
+        {options.map((opt) => (
+          <label key={opt} className="flex items-center gap-2 text-sm">
+            <Checkbox checked={value.includes(opt)} onCheckedChange={(c) => toggle(opt, Boolean(c))} />
+            {opt}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReraStateSelect({
+  value,
+  onChange,
+  states,
+  setStates,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  states: { _id: string; name: string }[];
+  setStates: (s: { _id: string; name: string }[]) => void;
+}) {
+  useEffect(() => {
+    if (states.length > 0) return;
+    apiFetch<{ _id: string; name: string }[]>("/api/locations/states")
+      .then((s) => setStates(s))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+      <SelectContent>
+        {states.map((s) => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function Review({
+  values,
+  loc,
+  requested,
+  coords,
+  photos,
+  amenities,
+}: {
+  values: FormValues;
+  loc: LocationValue;
+  requested: { id: string; name: string } | null;
+  coords: { lat: number; lng: number } | null;
+  photos: UploadedImage[];
+  amenities: string[];
+}) {
+  const price =
+    values.purpose === "sale" ? values.expectedPrice : values.monthlyRent;
+  const priceLabel = price ? formatListingPrice(values.purpose, price) : null;
+  const rows: [string, string | undefined][] = [
+    ["Purpose", values.purpose === "sale" ? "For sale" : "For rent"],
+    ["Type", values.propertyType],
+    ["Title", values.title],
+    ["Locality", requested ? `${requested.name} (pending)` : loc.localityId ? "Selected" : undefined],
+    ["Map pin", coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : undefined],
+    ["Price", priceLabel ? `${priceLabel.primary}${priceLabel.suffix ? " " + priceLabel.suffix : ""}` : undefined],
+    ["Photos", `${photos.length}`],
+    ["Amenities", amenities.length ? amenities.join(", ") : undefined],
+  ];
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        Review the essentials. On submit, your listing goes to admin review
+        (status “pending”). It goes live once approved and you&apos;re verified (Tier 1+).
+      </p>
+      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-3 border-b border-border py-1.5 text-sm">
+            <dt className="text-muted-foreground">{k}</dt>
+            <dd className="text-right font-medium text-ink-950">{v ?? "—"}</dd>
+          </div>
+        ))}
+      </dl>
+      {(!values.description || values.description.trim().length < 100) && (
+        <p className="text-meta text-danger-700">Description needs at least 100 characters.</p>
+      )}
+      {photos.length < 3 && (
+        <p className="text-meta text-danger-700">At least 3 photos are required.</p>
+      )}
+    </div>
+  );
+}

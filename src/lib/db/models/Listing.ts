@@ -95,8 +95,12 @@ const listingSchema = new Schema(
     lng: { type: Number, required: [requiredOnSubmit, "Longitude is required"] },
     pincode: { type: String },
     // GeoJSON mirror of lat/lng for the 2dsphere index (maintained in the hook).
+    // No `default` on type: a draft without lat/lng must have NO location subdoc
+    // at all, otherwise a coordinate-less { type: "Point" } breaks the 2dsphere
+    // index ("Point must be an array"). The hook sets a full Point when coords
+    // exist and clears it otherwise.
     location: {
-      type: { type: String, enum: ["Point"], default: "Point" },
+      type: { type: String, enum: ["Point"] },
       coordinates: { type: [Number], default: undefined }, // [lng, lat]
     },
 
@@ -222,9 +226,12 @@ listingSchema.pre("validate", async function () {
   );
   if (pps !== undefined) this.pricePerSqft = pps;
 
-  // 3. GeoJSON point for the 2dsphere index.
+  // 3. GeoJSON point for the 2dsphere index. Clear it entirely when there are
+  //    no coordinates yet (draft), so no invalid coordinate-less Point is stored.
   if (typeof this.lat === "number" && typeof this.lng === "number") {
     this.location = { type: "Point", coordinates: [this.lng, this.lat] };
+  } else {
+    this.set("location", undefined);
   }
 
   // 4. Slug - generated exactly once, never regenerated. Needs a resolvable
