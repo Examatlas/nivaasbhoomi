@@ -18,6 +18,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { ImageUploader } from "@/components/shared/image-uploader";
+import { MapPicker } from "@/components/shared/map-picker";
 import {
   CascadingLocation,
   type LocationValue,
@@ -99,11 +100,19 @@ export function ListingForm() {
   const [coverIndex, setCoverIndex] = useState(0);
   const [f, setF] = useState<Str>({});
   const [states, setStates] = useState<{ _id: string; name: string }[]>([]);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   const set = (key: string) => (v: string) => setF((prev) => ({ ...prev, [key]: v }));
   const g = (key: string) => f[key] ?? "";
+
+  const latNum = num(g("lat"));
+  const lngNum = num(g("lng"));
+  const mapValue = latNum != null && lngNum != null ? { lat: latNum, lng: lngNum } : null;
+  const setCoords = (lat: number, lng: number) => {
+    setF((prev) => ({ ...prev, lat: String(lat), lng: String(lng) }));
+  };
 
   const isPlot = propertyType === "plot";
   const isUnderConstruction = g("possessionStatus") === "under-construction";
@@ -221,30 +230,26 @@ export function ListingForm() {
       </Section>
 
       <Section title="Location">
-        <CascadingLocation value={loc} onChange={setLoc} />
-        <div className="grid gap-4 sm:grid-cols-3">
-          <TextField
-            label="Latitude"
-            value={g("lat")}
-            onChange={set("lat")}
-            required
-            placeholder="23.36"
-          />
-          <TextField
-            label="Longitude"
-            value={g("lng")}
-            onChange={set("lng")}
-            required
-            placeholder="85.33"
-          />
+        <CascadingLocation value={loc} onChange={setLoc} onCityCenter={setMapCenter} />
+        <div className="flex flex-col gap-1.5">
+          <Label required>
+            Map location{" "}
+            <span className="text-meta font-normal text-subtle-foreground">
+              {mapValue ? `${mapValue.lat}, ${mapValue.lng}` : "drop a pin"}
+            </span>
+          </Label>
+          <MapPicker value={mapValue} onChange={setCoords} center={mapCenter} />
+          {(errorText("lat") || errorText("lng")) && (
+            <span className="text-meta text-danger-600">A map location is required.</span>
+          )}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
           <TextField
             label="Pincode"
             value={g("pincode")}
             onChange={set("pincode")}
             placeholder="834008"
           />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
           <TextField
             label="Sub-locality"
             value={g("subLocality")}

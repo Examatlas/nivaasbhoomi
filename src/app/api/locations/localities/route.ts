@@ -34,7 +34,13 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   };
   if (activeOnly) filter.isActive = true;
 
-  const localities = await Locality.find(filter, { name: 1, slug: 1 })
+  const localities = await Locality.find(filter, {
+    name: 1,
+    slug: 1,
+    pincodes: 1,
+    lat: 1,
+    lng: 1,
+  })
     .sort({ name: 1 })
     .lean();
 
@@ -42,6 +48,12 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     _id: String(l._id),
     name: l.name,
     slug: l.slug,
+    // Pincode disambiguates same-named localities in the dropdown
+    // (India Post data has one locality name across several pincodes).
+    pincode: l.pincodes?.[0] ?? null,
+    pincodes: l.pincodes ?? [],
+    lat: l.lat ?? null,
+    lng: l.lng ?? null,
   }));
 
   return ok(data, { headers: LOCATION_CACHE_HEADERS });

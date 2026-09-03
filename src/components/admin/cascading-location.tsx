@@ -16,6 +16,13 @@ interface Opt {
   _id: string;
   name: string;
 }
+interface CityOpt extends Opt {
+  lat?: number | null;
+  lng?: number | null;
+}
+interface LocalityOpt extends Opt {
+  pincode?: string | null;
+}
 
 export interface LocationValue {
   stateId: string;
@@ -27,19 +34,26 @@ export interface LocationValue {
  * Cascading state -> city -> locality selector driven by the public location
  * APIs. Selecting a state loads its cities; selecting a city loads its
  * (approved) localities. Reused by the admin listing form.
+ *
+ * Locality options show their pincode ("Baram (834001)") because India Post
+ * data has the same locality name across several pincodes - the pincode makes
+ * each option distinguishable. onCityCenter reports the selected city's
+ * coordinates so a map picker can centre on it.
  */
 export function CascadingLocation({
   value,
   onChange,
+  onCityCenter,
   disabled,
 }: {
   value: LocationValue;
   onChange: (v: LocationValue) => void;
+  onCityCenter?: (center: { lat: number; lng: number } | null) => void;
   disabled?: boolean;
 }) {
   const [states, setStates] = useState<Opt[]>([]);
-  const [cities, setCities] = useState<Opt[]>([]);
-  const [localities, setLocalities] = useState<Opt[]>([]);
+  const [cities, setCities] = useState<CityOpt[]>([]);
+  const [localities, setLocalities] = useState<LocalityOpt[]>([]);
 
   // Load states once.
   useEffect(() => {
@@ -55,7 +69,7 @@ export function CascadingLocation({
       setCities([]);
       return;
     }
-    apiFetch<Opt[]>(`/api/locations/cities?stateId=${value.stateId}`)
+    apiFetch<CityOpt[]>(`/api/locations/cities?stateId=${value.stateId}`)
       .then(setCities)
       .catch(() => setCities([]));
   }, [value.stateId]);
@@ -67,10 +81,22 @@ export function CascadingLocation({
       setLocalities([]);
       return;
     }
-    apiFetch<Opt[]>(`/api/locations/localities?cityId=${value.cityId}`)
+    apiFetch<LocalityOpt[]>(`/api/locations/localities?cityId=${value.cityId}`)
       .then(setLocalities)
       .catch(() => setLocalities([]));
   }, [value.cityId]);
+
+  // Report the selected city's centre (for the map picker) whenever it resolves.
+  useEffect(() => {
+    if (!onCityCenter) return;
+    const city = cities.find((c) => c._id === value.cityId);
+    if (city && city.lat != null && city.lng != null) {
+      onCityCenter({ lat: city.lat, lng: city.lng });
+    } else {
+      onCityCenter(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value.cityId, cities]);
 
   return (
     <div className="grid gap-4 sm:grid-cols-3">
@@ -132,6 +158,9 @@ export function CascadingLocation({
             {localities.map((l) => (
               <SelectItem key={l._id} value={l._id}>
                 {l.name}
+                {l.pincode ? (
+                  <span className="ml-1 text-muted-foreground">({l.pincode})</span>
+                ) : null}
               </SelectItem>
             ))}
           </SelectContent>

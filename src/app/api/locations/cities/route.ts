@@ -30,7 +30,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   }
   if (activeOnly) filter.isActive = true;
 
-  const cities = await City.find(filter, { name: 1, slug: 1, tier: 1 })
+  const cities = await City.find(filter, { name: 1, slug: 1, tier: 1, lat: 1, lng: 1 })
     .sort({ tier: 1, name: 1 })
     .lean();
 
@@ -39,6 +39,9 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     name: c.name,
     slug: c.slug,
     tier: c.tier,
+    // Used to centre the map picker on the selected city.
+    lat: c.lat ?? null,
+    lng: c.lng ?? null,
   }));
 
   return ok(data, { headers: LOCATION_CACHE_HEADERS });
