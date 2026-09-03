@@ -45,6 +45,8 @@ const CODE_BY_SLUG: Record<string, string> = {
   "andaman-and-nicobar-islands": "AN",
   chandigarh: "CH",
   "dadra-and-nagar-haveli-and-daman-and-diu": "DN",
+  // India Post names this UT with a leading "The".
+  "the-dadra-and-nagar-haveli-and-daman-and-diu": "DN",
   "dadra-nagar-haveli": "DN",
   "daman-diu": "DD",
   "daman-and-diu": "DD",

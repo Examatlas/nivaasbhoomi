@@ -68,6 +68,49 @@ function buildHeaderMap(fields: string[]): Map<string, string> {
   return map;
 }
 
+// ---- Value normalisation ----------------------------------------------------
+
+/**
+ * The India Post CSV uses the literal string "NA" for missing values (715 rows
+ * have district "NA", and one statename is "NA"). Treat those as empty so such
+ * rows are skipped rather than creating a city called "Na".
+ */
+function naToEmpty(value: string): string {
+  const v = value.trim();
+  return /^n\.?a\.?$/i.test(v) ? "" : v;
+}
+
+/**
+ * Display-case a name from the dataset. State and district names arrive fully
+ * UPPERCASE ("TELANGANA", "KUMURAM BHEEM ASIFABAD"), which would read as
+ * shouting on the public site. Title-case only tokens that are entirely upper-
+ * or entirely lower-case, leaving already-mixed-case names untouched so we never
+ * mangle a correctly-cased office name. Slugs are unaffected: slugify lowercases
+ * first, so "Telangana" and "TELANGANA" produce the same slug.
+ */
+function toTitleCase(input: string): string {
+  return input
+    .split(/\s+/)
+    .map((word) => {
+      const letters = word.replace(/[^a-zA-Z]/g, "");
+      const isUpper = letters.length > 0 && letters === letters.toUpperCase();
+      // Preserve dotted all-caps acronyms as-is: "Y.S.R." -> "Y.S.R.",
+      // "S.P.S." -> "S.P.S." (several Andhra district names use these).
+      if (isUpper && word.includes(".")) return word;
+      const isUniformCase =
+        letters.length > 0 && (isUpper || letters === letters.toLowerCase());
+      if (!isUniformCase) return word; // preserve deliberate mixed case
+      // Capitalise the first letter of each hyphen-separated part.
+      return word
+        .toLowerCase()
+        .replace(
+          /(^|[-/])([a-z])/g,
+          (_m, sep: string, ch: string) => sep + ch.toUpperCase(),
+        );
+    })
+    .join(" ");
+}
+
 // ---- Post office name cleaning ----------------------------------------------
 
 /** "Kanke Road S.O" -> "Kanke Road"; drops office-type suffix + parentheticals. */
@@ -156,38 +199,45 @@ async function main() {
 
   let skipped = 0;
   for (const row of rows) {
-    const stateName = pick(row, headerMap, ["statename", "state"]);
-    const districtName = pick(row, headerMap, [
-      "district",
-      "districtsname",
-      "districtname",
-    ]);
-    const officeName = pick(row, headerMap, ["officename", "postofficename", "office"]);
+    // "NA" is the dataset's missing-value marker - normalise it to empty so the
+    // guard below drops those rows instead of coining a "Na" state or city.
+    const rawState = naToEmpty(pick(row, headerMap, ["statename", "state"]));
+    const rawDistrict = naToEmpty(
+      pick(row, headerMap, ["district", "districtsname", "districtname"]),
+    );
+    const rawOffice = naToEmpty(
+      pick(row, headerMap, ["officename", "postofficename", "office"]),
+    );
     const pincode = pick(row, headerMap, ["pincode", "pin", "pincode"]);
     const lat = num(pick(row, headerMap, ["latitude", "lat"]));
     const lng = num(pick(row, headerMap, ["longitude", "long", "lng", "longitud"]));
 
-    if (!stateName || !districtName || !officeName || !/^\d{6}$/.test(pincode)) {
+    if (!rawState || !rawDistrict || !rawOffice || !/^\d{6}$/.test(pincode)) {
       skipped++;
       continue;
     }
 
+    // Display names title-cased (dataset ships UPPERCASE); slugs derive from the
+    // same values and are case-independent, so classification/collision are
+    // unaffected.
+    const stateName = toTitleCase(rawState);
+    const districtName = toTitleCase(rawDistrict);
     const stateSlug = slugify(stateName);
     const citySlug = slugify(districtName);
-    const localityName = cleanLocalityName(officeName);
+    const localityName = toTitleCase(cleanLocalityName(rawOffice));
     if (!localityName) {
       skipped++;
       continue;
     }
     const locSlug = slugify(localityName);
 
-    states.set(stateSlug, stateName.trim());
+    states.set(stateSlug, stateName);
 
     const cityKey = `${stateSlug}::${citySlug}`;
     if (!cities.has(cityKey)) {
       cities.set(cityKey, {
-        name: districtName.trim(),
-        stateName: stateName.trim(),
+        name: districtName,
+        stateName,
         tier: classifyCityTier(districtName, stateName),
         lat,
         lng,
@@ -203,8 +253,8 @@ async function main() {
     } else {
       localities.set(locKey, {
         name: localityName,
-        stateName: stateName.trim(),
-        cityName: districtName.trim(),
+        stateName,
+        cityName: districtName,
         pincodes: new Set([pincode]),
         lat,
         lng,
