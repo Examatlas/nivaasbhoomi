@@ -56,7 +56,10 @@ export interface ListingCardData {
   localityName: string;
   cityName: string;
 
+  /** Cover photo shown on the card (defaults to photos[0]). */
   photo?: ListingPhoto;
+  /** Full gallery for the property detail page. photoCount = photos.length. */
+  photos?: ListingPhoto[];
   photoCount: number;
 
   badges: ListingBadges;
