@@ -17,7 +17,8 @@
     "db:test": "tsx src/scripts/test-db.ts",
     "admin:hash": "tsx src/scripts/hash-password.ts",
     "dedupe:localities": "tsx src/scripts/dedupe-localities.ts",
-    "seed:demo-listing": "tsx src/scripts/seed-demo-listing.ts"
+    "seed:demo-listing": "tsx src/scripts/seed-demo-listing.ts",
+    "dev:activate-city": "tsx src/scripts/dev-activate-city.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

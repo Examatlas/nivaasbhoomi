@@ -380,7 +380,17 @@ export async function getStaticFilterParams(): Promise<
 export async function getFeaturedListings(limit = 8): Promise<ListingCardData[]> {
   await connectDB();
 
-  const rows = await Listing.find({ status: "approved", slug: { $type: "string" } })
+  // Only surface listings from LAUNCHED (active) cities on the home page.
+  const activeCityIds = (await City.find({ isActive: true }, { _id: 1 }).lean()).map(
+    (c) => c._id,
+  );
+  if (activeCityIds.length === 0) return [];
+
+  const rows = await Listing.find({
+    status: "approved",
+    slug: { $type: "string" },
+    cityId: { $in: activeCityIds },
+  })
     .sort({ lastRefreshedAt: -1 })
     .limit(limit)
     .lean();
@@ -433,4 +443,185 @@ export async function getFeaturedListings(limit = 8): Promise<ListingCardData[]>
       whatsappNumber: PORTAL_WHATSAPP,
     } satisfies ListingCardData;
   });
+}
+
+// ---- City page ----
+
+export interface ResolvedCity {
+  id: string;
+  name: string;
+  slug: string;
+  introText?: string;
+  faq: { question: string; answer: string }[];
+}
+
+/** Resolve an ACTIVE city by slug, or null (Section 9: inactive city -> 404). */
+export async function resolveActiveCity(citySlug: string): Promise<ResolvedCity | null> {
+  await connectDB();
+  const city = await City.findOne(
+    { slug: citySlug, isActive: true },
+    { name: 1, slug: 1, introText: 1, faq: 1 },
+  ).lean();
+  if (!city) return null;
+  return {
+    id: String(city._id),
+    name: city.name,
+    slug: city.slug,
+    introText: city.introText ?? undefined,
+    faq: (city.faq ?? []).map((f) => ({ question: f.question, answer: f.answer })),
+  };
+}
+
+/** Approved-listing rate range across a whole city. */
+export async function computeCityRateRange(cityId: string): Promise<RateRange> {
+  await connectDB();
+  const _id = new mongoose.Types.ObjectId(cityId);
+  const [sale] = await Listing.aggregate<{ min: number; max: number; avgPsf: number }>([
+    {
+      $match: {
+        cityId: _id,
+        status: "approved",
+        purpose: "sale",
+        expectedPrice: { $gt: 0 },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        min: { $min: "$expectedPrice" },
+        max: { $max: "$expectedPrice" },
+        avgPsf: { $avg: "$pricePerSqft" },
+      },
+    },
+  ]);
+  const [rent] = await Listing.aggregate<{ min: number; max: number }>([
+    {
+      $match: {
+        cityId: _id,
+        status: "approved",
+        purpose: "rent",
+        monthlyRent: { $gt: 0 },
+      },
+    },
+    {
+      $group: { _id: null, min: { $min: "$monthlyRent" }, max: { $max: "$monthlyRent" } },
+    },
+  ]);
+  return {
+    saleMin: sale?.min,
+    saleMax: sale?.max,
+    rentMin: rent?.min,
+    rentMax: rent?.max,
+    avgPricePerSqft: sale?.avgPsf ? Math.round(sale.avgPsf) : undefined,
+  };
+}
+
+/** Popular localities in a city: active localities with the most listings. */
+export async function getCityPopularLocalities(
+  cityId: string,
+  limit = 12,
+): Promise<{ name: string; slug: string; listingCount: number }[]> {
+  await connectDB();
+  const rows = await Locality.find(
+    { cityId: new mongoose.Types.ObjectId(cityId), isActive: true },
+    { name: 1, slug: 1, listingCount: 1 },
+  )
+    .sort({ listingCount: -1, name: 1 })
+    .limit(limit)
+    .lean();
+  return rows.map((r) => ({
+    name: r.name,
+    slug: r.slug,
+    listingCount: r.listingCount ?? 0,
+  }));
+}
+
+/** Count approved listings in a city. */
+export async function countApprovedInCity(cityId: string): Promise<number> {
+  await connectDB();
+  return Listing.countDocuments({
+    cityId: new mongoose.Types.ObjectId(cityId),
+    status: "approved",
+  });
+}
+
+/** Newest approved listings in a city, as PropertyCard data. */
+export async function getCityListings(
+  cityId: string,
+  cityName: string,
+  limit = 12,
+): Promise<ListingCardData[]> {
+  await connectDB();
+  const rows = await Listing.find({
+    cityId: new mongoose.Types.ObjectId(cityId),
+    status: "approved",
+    slug: { $type: "string" },
+  })
+    .sort({ lastRefreshedAt: -1 })
+    .limit(limit)
+    .lean();
+  if (rows.length === 0) return [];
+
+  const localityIds = [...new Set(rows.map((r) => String(r.localityId)))];
+  const dealerIds = [...new Set(rows.map((r) => String(r.dealerId)))];
+  const [localities, dealers] = await Promise.all([
+    Locality.find({ _id: { $in: localityIds } }, { name: 1 }).lean(),
+    Dealer.find({ _id: { $in: dealerIds } }, { verificationTier: 1 }).lean(),
+  ]);
+  const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
+  const tierById = new Map(dealers.map((d) => [String(d._id), d.verificationTier ?? 0]));
+
+  return rows.map((l) => {
+    const photos = (l.photos ?? []).map((p) => ({
+      url: p.url!,
+      publicId: p.publicId ?? undefined,
+      width: p.width ?? 1200,
+      height: p.height ?? 900,
+    }));
+    const cover = photos[l.coverPhotoIndex ?? 0] ?? photos[0];
+    return {
+      id: String(l._id),
+      slug: l.slug!,
+      title: l.title!,
+      purpose: l.purpose as ListingPurpose,
+      propertyType: l.propertyType as PropertyType,
+      price: (l.purpose === "rent" ? l.monthlyRent : l.expectedPrice) ?? 0,
+      bhk: l.bhk ?? undefined,
+      area: l.carpetArea ?? l.builtUpArea ?? l.plotArea ?? undefined,
+      areaUnit: "sq.ft.",
+      furnishing: l.furnishing ?? undefined,
+      localityName: localityName.get(String(l.localityId)) ?? "",
+      cityName,
+      photo: cover,
+      photos,
+      photoCount: photos.length,
+      badges: {
+        documentsChecked: Boolean(l.badges?.documentsChecked),
+        photosVerified: Boolean(l.badges?.photosVerified),
+        siteVisited: Boolean(l.badges?.siteVisited),
+      },
+      verificationTier: tierById.get(String(l.dealerId)) ?? 0,
+      refreshedAt: (l.lastRefreshedAt ?? l.createdAt ?? new Date()).toISOString(),
+      whatsappNumber: PORTAL_WHATSAPP,
+    } satisfies ListingCardData;
+  });
+}
+
+/** All active cities (home selector + city generateStaticParams). */
+export async function getActiveCities(): Promise<
+  { name: string; slug: string; tier: number; listingCount: number }[]
+> {
+  await connectDB();
+  const rows = await City.find(
+    { isActive: true },
+    { name: 1, slug: 1, tier: 1, listingCount: 1 },
+  )
+    .sort({ tier: 1, name: 1 })
+    .lean();
+  return rows.map((c) => ({
+    name: c.name,
+    slug: c.slug,
+    tier: c.tier ?? 3,
+    listingCount: c.listingCount ?? 0,
+  }));
 }

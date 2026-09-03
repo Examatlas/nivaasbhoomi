@@ -72,6 +72,41 @@ async function main() {
     });
   }
 
+  // City intro + FAQ (only when missing) so the city page shows them + FAQPage.
+  const cityDoc = await City.findById(city._id, { introText: 1, faq: 1 }).lean();
+  const cityNeedsIntro = !cityDoc?.introText || cityDoc.introText.trim().length < 200;
+  const cityNeedsFaq = !cityDoc?.faq || cityDoc.faq.length === 0;
+  if (cityNeedsIntro || cityNeedsFaq) {
+    const cset: Record<string, unknown> = {};
+    if (cityNeedsIntro) {
+      cset.introText =
+        `${city.name} is the capital of Jharkhand and one of eastern India's fastest-growing ` +
+        "property markets. Set on the Chota Nagpur plateau, it pairs a pleasant climate and green " +
+        "surroundings with steady infrastructure growth - new roads, campuses and townships expanding " +
+        "the city outward from its established core. Buyers find everything from affordable plots and " +
+        "compact flats to premium villas across pockets like Kanke, Lalpur, Hinoo and Ashok Nagar, at " +
+        "prices that stay far more approachable than the metros. With good schools, hospitals and a " +
+        "growing job base, Ranchi is a dependable market for both end-users and long-term investors.";
+    }
+    if (cityNeedsFaq) {
+      cset.faq = [
+        {
+          question: `Which are the best localities to buy property in ${city.name}?`,
+          answer:
+            "Kanke, Lalpur, Hinoo and Ashok Nagar are among the most popular, offering a mix of " +
+            "flats, independent houses and plots. Browse the localities above for current listings.",
+        },
+        {
+          question: `Is property in ${city.name} affordable compared to metros?`,
+          answer:
+            "Yes - Ranchi's prices are considerably lower than metros, with good-quality 2-3 BHK " +
+            "flats and plots available at a fraction of big-city rates.",
+        },
+      ];
+    }
+    await City.updateOne({ _id: city._id }, { $set: cset });
+  }
+
   // Give the locality intro text + FAQs (only when missing) so it can
   // auto-activate and exercise the FAQ accordion + FAQPage JSON-LD. Admin edits
   // are preserved.
