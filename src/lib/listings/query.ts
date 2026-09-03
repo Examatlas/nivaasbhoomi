@@ -371,3 +371,66 @@ export async function getStaticFilterParams(): Promise<
   }
   return out;
 }
+
+/**
+ * Recent approved listings across the whole portal, for the home page's
+ * "Featured" grid. Resolves each listing's city + locality name in bulk and
+ * exposes dealer verification tier - never dealer phone/name (Section 13).
+ */
+export async function getFeaturedListings(limit = 8): Promise<ListingCardData[]> {
+  await connectDB();
+
+  const rows = await Listing.find({ status: "approved", slug: { $type: "string" } })
+    .sort({ lastRefreshedAt: -1 })
+    .limit(limit)
+    .lean();
+  if (rows.length === 0) return [];
+
+  const cityIds = [...new Set(rows.map((r) => String(r.cityId)))];
+  const localityIds = [...new Set(rows.map((r) => String(r.localityId)))];
+  const dealerIds = [...new Set(rows.map((r) => String(r.dealerId)))];
+
+  const [cities, localities, dealers] = await Promise.all([
+    City.find({ _id: { $in: cityIds } }, { name: 1 }).lean(),
+    Locality.find({ _id: { $in: localityIds } }, { name: 1 }).lean(),
+    Dealer.find({ _id: { $in: dealerIds } }, { verificationTier: 1 }).lean(),
+  ]);
+  const cityName = new Map(cities.map((c) => [String(c._id), c.name]));
+  const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
+  const tierById = new Map(dealers.map((d) => [String(d._id), d.verificationTier ?? 0]));
+
+  return rows.map((l) => {
+    const photos = (l.photos ?? []).map((p) => ({
+      url: p.url!,
+      publicId: p.publicId ?? undefined,
+      width: p.width ?? 1200,
+      height: p.height ?? 900,
+    }));
+    const cover = photos[l.coverPhotoIndex ?? 0] ?? photos[0];
+    return {
+      id: String(l._id),
+      slug: l.slug!,
+      title: l.title!,
+      purpose: l.purpose as ListingPurpose,
+      propertyType: l.propertyType as PropertyType,
+      price: (l.purpose === "rent" ? l.monthlyRent : l.expectedPrice) ?? 0,
+      bhk: l.bhk ?? undefined,
+      area: l.carpetArea ?? l.builtUpArea ?? l.plotArea ?? undefined,
+      areaUnit: "sq.ft.",
+      furnishing: l.furnishing ?? undefined,
+      localityName: localityName.get(String(l.localityId)) ?? "",
+      cityName: cityName.get(String(l.cityId)) ?? "",
+      photo: cover,
+      photos,
+      photoCount: photos.length,
+      badges: {
+        documentsChecked: Boolean(l.badges?.documentsChecked),
+        photosVerified: Boolean(l.badges?.photosVerified),
+        siteVisited: Boolean(l.badges?.siteVisited),
+      },
+      verificationTier: tierById.get(String(l.dealerId)) ?? 0,
+      refreshedAt: (l.lastRefreshedAt ?? l.createdAt ?? new Date()).toISOString(),
+      whatsappNumber: PORTAL_WHATSAPP,
+    } satisfies ListingCardData;
+  });
+}

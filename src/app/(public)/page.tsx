@@ -1,17 +1,20 @@
-import Link from "next/link";
 import { Search, ShieldCheck, MessageCircle, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PropertyCard } from "@/components/public/property-card";
-import { SAMPLE_LISTINGS } from "@/lib/sample-listings";
+import { ListingGrid } from "@/components/public/listing-grid";
+import { getFeaturedListings } from "@/lib/listings/query";
+
+export const revalidate = 3600; // ISR - featured listings change slowly
 
 /**
- * Home. Phase 0 renders a real hero and a featured grid off sample data so the
- * layout can be reviewed; the city selector and live featured listings arrive
- * with the location system (P1) and public site (P3).
+ * Home. The featured grid renders REAL approved listings from the DB (so every
+ * card links to a live property page), newest first. Empty until listings are
+ * approved. The city selector search is wired in a later step.
  */
-export default function HomePage() {
+export default async function HomePage() {
+  const featured = await getFeaturedListings(8);
+
   return (
     <>
       {/* ---------- Hero ---------- */}
@@ -33,7 +36,7 @@ export default function HomePage() {
               phone-number popups, no brokers spamming your phone.
             </p>
 
-            {/* Search entry (wired to the location system in P1). */}
+            {/* Search entry (wired to the location system next). */}
             <div className="mt-8 flex w-full max-w-xl flex-col gap-2 rounded-sheet border border-border bg-surface p-2 shadow-card sm:flex-row">
               <div className="flex flex-1 items-center gap-2 px-3">
                 <Search className="size-5 shrink-0 text-muted-foreground" />
@@ -61,25 +64,18 @@ export default function HomePage() {
       </section>
 
       {/* ---------- Featured ---------- */}
-      <section className="mx-auto max-w-page px-4 py-14 sm:px-6">
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-display-sm">Featured in Ranchi</h2>
+      {featured.length > 0 && (
+        <section className="mx-auto max-w-page px-4 py-14 sm:px-6">
+          <div className="mb-6">
+            <h2 className="text-display-sm">Latest verified listings</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Hand-picked, freshly verified listings.
+              Freshly verified property, contact directly on WhatsApp.
             </p>
           </div>
-          <Button asChild variant="ghost" size="sm" className="shrink-0">
-            <Link href="/">View all</Link>
-          </Button>
-        </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {SAMPLE_LISTINGS.map((listing, i) => (
-            <PropertyCard key={listing.id} listing={listing} priority={i < 2} />
-          ))}
-        </div>
-      </section>
+          <ListingGrid listings={featured} />
+        </section>
+      )}
     </>
   );
 }
