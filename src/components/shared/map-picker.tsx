@@ -88,6 +88,18 @@ export function MapPicker({ value, onChange, center, disabled }: MapPickerProps)
     if (status !== "loading") return;
     let cancelled = false;
 
+    // Google auth/activation failures (invalid key, Maps JavaScript API not
+    // enabled, referrer blocked) come through this global - degrade gracefully.
+    const previousAuthFailure = window.gm_authFailure;
+    window.gm_authFailure = () => {
+      if (cancelled) return;
+      setErrorMsg(
+        "Google Maps couldn't authenticate. Check the API key and that the " +
+          "Maps JavaScript API (and Places API) are enabled for it.",
+      );
+      setStatus("error");
+    };
+
     loadGoogleMaps(API_KEY)
       .then((google) => {
         if (cancelled || !mapElRef.current) return;
@@ -138,6 +150,7 @@ export function MapPicker({ value, onChange, center, disabled }: MapPickerProps)
 
     return () => {
       cancelled = true;
+      window.gm_authFailure = previousAuthFailure;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
