@@ -1,0 +1,3 @@
+# Ignore the dataset itself; keep the README
+*.csv
+!README.md

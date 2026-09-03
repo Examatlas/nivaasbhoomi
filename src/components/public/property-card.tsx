@@ -118,27 +118,29 @@ export function PropertyCard({
             dimming the photo the way competitor cards do. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-ink-950/45 to-transparent" />
 
-        {/* Purpose - the one always-present chip, top-left. */}
-        <div className="absolute top-3 left-3 flex items-center gap-2">
-          <Badge
-            tone={purpose === "rent" ? "clay" : "ink"}
-            className="bg-surface/95 shadow-subtle backdrop-blur-sm"
-          >
-            {purpose === "rent" ? "For Rent" : "For Sale"}
-          </Badge>
-          {featured && (
-            <Badge tone="clay" className="shadow-subtle">
-              Featured
+        {/* Top overlay bar. A single justify-between row so the purpose/featured
+            chips (left) and the verification badge (right) can never overlap on
+            a narrow card - the left group wraps instead of sliding under the
+            right one, which stays pinned and never shrinks. */}
+        <div className="pointer-events-none absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              tone={purpose === "rent" ? "clay" : "ink"}
+              className="bg-surface/95 shadow-subtle backdrop-blur-sm"
+            >
+              {purpose === "rent" ? "For Rent" : "For Sale"}
             </Badge>
+            {featured && (
+              <Badge tone="clay" className="shadow-subtle">
+                Featured
+              </Badge>
+            )}
+          </div>
+
+          {verificationTier >= 1 && (
+            <VerificationBadge tier={verificationTier} size="sm" className="shrink-0" />
           )}
         </div>
-
-        {/* Verification, top-right. */}
-        {verificationTier >= 1 && (
-          <div className="absolute top-3 right-3">
-            <VerificationBadge tier={verificationTier} size="sm" />
-          </div>
-        )}
 
         {/* Photo count, bottom-right - promises a real gallery, not one photo. */}
         {photoCount > 1 && (
