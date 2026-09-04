@@ -34,11 +34,10 @@ import {
   groupINR,
 } from "@/lib/utils/price";
 import { getFreshness } from "@/lib/utils/date";
-import { buildListingEnquiry } from "@/lib/utils/whatsapp";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { WhatsAppButton } from "@/components/ui/whatsapp-button";
+import { EnquiryForm } from "@/components/public/enquiry-form";
 import { JsonLd } from "@/components/shared/json-ld";
 import { PropertyGallery } from "@/components/public/property-gallery";
 import { PropertyMap } from "@/components/public/property-map";
@@ -93,15 +92,6 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
   const isPlot = l.propertyType === "plot";
   const area = l.carpetArea ?? l.builtUpArea ?? l.plotArea;
   const freshness = getFreshness(l.refreshedAt);
-
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  const enquiryHref = buildListingEnquiry({
-    phone: l.whatsappNumber,
-    listingId: l.id,
-    title: l.title,
-    slug: l.slug,
-    siteUrl,
-  });
 
   // Absolute image URLs for JSON-LD / OG.
   const imageUrls = l.photos
@@ -179,9 +169,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                 priceSuffix={price.suffix}
               />
               <div className="mt-3">
-                <WhatsAppButton href={enquiryHref} block size="lg">
-                  Enquire on WhatsApp
-                </WhatsAppButton>
+                <EnquiryForm listingId={l.id} listingTitle={l.title} block />
               </div>
             </div>
 
@@ -341,12 +329,10 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                   priceSuffix={price.suffix}
                 />
                 <div className="mt-4">
-                  <WhatsAppButton href={enquiryHref} block size="lg">
-                    Enquire on WhatsApp
-                  </WhatsAppButton>
+                  <EnquiryForm listingId={l.id} listingTitle={l.title} block />
                 </div>
                 <p className="mt-2 text-center text-meta text-muted-foreground">
-                  No spam calls. Chat directly on WhatsApp.
+                  No spam. The verified dealer contacts you directly.
                 </p>
               </Card>
 
@@ -369,9 +355,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
               )}
             </p>
           </div>
-          <WhatsAppButton href={enquiryHref} size="md" className="shrink-0">
-            WhatsApp
-          </WhatsAppButton>
+          <EnquiryForm listingId={l.id} listingTitle={l.title} triggerLabel="Enquire" size="md" />
         </div>
       </div>
     </>

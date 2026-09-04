@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BedDouble, Maximize, MapPin, Sofa, Images, Camera, ShieldCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { WhatsAppButton } from "@/components/ui/whatsapp-button";
+import { EnquiryForm } from "@/components/public/enquiry-form";
 import { VerificationBadge } from "@/components/public/verification-badge";
 import { FreshnessIndicator } from "@/components/public/freshness-indicator";
 import { cn } from "@/lib/utils/cn";
@@ -14,7 +14,6 @@ import {
   formatListingPrice,
   formatPropertyType,
 } from "@/lib/utils/price";
-import { buildListingEnquiry } from "@/lib/utils/whatsapp";
 import { photoUrl } from "@/lib/media/transforms";
 import type { ListingCardData } from "@/types/listing";
 
@@ -63,20 +62,11 @@ export function PropertyCard({
     badges,
     verificationTier,
     refreshedAt,
-    whatsappNumber,
     featured,
   } = listing;
 
   const href = `/property/${slug}`;
   const { primary: priceLabel, suffix: priceSuffix } = formatListingPrice(purpose, price);
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  const enquiryHref = buildListingEnquiry({
-    phone: whatsappNumber,
-    listingId: id,
-    title,
-    slug,
-    siteUrl,
-  });
   // Card thumbnail delivered via the Cloudinary card-thumb transform (S14).
   const coverSrc = photo ? photoUrl(photo, "cardThumb") : null;
 
@@ -231,13 +221,7 @@ export function PropertyCard({
 
         {/* Single action. Pushed to the bottom so every card's CTA aligns. */}
         <div className="mt-auto pt-1">
-          <WhatsAppButton
-            href={enquiryHref}
-            block
-            aria-label={`Enquire about ${title} on WhatsApp`}
-          >
-            Enquire on WhatsApp
-          </WhatsAppButton>
+          <EnquiryForm listingId={id} listingTitle={title} triggerLabel="Enquire" block size="md" />
         </div>
       </div>
     </article>
