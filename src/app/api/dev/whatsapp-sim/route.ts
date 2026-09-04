@@ -8,6 +8,7 @@ import {
   type InboundEvent,
 } from "@/lib/whatsapp/webhook-process";
 import type { N8nResponse } from "@/lib/whatsapp/n8n";
+import { Dealer } from "@/lib/db/models/Dealer";
 
 /**
  * DEV-ONLY: simulate an inbound WhatsApp message so the webhook -> n8n -> reply
@@ -91,9 +92,29 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     aiOverride: mockAi as N8nResponse | undefined,
   });
 
+  // Resolve the routed dealer's name so the outcome is self-explanatory.
+  let routedDealer: { id: string; businessName: string; tier: number; quota: string } | undefined;
+  if (result.routing?.dealerId) {
+    const d = await Dealer.findById(result.routing.dealerId, {
+      businessName: 1,
+      verificationTier: 1,
+      leadsUsedThisMonth: 1,
+      maxLeadsPerMonth: 1,
+    }).lean();
+    if (d) {
+      routedDealer = {
+        id: String(d._id),
+        businessName: d.businessName,
+        tier: d.verificationTier ?? 0,
+        quota: `${d.leadsUsedThisMonth}/${d.maxLeadsPerMonth}`,
+      };
+    }
+  }
+
   return ok({
     simulated: evt,
     result,
+    routedDealer,
     hint:
       result.status === "n8n_unconfigured"
         ? "Set N8N_WEBHOOK_URL, or pass `mockAi` to test the reply + lead path offline."

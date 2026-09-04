@@ -20,6 +20,7 @@ import {
   type N8nResponse,
   type N8nExtracted,
 } from "@/lib/whatsapp/n8n";
+import { routeLead } from "@/lib/leads/routing";
 
 /**
  * Inbound WhatsApp message processing (DEV-SPEC.txt Section 11, steps a-i).
@@ -28,9 +29,9 @@ import {
  * its time. It NEVER throws - every external failure becomes a value or a queued
  * retry, so one bad message can't wedge the pipeline.
  *
- * IMPORTANT (this phase): a qualified lead is SAVED with its extracted fields
- * and isQualified flag, but is NOT assigned to a dealer. Routing is the next
- * session - see the ROUTING TODO below.
+ * A qualified lead is saved with its extracted fields, then routed to exactly
+ * one dealer via the Section 12 engine (step i). Routing is atomic + idempotent,
+ * so re-processing a message never double-assigns or double-counts quota.
  */
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -51,6 +52,13 @@ export interface ProcessResult {
   isQualified?: boolean;
   qualificationScore?: number;
   note?: string;
+  /** Routing outcome, present when a qualified lead was routed (Section 12). */
+  routing?: {
+    decision: string;
+    reason: string;
+    dealerId?: string;
+    assignedNow?: boolean;
+  };
 }
 
 export interface ProcessOptions {
@@ -170,11 +178,20 @@ export async function processInboundMessage(
       await Conversation.updateOne({ phone: evt.from }, { $set: { leadId } });
     }
 
-    // (i) ROUTING TODO (Phase 5 - NEXT session): when
-    //     `ai.isQualified === true` and the lead has no assignedDealerId, run
-    //     the Section 12 routing engine here to assign an exclusive dealer and
-    //     fire the `lead_assigned` template. Deliberately NOT done in this
-    //     session - the lead is saved with isQualified set, unassigned.
+    // (i) Routing (Section 12): a qualified, still-unassigned lead is routed to
+    //     exactly one dealer. routeLead is atomic + idempotent - re-processing
+    //     the same message can never double-assign or double-count quota, and an
+    //     already-assigned lead is left untouched (exclusivity).
+    let routing: ProcessResult["routing"];
+    if (leadId && ai.isQualified) {
+      const r = await routeLead(leadId);
+      routing = {
+        decision: r.decision,
+        reason: r.reason,
+        dealerId: r.dealerId,
+        assignedNow: r.assignedNow,
+      };
+    }
 
     return {
       status: "processed",
@@ -184,6 +201,7 @@ export async function processInboundMessage(
       leadId: leadId ?? undefined,
       isQualified: Boolean(ai.isQualified),
       qualificationScore: ai.qualificationScore,
+      routing,
     };
   } catch (err) {
     // Absolute backstop: never throw from the webhook pipeline.
@@ -258,7 +276,7 @@ async function upsertLead(args: UpsertLeadArgs): Promise<string | null> {
     phone: args.phone,
     source: args.listingId ? "listing" : "generic",
     status: "new",
-    // NOTE: assignedDealerId intentionally unset - routing is the next session.
+    // Created unassigned; routeLead() assigns it atomically right after.
     ...set,
   });
   return String(created._id);

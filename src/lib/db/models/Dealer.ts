@@ -73,6 +73,9 @@ const dealerSchema = new Schema(
     avgResponseMinutes: { type: Number },
     totalLeadsReceived: { type: Number, default: 0 },
     totalSiteVisits: { type: Number, default: 0 },
+    // Last time a lead was routed to this dealer - the round-robin fairness key
+    // in the generic-lead ranking (Section 12). Null = never assigned.
+    lastAssignedAt: { type: Date, default: null },
 
     // plan
     plan: { type: String, enum: ["free", "starter", "pro"], default: "free" },

@@ -19,7 +19,8 @@
     "dedupe:localities": "tsx src/scripts/dedupe-localities.ts",
     "seed:demo-listing": "tsx src/scripts/seed-demo-listing.ts",
     "seed:demo-blog": "tsx src/scripts/seed-demo-blog.ts",
-    "dev:activate-city": "tsx src/scripts/dev-activate-city.ts"
+    "dev:activate-city": "tsx src/scripts/dev-activate-city.ts",
+    "cron:quota-reset": "tsx src/scripts/quota-reset.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

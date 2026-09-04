@@ -60,19 +60,23 @@ export const loginOtp: TemplateDef<LoginOtpParams> = {
 };
 
 // ---- lead_assigned (utility) — to the dealer ----
-// "New lead! {{1}} is interested in {{2}} in {{3}}. Reply within {{4}} to respond first."
+// "New lead! {{1}} ({{2}}) wants property in {{3}}, budget {{4}}, timeline {{5}}.
+//  Contact them now on WhatsApp to respond first."
+// Params carry the BUYER's details so the assigned dealer can act (a lead is
+// private to its assigned dealer, Section 13). Order = {{1}}..{{5}}.
 export interface LeadAssignedParams {
-  dealerName: string;
-  requirement: string;
-  area: string;
-  slaWindow: string;
+  buyerName: string;
+  buyerPhone: string;
+  budget: string;
+  locality: string;
+  timeline: string;
 }
 export const leadAssigned: TemplateDef<LeadAssignedParams> = {
   name: "lead_assigned",
   category: "utility",
   language: "en",
-  build: ({ dealerName, requirement, area, slaWindow }) =>
-    body(dealerName, requirement, area, slaWindow),
+  build: ({ buyerName, buyerPhone, budget, locality, timeline }) =>
+    body(buyerName, buyerPhone, budget, locality, timeline),
 };
 
 // ---- listing_expiry_warning (utility) — to the dealer, day 25 ----

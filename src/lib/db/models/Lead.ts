@@ -60,6 +60,9 @@ const leadSchema = new Schema(
         "converted",
         "lost",
         "unmatched",
+        // Routing outcome (Section 12): the listing's owner dealer is over quota.
+        // Sits in the admin queue; the dealer is nudged to upgrade.
+        "quota-exceeded",
       ],
       default: "new",
     },
