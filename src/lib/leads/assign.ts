@@ -6,7 +6,7 @@ import { Dealer } from "@/lib/db/models/Dealer";
 import { Listing } from "@/lib/db/models/Listing";
 import { Locality } from "@/lib/db/models/Locality";
 import { AuditLog } from "@/lib/db/models/AuditLog";
-import { sendTemplate } from "@/lib/whatsapp/client";
+import { sendBusinessTemplate } from "@/lib/whatsapp/send";
 
 /**
  * Shared lead-assignment side effects + audit (DEV-SPEC.txt Sections 12, 16).
@@ -57,7 +57,7 @@ export async function sendLeadAssigned(
     if (loc?.name) locality = loc.name;
   }
 
-  const res = await sendTemplate(dealer.phone, "lead_assigned", {
+  const res = await sendBusinessTemplate(dealer.phone, "lead_assigned", {
     buyerName: lead.name || lead.waProfileName || "A buyer",
     buyerPhone: `+${lead.phone}`,
     budget: formatBudget(lead.budgetMin, lead.budgetMax),

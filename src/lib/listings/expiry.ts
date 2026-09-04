@@ -7,7 +7,7 @@ import {
   recalculateCounters,
   recalculateLocalityActivation,
 } from "@/lib/locations/activation";
-import { sendTemplate } from "@/lib/whatsapp/client";
+import { sendBusinessTemplate } from "@/lib/whatsapp/send";
 
 /**
  * Listing expiry + freshness cron (DEV-SPEC.txt Section 13). Runs daily at
@@ -108,7 +108,7 @@ export async function runExpiry(now: Date = new Date()): Promise<ExpiryResult> {
         0,
         Math.ceil((new Date(l.expiresAt!).getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
       );
-      await sendTemplate(dealer.phone, "listing_expiry_warning", {
+      await sendBusinessTemplate(dealer.phone, "listing_expiry_warning", {
         dealerName: dealer.businessName ?? "there",
         listingTitle: l.title ?? "your listing",
         daysLeft: String(daysLeft),

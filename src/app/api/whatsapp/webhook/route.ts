@@ -1,6 +1,7 @@
 import { after, type NextRequest } from "next/server";
 
 import { verifyWebhookSignature } from "@/lib/whatsapp/signature";
+import { getAutomationSettings } from "@/lib/settings/automation";
 import { processInboundMessage, type InboundEvent } from "@/lib/whatsapp/webhook-process";
 
 /**
@@ -44,10 +45,18 @@ export async function POST(req: NextRequest) {
     return new Response("Invalid signature", { status: 403 });
   }
 
-  // 2. Extract events synchronously (cheap), but do all real work after 200.
+  // 2. DORMANT when Zenith Code is the provider: NivaasBhoomi no longer runs its
+  //    own Meta+n8n qualification (Zenith does it and pushes leads to
+  //    /api/leads/ingest). We still ACK 200 so Meta stays happy, but skip all
+  //    processing. Flip the provider back to "meta" to re-activate this path.
+  const { provider } = await getAutomationSettings();
+  if (provider === "zenith") {
+    return new Response("EVENT_RECEIVED", { status: 200 });
+  }
+
+  // 3. Extract events synchronously (cheap), but do all real work after 200.
   const events = extractEvents(raw);
 
-  // 3. Schedule processing AFTER the response is sent. Return 200 now.
   if (events.length > 0) {
     after(async () => {
       for (const evt of events) {

@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db/connect";
 import { Lead } from "@/lib/db/models/Lead";
 import { Dealer } from "@/lib/db/models/Dealer";
-import { sendTemplate } from "@/lib/whatsapp/client";
+import { sendBusinessTemplate } from "@/lib/whatsapp/send";
 import { absoluteUrl } from "@/lib/seo/site";
 
 /**
@@ -85,7 +85,7 @@ async function sendReviewRequest(leadId: string): Promise<void> {
   if (!lead?.phone || !lead.assignedDealerId || lead.reviewedAt) return;
 
   const dealer = await Dealer.findById(lead.assignedDealerId, { businessName: 1 }).lean();
-  await sendTemplate(lead.phone, "review_request", {
+  await sendBusinessTemplate(lead.phone, "review_request", {
     dealerName: dealer?.businessName ?? "the dealer",
     reviewUrl: absoluteUrl(`/review/${leadId}`),
   });

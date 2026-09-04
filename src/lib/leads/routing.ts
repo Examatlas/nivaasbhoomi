@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/db/connect";
 import { Lead } from "@/lib/db/models/Lead";
 import { Dealer } from "@/lib/db/models/Dealer";
 import { Listing } from "@/lib/db/models/Listing";
-import { sendText } from "@/lib/whatsapp/client";
+import { sendBusinessText } from "@/lib/whatsapp/send";
 import { applyAssignSideEffects, logAudit } from "@/lib/leads/assign";
 
 /**
@@ -360,7 +360,7 @@ async function performAssignment(
 async function notifyDealerUpgrade(dealerId: string): Promise<void> {
   const dealer = await Dealer.findById(dealerId, { phone: 1 }).lean();
   if (!dealer?.phone) return;
-  await sendText(
+  await sendBusinessText(
     dealer.phone,
     "You just missed a lead because your monthly lead quota is full. Upgrade your plan on NivaasBhoomi to receive more leads.",
   );
