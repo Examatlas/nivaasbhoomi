@@ -35,6 +35,13 @@ const leadSchema = new Schema(
     loanRequired: { type: Boolean },
     siteVisitSlot: { type: String },
     qualificationScore: { type: Number, min: 0, max: 100 },
+    // AI qualification outputs (from the n8n workflow, Section 11). isQualified
+    // gates routing (Phase 5-next); stage tracks the conversation funnel.
+    isQualified: { type: Boolean, default: false },
+    stage: {
+      type: String,
+      enum: ["greeting", "qualifying", "qualified", "closing"],
+    },
 
     // assignment - EXCLUSIVE
     assignedDealerId: { type: Types.ObjectId, ref: "Dealer" },
