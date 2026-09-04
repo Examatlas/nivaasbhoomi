@@ -11,6 +11,7 @@ import { apiFetch } from "@/lib/api/client";
 const NAV = [
   { href: "/admin/listings", label: "Listings" },
   { href: "/admin/locations", label: "Locations" },
+  { href: "/admin/leads", label: "Leads" },
 ];
 
 /**

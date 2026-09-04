@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { getMyDealer, tierLadder, tierName } from "@/lib/dealers/account";
+import { getMyLeadBreakdown } from "@/lib/leads/dealer-leads";
 import { DealerShell } from "@/components/dealer/dealer-shell";
 import { VerificationBadge } from "@/components/public/verification-badge";
 
@@ -26,7 +27,7 @@ export default async function DealerDashboardPage() {
   if (!dealer) redirect("/dealer/login");
   if (!dealer.profileComplete) redirect("/dealer/onboarding");
 
-  const ladder = tierLadder(dealer);
+  const [ladder, leadCounts] = [tierLadder(dealer), await getMyLeadBreakdown(dealer.id)];
   const nextRung = ladder.find((r) => r.isNext);
 
   return (
@@ -54,8 +55,13 @@ export default async function DealerDashboardPage() {
         <StatCard
           icon={Inbox}
           label="Leads"
-          value={"—"}
-          sub="Arrives in Phase 5"
+          value={leadCounts.total}
+          sub={
+            leadCounts.total > 0
+              ? `${leadCounts.active} active · ${leadCounts.converted} converted`
+              : "No leads yet"
+          }
+          href="/dealer/leads"
         />
         <div className="rounded-card border border-border bg-surface p-5">
           <div className="flex items-center gap-2 text-meta text-muted-foreground">

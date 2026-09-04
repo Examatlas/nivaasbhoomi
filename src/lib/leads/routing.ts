@@ -4,8 +4,8 @@ import { connectDB } from "@/lib/db/connect";
 import { Lead } from "@/lib/db/models/Lead";
 import { Dealer } from "@/lib/db/models/Dealer";
 import { Listing } from "@/lib/db/models/Listing";
-import { Locality } from "@/lib/db/models/Locality";
-import { sendTemplate, sendText } from "@/lib/whatsapp/client";
+import { sendText } from "@/lib/whatsapp/client";
+import { applyAssignSideEffects, logAudit } from "@/lib/leads/assign";
 
 /**
  * Lead routing engine (DEV-SPEC.txt Section 12) — the core of the business.
@@ -329,19 +329,15 @@ async function performAssignment(
     };
   }
 
-  // We won the claim - apply the exactly-once side effects.
-  await Dealer.updateOne(
-    { _id: dealerId },
-    {
-      $inc: { leadsUsedThisMonth: 1, totalLeadsReceived: 1 },
-      $set: { lastAssignedAt: now },
-    },
-  );
-  if (claimed.listingId) {
-    await Listing.updateOne({ _id: claimed.listingId }, { $inc: { leadCount: 1 } });
-  }
-
-  const templateSent = await sendLeadAssigned(dealerId, claimed);
+  // We won the claim - apply the exactly-once side effects + audit (Section 16).
+  const { templateSent } = await applyAssignSideEffects(dealerId, claimed, now);
+  await logAudit({
+    action: "lead.auto-assign",
+    actor: { actorType: "system", actorId: "routing" },
+    leadId: String(lead._id),
+    dealerId,
+    reason,
+  });
 
   return {
     decision: "assign",
@@ -354,38 +350,6 @@ async function performAssignment(
 }
 
 // ---- notifications ----
-
-function formatBudget(min?: number | null, max?: number | null): string {
-  const lakh = (n: number) =>
-    n >= 1e7 ? `${(n / 1e7).toFixed(2).replace(/\.00$/, "")} Cr` : `${Math.round(n / 1e5)} L`;
-  if (min && max) return `Rs ${lakh(min)} - ${lakh(max)}`;
-  if (max) return `up to Rs ${lakh(max)}`;
-  if (min) return `Rs ${lakh(min)}+`;
-  return "not specified";
-}
-
-async function sendLeadAssigned(
-  dealerId: string,
-  lead: { name?: string | null; waProfileName?: string | null; phone: string; budgetMin?: number | null; budgetMax?: number | null; timeline?: string | null; localityId?: unknown },
-): Promise<boolean> {
-  const dealer = await Dealer.findById(dealerId, { phone: 1 }).lean();
-  if (!dealer?.phone) return false;
-
-  let locality = "your area";
-  if (lead.localityId) {
-    const loc = await Locality.findById(lead.localityId, { name: 1 }).lean();
-    if (loc?.name) locality = loc.name;
-  }
-
-  const res = await sendTemplate(dealer.phone, "lead_assigned", {
-    buyerName: lead.name || lead.waProfileName || "A buyer",
-    buyerPhone: `+${lead.phone}`,
-    budget: formatBudget(lead.budgetMin, lead.budgetMax),
-    locality,
-    timeline: lead.timeline || "not specified",
-  });
-  return res.delivered;
-}
 
 /**
  * Nudge an over-quota dealer to upgrade. There's no dedicated template in
