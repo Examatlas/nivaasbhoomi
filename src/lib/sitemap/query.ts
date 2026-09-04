@@ -337,5 +337,8 @@ export function getStaticSitemapEntries(): SitemapEntry[] {
   const now = new Date();
   return [
     { url: absoluteUrl("/"), lastModified: now, changeFrequency: "daily" },
+    { url: absoluteUrl("/tools"), lastModified: now, changeFrequency: "monthly" },
+    { url: absoluteUrl("/tools/emi-calculator"), lastModified: now, changeFrequency: "monthly" },
+    { url: absoluteUrl("/tools/stamp-duty-calculator"), lastModified: now, changeFrequency: "monthly" },
   ];
 }
