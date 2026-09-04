@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
+import { dealerLoginEnabled } from "@/lib/config/flags";
 import { normalisePhone } from "@/lib/utils/whatsapp";
 import { issueOtp } from "@/lib/auth/otp";
 import { sendLoginOtp } from "@/lib/whatsapp/client";
@@ -31,6 +32,9 @@ function validIndianMobile(phone: string): boolean {
 }
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
+  if (!dealerLoginEnabled()) {
+    return fail("FORBIDDEN", "Dealer sign-in is not available yet.");
+  }
   let json: unknown;
   try {
     json = await req.json();

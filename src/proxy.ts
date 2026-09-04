@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { verifySession } from "@/lib/auth/jwt";
 import { ADMIN_COOKIE, DEALER_COOKIE } from "@/lib/auth/cookie";
+import { dealerLoginEnabled } from "@/lib/config/flags";
 
 /**
  * Edge proxy (Next 16's renamed middleware) - DEV-SPEC.txt Section 8.
@@ -29,6 +30,14 @@ export async function proxy(req: NextRequest) {
 }
 
 async function gateDealer(req: NextRequest, pathname: string) {
+  // Launch: the dealer panel is parked (no WhatsApp OTP yet). Let /dealer/login
+  // render its "coming soon" page; bounce every deeper /dealer/* route to it so
+  // nothing 404s or leaks a half-working panel.
+  if (!dealerLoginEnabled()) {
+    if (pathname === "/dealer/login") return NextResponse.next();
+    return NextResponse.redirect(new URL("/dealer/login", req.url));
+  }
+
   const claims = await verifySession(req.cookies.get(DEALER_COOKIE)?.value);
   const isDealer = claims?.role === "dealer";
 

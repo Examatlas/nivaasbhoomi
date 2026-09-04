@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
+import { dealerLoginEnabled } from "@/lib/config/flags";
 import { normalisePhone } from "@/lib/utils/whatsapp";
 import { verifyOtp } from "@/lib/auth/otp";
 import { signSession } from "@/lib/auth/jwt";
@@ -27,6 +28,9 @@ const bodySchema = z.object({
 });
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
+  if (!dealerLoginEnabled()) {
+    return fail("FORBIDDEN", "Dealer sign-in is not available yet.");
+  }
   let json: unknown;
   try {
     json = await req.json();
