@@ -109,15 +109,16 @@ export const siteVisitReminder: TemplateDef<SiteVisitReminderParams> = {
 
 // ---- review_request (utility) — to the buyer, after a visit ----
 // "How was your visit for {{1}} with {{2}}? Reply with a rating from 1 to 5."
+// "How was your visit with {{1}}? Leave a quick rating here: {{2}}"
 export interface ReviewRequestParams {
-  listingTitle: string;
   dealerName: string;
+  reviewUrl: string;
 }
 export const reviewRequest: TemplateDef<ReviewRequestParams> = {
   name: "review_request",
   category: "utility",
   language: "en",
-  build: ({ listingTitle, dealerName }) => body(listingTitle, dealerName),
+  build: ({ dealerName, reviewUrl }) => body(dealerName, reviewUrl),
 };
 
 // ---- followup_nudge (marketing) — to a dormant lead ----

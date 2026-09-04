@@ -4,8 +4,33 @@ import { z } from "zod";
 
 import { connectDB } from "@/lib/db/connect";
 import { Dealer } from "@/lib/db/models/Dealer";
+import { Listing } from "@/lib/db/models/Listing";
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
 import { requireAdmin } from "@/lib/auth/middleware";
+import {
+  recalculateCounters,
+  recalculateLocalityActivation,
+} from "@/lib/locations/activation";
+
+/** Pull a (now Tier-0) dealer's live listings back to 'pending' and recompute
+ *  the affected localities/cities. Returns how many were unpublished. */
+async function unpublishLiveListings(dealerId: string): Promise<number> {
+  const live = await Listing.find(
+    { dealerId, status: "approved" },
+    { _id: 1, cityId: 1, localityId: 1 },
+  ).lean();
+  if (live.length === 0) return 0;
+
+  await Listing.updateMany(
+    { _id: { $in: live.map((l) => l._id) } },
+    { $set: { status: "pending" } },
+  );
+  const cities = new Set(live.map((l) => String(l.cityId)).filter(Boolean));
+  const localities = new Set(live.map((l) => String(l.localityId)).filter(Boolean));
+  for (const l of localities) await recalculateLocalityActivation(l).catch(() => {});
+  for (const c of cities) await recalculateCounters(c).catch(() => {});
+  return live.length;
+}
 
 /**
  * POST /api/admin/dealers/[id]/verify   [admin]   (Sections 7, 13)
@@ -23,6 +48,9 @@ const bodySchema = z.object({
   rera: z.boolean().optional(),
   officePhoto: z.boolean().optional(),
   notes: z.string().trim().max(1000).optional(),
+  // Manual downgrade cap (Section 13): can only pull the tier DOWN, never above
+  // what the verified documents earn. null clears the cap.
+  override: z.number().int().min(0).max(4).nullable().optional(),
 });
 
 export const POST = withErrorHandling(
@@ -65,11 +93,27 @@ export const POST = withErrorHandling(
       }
     }
     if (parsed.data.notes !== undefined) dealer.verificationNotes = parsed.data.notes;
+    if (parsed.data.override !== undefined) {
+      dealer.verificationTierOverride = parsed.data.override;
+    }
     dealer.verifiedAt = new Date();
 
-    // The pre-validate hook recomputes verificationTier from the documents.
+    // The pre-validate hook recomputes verificationTier from the documents, then
+    // applies the (downgrade-only) override cap.
     await dealer.save();
 
-    return ok({ _id: String(dealer._id), verificationTier: dealer.verificationTier });
+    // Enforce "Tier 0 dealer's listing NEVER goes live" (Section 13) on the
+    // downgrade path: if the dealer is now Tier 0, pull any live listing back to
+    // 'pending' and recalculate the affected localities/cities.
+    let unpublished = 0;
+    if ((dealer.verificationTier ?? 0) < 1) {
+      unpublished = await unpublishLiveListings(String(dealer._id));
+    }
+
+    return ok({
+      _id: String(dealer._id),
+      verificationTier: dealer.verificationTier,
+      unpublishedListings: unpublished,
+    });
   },
 );

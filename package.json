@@ -20,7 +20,9 @@
     "seed:demo-listing": "tsx src/scripts/seed-demo-listing.ts",
     "seed:demo-blog": "tsx src/scripts/seed-demo-blog.ts",
     "dev:activate-city": "tsx src/scripts/dev-activate-city.ts",
-    "cron:quota-reset": "tsx src/scripts/quota-reset.ts"
+    "cron:quota-reset": "tsx src/scripts/quota-reset.ts",
+    "cron:expiry": "tsx src/scripts/expire-listings.ts",
+    "dev:expire-listing": "tsx src/scripts/dev-expire-listing.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

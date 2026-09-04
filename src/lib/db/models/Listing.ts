@@ -192,6 +192,9 @@ const listingSchema = new Schema(
     rejectionReason: { type: String },
     lastRefreshedAt: { type: Date, required: true },
     expiresAt: { type: Date, required: true },
+    // When the day-25 expiry warning was last sent, so the cron warns once per
+    // 30-day window (a refresh resets lastRefreshedAt, re-arming a new warning).
+    expiryWarnedAt: { type: Date },
     viewCount: { type: Number, default: 0 },
     leadCount: { type: Number, default: 0 },
 

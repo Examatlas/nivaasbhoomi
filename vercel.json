@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/quota-reset",
       "schedule": "35 18 * * *"
+    },
+    {
+      "path": "/api/cron/expiry",
+      "schedule": "30 20 * * *"
     }
   ]
 }

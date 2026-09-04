@@ -8,6 +8,7 @@ import { connectDB } from "@/lib/db/connect";
 import { Lead } from "@/lib/db/models/Lead";
 import { LEAD_STATUSES } from "@/lib/leads/dealer-leads";
 import { logAudit } from "@/lib/leads/assign";
+import { onLeadStatusChanged } from "@/lib/leads/lifecycle";
 
 /**
  * PATCH /api/leads/[id]   [dealer auth, owner]   (DEV-SPEC.txt Sections 7, 13)
@@ -72,6 +73,8 @@ export const PATCH = withErrorHandling(
         dealerId: auth.identity.dealerId,
         reason: `status -> ${parsed.data.status}`,
       });
+      // Section 13 side effects: response-time tracking + review request.
+      await onLeadStatusChanged(id, parsed.data.status);
     }
 
     return ok({ id, status: res.status });
