@@ -47,7 +47,8 @@ export function PropertyContactButton({
   listingTitle,
   dealerName,
   mode = "contact",
-  whatsappHref,
+  whatsappNumber,
+  listingSlug,
   triggerLabel = "Contact Us",
   block,
   size = "lg",
@@ -56,25 +57,37 @@ export function PropertyContactButton({
   listingTitle?: string;
   dealerName?: string;
   mode?: ContactMode;
-  whatsappHref?: string;
+  whatsappNumber?: string;
+  listingSlug?: string;
   triggerLabel?: string;
   block?: boolean;
   size?: ButtonProps["size"];
 }) {
-  // WhatsApp mode (Zenith-connected dealer): a plain outbound link. Falls back
-  // to "contact" if we somehow have no href.
-  if (mode === "whatsapp" && whatsappHref) {
+  // WhatsApp mode (Zenith-connected dealer). The property URL is built HERE, on
+  // the client, from window.location.origin — so it always uses the real live
+  // domain and can never carry a build-time-baked localhost. Falls back to
+  // "contact" if we somehow have no dealer number.
+  if (mode === "whatsapp" && whatsappNumber) {
+    const openWhatsApp = () => {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const propertyUrl = `${origin}/property/${listingSlug ?? ""}`;
+      const text =
+        `Hi, I'm interested in this property:\n${listingTitle ?? ""}\n${propertyUrl}\n[Ref: ${listingId}]`;
+      window.open(
+        `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    };
     return (
       <Button
-        asChild
         block={block}
         size={size}
         className="bg-wa-600 text-white hover:bg-wa-700"
+        onClick={openWhatsApp}
       >
-        <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
-          <MessageSquare className="size-4" />
-          WhatsApp
-        </a>
+        <MessageSquare className="size-4" />
+        WhatsApp
       </Button>
     );
   }

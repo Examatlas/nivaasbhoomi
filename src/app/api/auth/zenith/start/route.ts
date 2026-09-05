@@ -19,20 +19,16 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const session = await getDealerSession();
   if (!session) {
-    return NextResponse.redirect(new URL("/dealer/login", process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"));
+    return NextResponse.redirect(new URL("/dealer/login", req.nextUrl.origin));
   }
 
   if (!zenithOAuthConfigured()) {
     return NextResponse.redirect(
-      new URL("/dealer/automation?error=not_configured", base()),
+      new URL("/dealer/automation?error=not_configured", req.nextUrl.origin),
     );
   }
 
   const popup = req.nextUrl.searchParams.get("popup") === "1";
   const authorizeUrl = await buildAuthorizeUrl(session.dealerId, popup);
   return NextResponse.redirect(authorizeUrl);
-}
-
-function base(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 }

@@ -48,10 +48,7 @@ export async function GET(req: NextRequest) {
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
-    const url = new URL(
-      "/dealer/automation",
-      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-    );
+    const url = new URL("/dealer/automation", req.nextUrl.origin);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     return NextResponse.redirect(url);
   };

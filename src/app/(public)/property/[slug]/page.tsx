@@ -95,15 +95,11 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
   const freshness = getFreshness(l.refreshedAt);
 
   // Per-dealer button mode: "whatsapp" (into the dealer's Zenith automation) when
-  // the dealer is Zenith-connected, else "contact". The wa.me link carries the
-  // listing ref so Zenith identifies the property (DEV-SPEC.txt Section 11).
+  // the dealer is Zenith-connected, else "contact". The wa.me link (with the
+  // listing ref, DEV-SPEC.txt Section 11) is built client-side from
+  // window.location.origin — see PropertyContactButton — so it always uses the
+  // live domain, never a build-time-baked origin.
   const contactMode = resolveContactMode(l.dealer);
-  const zenithWaHref =
-    contactMode === "whatsapp" && l.dealer?.zenithNumber
-      ? `https://wa.me/${l.dealer.zenithNumber}?text=${encodeURIComponent(
-          `Hi, I'm interested in this property:\n${l.title}\n${absoluteUrl(`/property/${l.slug}`)}\n[Ref: ${l.id}]`,
-        )}`
-      : undefined;
 
   // Absolute image URLs for JSON-LD / OG.
   const imageUrls = l.photos
@@ -186,7 +182,8 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                   listingTitle={l.title}
                   dealerName={l.dealer?.businessName}
                   mode={contactMode}
-                  whatsappHref={zenithWaHref}
+                  whatsappNumber={l.dealer?.zenithNumber ?? undefined}
+                  listingSlug={l.slug}
                   block
                 />
               </div>
@@ -353,7 +350,8 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                   listingTitle={l.title}
                   dealerName={l.dealer?.businessName}
                   mode={contactMode}
-                  whatsappHref={zenithWaHref}
+                  whatsappNumber={l.dealer?.zenithNumber ?? undefined}
+                  listingSlug={l.slug}
                   block
                 />
                 </div>
@@ -386,7 +384,8 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
             listingTitle={l.title}
             dealerName={l.dealer?.businessName}
             mode={contactMode}
-                  whatsappHref={zenithWaHref}
+                  whatsappNumber={l.dealer?.zenithNumber ?? undefined}
+                  listingSlug={l.slug}
             triggerLabel="Contact"
             size="md"
           />

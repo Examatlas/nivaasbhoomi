@@ -18,13 +18,31 @@ const DEFAULT_SITE_URL = "https://nivaasbhoomi.com";
  */
 function resolveSiteUrl(): string {
   const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!raw) return DEFAULT_SITE_URL;
-  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-  try {
-    return new URL(withScheme).origin;
-  } catch {
-    return DEFAULT_SITE_URL;
+  let resolved: string | null = null;
+  if (raw) {
+    const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    try {
+      resolved = new URL(withScheme).origin;
+    } catch {
+      resolved = null;
+    }
   }
+  const isLocal =
+    resolved != null &&
+    /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/i.test(resolved);
+
+  // On a Vercel PRODUCTION deploy, a missing or localhost site URL must never
+  // ship — it would bake localhost into canonical / OG / wa.me / email links.
+  // Fail the build loudly instead. Local `next build` (no VERCEL_ENV) and dev
+  // are unaffected, and the browser never sees VERCEL_ENV so never throws.
+  if (process.env.VERCEL_ENV === "production" && (resolved == null || isLocal)) {
+    throw new Error(
+      `NEXT_PUBLIC_SITE_URL must be a production origin (got ${raw ? `"${raw}"` : "empty"}). ` +
+        "Refusing to build with a localhost/missing site URL.",
+    );
+  }
+
+  return resolved ?? DEFAULT_SITE_URL;
 }
 
 /** Canonical origin, no trailing slash. Always a valid absolute URL. */
