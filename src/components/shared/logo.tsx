@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { cn } from "@/lib/utils/cn";
 
 /**
@@ -5,16 +7,21 @@ import { cn } from "@/lib/utils/cn";
  * horizon line - "nivaas" (home) meeting "bhoomi" (land). Pure inline SVG, so
  * it costs nothing and stays crisp on any DPI. Ink by default; the roof carries
  * the clay accent so the brand's two colours are present in the logo itself.
+ *
+ * Pass `href` (usually "/") to make the whole logo + wordmark a link home -
+ * standard header behaviour. Omit it where the logo is already inside a link.
  */
 export function Logo({
   className,
   showWordmark = true,
+  href,
 }: {
   className?: string;
   showWordmark?: boolean;
+  href?: string;
 }) {
-  return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
+  const inner = (
+    <>
       <svg
         viewBox="0 0 32 32"
         className="size-8 shrink-0"
@@ -47,6 +54,22 @@ export function Logo({
           Nivaas<span className="text-clay-600">Bhoomi</span>
         </span>
       )}
-    </span>
+    </>
   );
+
+  const base = "inline-flex items-center gap-2";
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        aria-label="NivaasBhoomi home"
+        className={cn(base, "outline-none", className)}
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return <span className={cn(base, className)}>{inner}</span>;
 }

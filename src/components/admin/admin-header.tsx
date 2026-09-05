@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/listings", label: "Listings" },
   { href: "/admin/locations", label: "Locations" },
   { href: "/admin/dealers", label: "Dealers" },
+  { href: "/admin/users", label: "Users" },
   { href: "/admin/leads", label: "Leads" },
   { href: "/admin/automation", label: "Automation" },
 ];
@@ -39,7 +40,7 @@ export function AdminHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface">
       <div className="flex h-14 items-center gap-6 px-4 sm:px-6">
-        <Link href="/admin/locations" className="flex items-center gap-2 outline-none">
+        <Link href="/" aria-label="NivaasBhoomi home" className="flex items-center gap-2 outline-none">
           <Logo showWordmark={false} />
           <span className="font-display text-sm font-bold tracking-tight text-ink-950">
             Admin

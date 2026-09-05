@@ -20,7 +20,7 @@ export default async function DealerOnboardingPage() {
   return (
     <div className="mx-auto min-h-dvh max-w-2xl px-4 py-10 sm:px-6">
       <div className="mb-8 flex flex-col items-center gap-3 text-center">
-        <Logo />
+        <Logo href="/" />
         <div>
           <h1 className="text-display-sm">Welcome — let&apos;s set you up</h1>
           <p className="mt-1 text-sm text-muted-foreground">

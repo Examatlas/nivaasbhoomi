@@ -46,7 +46,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-page px-4 py-12 sm:px-6">
         <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div className="flex flex-col gap-3">
-            <Logo />
+            <Logo href="/" />
             <p className="max-w-xs text-sm text-muted-foreground">
               Verified property across India, contacted directly on WhatsApp. No
               spam calls, no hidden numbers.

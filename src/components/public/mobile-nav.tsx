@@ -34,7 +34,11 @@ export function MobileNav({ links }: { links: { href: string; label: string }[] 
       <SheetContent side="right" className="w-[86%] max-w-xs">
         <SheetHeader>
           <SheetTitle className="sr-only">Menu</SheetTitle>
-          <Logo />
+          <SheetClose asChild>
+            <Link href="/" aria-label="NivaasBhoomi home">
+              <Logo />
+            </Link>
+          </SheetClose>
         </SheetHeader>
 
         <nav className="flex flex-col gap-1 px-3">

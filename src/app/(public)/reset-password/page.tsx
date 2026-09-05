@@ -15,7 +15,7 @@ export default function ResetPasswordPage() {
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <Logo />
+          <Logo href="/" />
           <div>
             <h1 className="text-display-sm">Set a new password</h1>
             <p className="mt-1 text-sm text-muted-foreground">

@@ -37,9 +37,7 @@ export function DealerShell({
     <div className="min-h-dvh bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-page items-center gap-4 px-4 sm:px-6">
-          <Link href="/dealer/dashboard" aria-label="Dealer home">
-            <Logo />
-          </Link>
+          <Logo href="/" />
           <span className="rounded-full bg-ink-50 px-2 py-0.5 text-overline font-semibold text-ink-700 uppercase">
             Dealer
           </span>
