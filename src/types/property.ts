@@ -21,8 +21,11 @@ export interface PublicDealer {
   ratingCount: number;
   avgResponseMinutes?: number;
   /** Zenith Code automation link. Drives the listing button mode (Contact Us vs
-   *  WhatsApp). False for every dealer at launch. Not sensitive. */
+   *  WhatsApp). Not sensitive. */
   zenithConnected: boolean;
+  /** The dealer's Zenith-registered WhatsApp number, only when connected — the
+   *  target of the WhatsApp button. null when not connected. */
+  zenithNumber: string | null;
 }
 
 export interface PublicListingDetail {

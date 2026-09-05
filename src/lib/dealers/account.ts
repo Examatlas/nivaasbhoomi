@@ -53,6 +53,11 @@ export interface MyDealer {
   listingCounts: { total: number; approved: number; pending: number; draft: number };
   /** True once the dealer has filled in real profile + at least one coverage city. */
   profileComplete: boolean;
+  /** Zenith Code automation connection (per-dealer OAuth). */
+  zenithConnected: boolean;
+  zenithNumber?: string;
+  zenithPlan?: string;
+  zenithConnectedAt?: string;
 }
 
 const DOC_META: { key: DocStatus["key"]; label: string; mandatory: boolean }[] = [
@@ -132,6 +137,12 @@ export async function getMyDealer(): Promise<MyDealer | null> {
       draft: byStatus.get("draft") ?? 0,
     },
     profileComplete,
+    zenithConnected: Boolean(d.zenithConnected),
+    zenithNumber: d.zenithNumber ?? undefined,
+    zenithPlan: d.zenithPlan ?? undefined,
+    zenithConnectedAt: d.zenithConnectedAt
+      ? new Date(d.zenithConnectedAt).toISOString()
+      : undefined,
   };
 }
 

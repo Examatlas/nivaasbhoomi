@@ -101,6 +101,15 @@ const dealerSchema = new Schema(
      * resolveContactMode() in lib/leads/contact-mode.
      */
     zenithConnected: { type: Boolean, default: false },
+    // Per-dealer Zenith Code OAuth connection. Tokens are stored ENCRYPTED
+    // (settings/crypto) and never leave the server. Zenith issues a permanent
+    // access token, so refresh/expiry stay null (kept for forward-compat).
+    zenithAccessTokenEnc: { type: String, default: null },
+    zenithRefreshTokenEnc: { type: String, default: null },
+    zenithTokenExpiresAt: { type: Date, default: null },
+    zenithNumber: { type: String, default: null }, // registered WhatsApp number on Zenith
+    zenithPlan: { type: String, default: null }, // free / paid / plan name
+    zenithConnectedAt: { type: Date, default: null },
   },
   {
     timestamps: true,

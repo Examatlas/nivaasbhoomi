@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Sparkles, MessageCircle, Bot, ArrowRight, Lock } from "lucide-react";
+import { Sparkles, MessageCircle, Bot, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
 
 import { getMyDealer } from "@/lib/dealers/account";
+import { zenithOAuthConfigured, zenithConfigProblems } from "@/lib/zenith/oauth";
 import { DealerShell } from "@/components/dealer/dealer-shell";
+import { ZenithDisconnectButton } from "@/components/dealer/zenith-disconnect-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -13,17 +15,33 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
-/**
- * Dealer → Automation. PLACEHOLDER for launch. "Connect with Zenith Code" is
- * scaffolded but not functional: the real flow (verify the dealer's WhatsApp
- * number is registered on Zenith Code via its API, then switch this dealer's
- * property button from "Contact Us" to a WhatsApp button routing buyers into
- * their Zenith automation) is a later phase. Nothing here writes any state.
- */
-export default async function DealerAutomationPage() {
+const ERRORS: Record<string, string> = {
+  denied: "The connection was cancelled on Zenith Code.",
+  bad_state: "The connect link expired or was invalid. Please try again.",
+  no_code: "Zenith Code didn't return an authorization code. Please try again.",
+  exchange: "Couldn't complete the connection with Zenith Code. Please try again.",
+  no_dealer: "Your dealer account couldn't be found.",
+  no_number: "Zenith Code didn't return a registered WhatsApp number for your account.",
+  number_mismatch:
+    "The WhatsApp number registered on Zenith Code doesn't match your NivaasBhoomi number.",
+  not_configured: "Zenith Code isn't configured on the server yet.",
+  server: "Something went wrong connecting to Zenith Code. Please try again.",
+};
+
+export default async function DealerAutomationPage({
+  searchParams,
+}: PageProps<"/dealer/automation">) {
   const dealer = await getMyDealer();
   if (!dealer) redirect("/dealer/login");
   if (!dealer.profileComplete) redirect("/dealer/onboarding");
+
+  const sp = await searchParams;
+  const errorCode = typeof sp.error === "string" ? sp.error : undefined;
+  const connectedFlag = sp.connected === "1";
+  const zNum = typeof sp.znum === "string" ? sp.znum : undefined;
+  const keys = typeof sp.keys === "string" ? sp.keys : undefined;
+  const configured = zenithOAuthConfigured();
+  const problems = configured ? [] : zenithConfigProblems();
 
   return (
     <DealerShell active="/dealer/automation">
@@ -34,7 +52,32 @@ export default async function DealerAutomationPage() {
         </p>
       </div>
 
-      {/* Connect with Zenith Code — coming soon */}
+      {connectedFlag && dealer.zenithConnected && (
+        <div className="mb-5 flex items-center gap-2 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-sm text-success-700">
+          <CheckCircle2 className="size-4" /> Connected to Zenith Code. Your listings now show
+          a WhatsApp button.
+        </div>
+      )}
+      {errorCode && (
+        <div className="mb-5 flex items-start gap-2 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-700">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <p>{ERRORS[errorCode] ?? "Couldn't connect to Zenith Code."}</p>
+            {errorCode === "number_mismatch" && zNum && (
+              <p className="mt-1 text-meta">
+                Zenith number: +{zNum} · Your NivaasBhoomi number: +{dealer.phone}
+              </p>
+            )}
+            {errorCode === "no_number" && keys && (
+              <p className="mt-1 text-meta">
+                Dev hint — profile fields returned: {keys}. Set ZENITH_PROFILE_PHONE_FIELD to the
+                right one.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-card border border-border bg-surface p-6 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -42,63 +85,74 @@ export default async function DealerAutomationPage() {
               <Sparkles className="size-6" />
             </span>
             <div>
-              <h2 className="flex items-center gap-2 text-lg font-semibold text-ink-950">
-                Connect with Zenith Code
-              </h2>
+              <h2 className="text-lg font-semibold text-ink-950">Connect with Zenith Code</h2>
               <p className="text-meta text-muted-foreground">
                 WhatsApp AI sales agent for your leads
               </p>
             </div>
           </div>
-          <Badge tone="warning" size="sm">
-            Coming soon
-          </Badge>
+          {dealer.zenithConnected ? (
+            <Badge tone="success" size="sm">Connected</Badge>
+          ) : (
+            <Badge tone="neutral" size="sm">Not connected</Badge>
+          )}
         </div>
 
-        <p className="mt-5 text-sm text-muted-foreground">
-          Today, buyers tap <span className="font-medium text-ink-800">Contact Us</span> on
-          your listings and their details arrive in your{" "}
-          <span className="font-medium text-ink-800">Leads</span>. Soon, you&apos;ll be able
-          to connect a WhatsApp number that&apos;s registered on Zenith Code — and your
-          listings&apos; button becomes a <span className="font-medium text-ink-800">
-            WhatsApp
-          </span>{" "}
-          button that routes each buyer straight into your Zenith AI agent to qualify them
-          for you, 24×7.
-        </p>
+        {dealer.zenithConnected ? (
+          <>
+            <div className="mt-5 grid gap-3 rounded-card border border-border bg-surface-muted p-4 text-sm sm:grid-cols-2">
+              <div>
+                <p className="text-meta text-muted-foreground">Registered WhatsApp number</p>
+                <p className="font-medium text-ink-950">+{dealer.zenithNumber}</p>
+              </div>
+              <div>
+                <p className="text-meta text-muted-foreground">Plan</p>
+                <p className="font-medium text-ink-950">{dealer.zenithPlan ?? "—"}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Your listings show a <span className="font-medium text-ink-800">WhatsApp</span>{" "}
+              button that routes buyers straight into your Zenith Code automation.
+            </p>
+            <div className="mt-5">
+              <ZenithDisconnectButton />
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mt-5 text-sm text-muted-foreground">
+              Connect your Zenith-registered WhatsApp number. Once verified, your listings&apos;
+              button switches from <span className="font-medium text-ink-800">Contact Us</span>{" "}
+              to a <span className="font-medium text-ink-800">WhatsApp</span> button that routes
+              buyers into your Zenith AI agent.
+            </p>
 
-        <ul className="mt-5 flex flex-col gap-2.5">
-          <Step
-            icon={MessageCircle}
-            title="Register your number on Zenith Code"
-            body="Your WhatsApp Business number must be active on Zenith Code (not AiSensy, Interakt or Wati)."
-          />
-          <Step
-            icon={Bot}
-            title="Verify & connect here"
-            body="We'll confirm the number is Zenith-registered, then link it to your account."
-          />
-          <Step
-            icon={ArrowRight}
-            title="Your button switches to WhatsApp"
-            body="Buyers reach your Zenith AI agent directly — it qualifies and books site visits automatically."
-          />
-        </ul>
+            <ul className="mt-5 flex flex-col gap-2.5">
+              <Step icon={MessageCircle} title="Authorize on Zenith Code" body="Sign in and approve NivaasBhoomi." />
+              <Step icon={Bot} title="We verify your number" body="Your Zenith WhatsApp number must match your NivaasBhoomi number." />
+              <Step icon={ArrowRight} title="Button switches to WhatsApp" body="Buyers reach your Zenith AI agent directly." />
+            </ul>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button disabled aria-disabled className="cursor-not-allowed opacity-60">
-            <Lock className="size-4" />
-            Connect with Zenith Code
-          </Button>
-          <span className="text-meta text-muted-foreground">
-            Not available yet — we&apos;ll notify you when it goes live.
-          </span>
-        </div>
+            <div className="mt-6">
+              {configured ? (
+                <Button asChild>
+                  <a href="/api/auth/zenith/start">
+                    <Sparkles className="size-4" /> Connect with Zenith Code
+                  </a>
+                </Button>
+              ) : (
+                <div className="rounded-card border border-warning-100 bg-warning-50 px-4 py-3 text-meta text-warning-700">
+                  Zenith Code isn&apos;t configured yet. Set: {problems.join(", ")}.
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <p className="mt-4 text-meta text-muted-foreground">
-        Zenith Code is a separate product. Connecting it will be optional — your leads keep
-        flowing to this dashboard either way.
+        Zenith Code is a separate product. Connecting is optional — your leads keep flowing to
+        this dashboard either way.
       </p>
     </DealerShell>
   );
