@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, User, Phone, Loader2, LogIn, UserPlus } from "lucide-react";
 
@@ -114,6 +115,15 @@ export function EmailPasswordAuthForm() {
         autoComplete={isSignup ? "new-password" : "current-password"}
         required
       />
+
+      {!isSignup && (
+        <Link
+          href="/forgot-password"
+          className="-mt-1 self-end text-meta font-medium text-clay-700 hover:underline"
+        >
+          Forgot password?
+        </Link>
+      )}
 
       {error && <p className="text-meta text-danger-700">{error}</p>}
 

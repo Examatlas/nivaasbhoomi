@@ -2,11 +2,12 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { fontVariables } from "@/lib/fonts";
 import { Toaster } from "@/components/ui/toast";
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nivaasbhoomi.com";
+import { SITE_URL } from "@/lib/seo/site";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  // SITE_URL is resolved defensively (empty/invalid env -> safe default), so
+  // this never throws "Invalid URL" during the build. See lib/seo/site.
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "NivaasBhoomi - Verified Property across India",
     template: "%s | NivaasBhoomi",

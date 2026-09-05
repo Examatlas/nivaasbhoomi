@@ -6,10 +6,29 @@
 
 export const BRAND = "NivaasBhoomi";
 
-/** Canonical origin, no trailing slash. */
-export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://nivaasbhoomi.com"
-).replace(/\/+$/, "");
+const DEFAULT_SITE_URL = "https://nivaasbhoomi.com";
+
+/**
+ * Resolve the canonical origin defensively. `?? default` is NOT enough: on
+ * Vercel the env var can be present but EMPTY ("") — which is not nullish, so it
+ * slips past `??` and `new URL("")` throws "Invalid URL", failing the build at
+ * metadataBase. So: trim, treat empty as missing, add https:// if the scheme is
+ * omitted, and fall back if it still doesn't parse. Always returns a valid
+ * absolute origin with no trailing slash.
+ */
+function resolveSiteUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!raw) return DEFAULT_SITE_URL;
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    return new URL(withScheme).origin;
+  } catch {
+    return DEFAULT_SITE_URL;
+  }
+}
+
+/** Canonical origin, no trailing slash. Always a valid absolute URL. */
+export const SITE_URL = resolveSiteUrl();
 
 /** Portal WhatsApp number, used in JSON-LD contactPoint / sameAs. */
 export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
