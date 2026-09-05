@@ -90,6 +90,9 @@ export interface AdminDealerVerification {
   verificationNotes?: string;
   liveListings: number;
   documents: AdminDocView[];
+  zenithConnected: boolean;
+  zenithNumber?: string;
+  zenithOrgId?: string;
 }
 
 const DOC_META: { key: (typeof DOC_KEYS)[number]; label: string }[] = [
@@ -154,5 +157,8 @@ export async function getDealerVerification(
     verificationNotes: d.verificationNotes ?? undefined,
     liveListings,
     documents,
+    zenithConnected: Boolean(d.zenithConnected),
+    zenithNumber: d.zenithNumber ?? undefined,
+    zenithOrgId: d.zenithOrgId ?? undefined,
   };
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 import { getDealerSession } from "@/lib/auth/middleware";
 import {
@@ -16,7 +16,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getDealerSession();
   if (!session) {
     return NextResponse.redirect(new URL("/dealer/login", process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"));
@@ -28,7 +28,8 @@ export async function GET() {
     );
   }
 
-  const authorizeUrl = await buildAuthorizeUrl(session.dealerId);
+  const popup = req.nextUrl.searchParams.get("popup") === "1";
+  const authorizeUrl = await buildAuthorizeUrl(session.dealerId, popup);
   return NextResponse.redirect(authorizeUrl);
 }
 

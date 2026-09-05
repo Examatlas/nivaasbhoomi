@@ -6,27 +6,15 @@ import { getMyDealer } from "@/lib/dealers/account";
 import { zenithOAuthConfigured, zenithConfigProblems } from "@/lib/zenith/oauth";
 import { DealerShell } from "@/components/dealer/dealer-shell";
 import { ZenithDisconnectButton } from "@/components/dealer/zenith-disconnect-button";
+import { ZenithConnectButton } from "@/components/dealer/zenith-connect-button";
+import { ZENITH_ERROR_MESSAGES } from "@/lib/zenith/errors";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Automation",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";
-
-const ERRORS: Record<string, string> = {
-  denied: "The connection was cancelled on Zenith Code.",
-  bad_state: "The connect link expired or was invalid. Please try again.",
-  no_code: "Zenith Code didn't return an authorization code. Please try again.",
-  exchange: "Couldn't complete the connection with Zenith Code. Please try again.",
-  no_dealer: "Your dealer account couldn't be found.",
-  no_number: "Zenith Code didn't return a registered WhatsApp number for your account.",
-  number_mismatch:
-    "The WhatsApp number registered on Zenith Code doesn't match your NivaasBhoomi number.",
-  not_configured: "Zenith Code isn't configured on the server yet.",
-  server: "Something went wrong connecting to Zenith Code. Please try again.",
-};
 
 export default async function DealerAutomationPage({
   searchParams,
@@ -38,7 +26,6 @@ export default async function DealerAutomationPage({
   const sp = await searchParams;
   const errorCode = typeof sp.error === "string" ? sp.error : undefined;
   const connectedFlag = sp.connected === "1";
-  const zNum = typeof sp.znum === "string" ? sp.znum : undefined;
   const keys = typeof sp.keys === "string" ? sp.keys : undefined;
   const configured = zenithOAuthConfigured();
   const problems = configured ? [] : zenithConfigProblems();
@@ -62,17 +49,9 @@ export default async function DealerAutomationPage({
         <div className="mb-5 flex items-start gap-2 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-700">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           <div>
-            <p>{ERRORS[errorCode] ?? "Couldn't connect to Zenith Code."}</p>
-            {errorCode === "number_mismatch" && zNum && (
-              <p className="mt-1 text-meta">
-                Zenith number: +{zNum} · Your NivaasBhoomi number: +{dealer.phone}
-              </p>
-            )}
-            {errorCode === "no_number" && keys && (
-              <p className="mt-1 text-meta">
-                Dev hint — profile fields returned: {keys}. Set ZENITH_PROFILE_PHONE_FIELD to the
-                right one.
-              </p>
+            <p>{ZENITH_ERROR_MESSAGES[errorCode] ?? "Couldn't connect to Zenith Code."}</p>
+            {(errorCode === "no_number" || errorCode === "no_org") && keys && (
+              <p className="mt-1 text-meta">Dev hint — profile fields returned: {keys}.</p>
             )}
           </div>
         </div>
@@ -104,6 +83,9 @@ export default async function DealerAutomationPage({
               <div>
                 <p className="text-meta text-muted-foreground">Registered WhatsApp number</p>
                 <p className="font-medium text-ink-950">+{dealer.zenithNumber}</p>
+                <p className="text-meta text-muted-foreground">
+                  Buyer enquiries go here — may differ from your contact number.
+                </p>
               </div>
               <div>
                 <p className="text-meta text-muted-foreground">Plan</p>
@@ -129,17 +111,13 @@ export default async function DealerAutomationPage({
 
             <ul className="mt-5 flex flex-col gap-2.5">
               <Step icon={MessageCircle} title="Authorize on Zenith Code" body="Sign in and approve NivaasBhoomi." />
-              <Step icon={Bot} title="We verify your number" body="Your Zenith WhatsApp number must match your NivaasBhoomi number." />
+              <Step icon={Bot} title="We link your WhatsApp number" body="We link the Zenith-registered WhatsApp number that will receive buyer enquiries — it may differ from your NivaasBhoomi contact number." />
               <Step icon={ArrowRight} title="Button switches to WhatsApp" body="Buyers reach your Zenith AI agent directly." />
             </ul>
 
             <div className="mt-6">
               {configured ? (
-                <Button asChild>
-                  <a href="/api/auth/zenith/start">
-                    <Sparkles className="size-4" /> Connect with Zenith Code
-                  </a>
-                </Button>
+                <ZenithConnectButton />
               ) : (
                 <div className="rounded-card border border-warning-100 bg-warning-50 px-4 py-3 text-meta text-warning-700">
                   Zenith Code isn&apos;t configured yet. Set: {problems.join(", ")}.

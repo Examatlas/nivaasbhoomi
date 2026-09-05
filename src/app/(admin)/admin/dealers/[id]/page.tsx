@@ -69,6 +69,24 @@ export default async function AdminDealerVerifyPage({ params }: PageProps<"/admi
               {dealer.email && (<><dt className="text-muted-foreground">Email</dt><dd className="text-right font-medium text-ink-950">{dealer.email}</dd></>)}
               <dt className="text-muted-foreground">Live listings</dt>
               <dd className="text-right font-medium text-ink-950">{dealer.liveListings}</dd>
+              <dt className="text-muted-foreground">Zenith Code</dt>
+              <dd className="text-right font-medium text-ink-950">
+                {dealer.zenithConnected ? "Connected" : "Not connected"}
+              </dd>
+              {dealer.zenithNumber && (
+                <>
+                  <dt className="text-muted-foreground">Zenith number</dt>
+                  <dd className="text-right font-medium text-ink-950">+{dealer.zenithNumber}</dd>
+                </>
+              )}
+              {dealer.zenithOrgId && (
+                <>
+                  <dt className="text-muted-foreground">Zenith org id</dt>
+                  <dd className="text-right font-mono text-meta text-ink-950 break-all">
+                    {dealer.zenithOrgId}
+                  </dd>
+                </>
+              )}
               <dt className="text-muted-foreground">Rating</dt>
               <dd className="text-right font-medium text-ink-950">
                 {dealer.ratingCount > 0 ? `★ ${dealer.rating} (${dealer.ratingCount})` : "—"}

@@ -26,6 +26,7 @@ export interface ZenithProfile {
   accessToken: string;
   phone: string | null;
   plan: string | null;
+  orgId: string | null;
   /** Top-level keys of the profile response — shown in dev to fix field mapping. */
   keys: string[];
 }
@@ -73,20 +74,26 @@ function stateSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-export async function signOAuthState(dealerId: string): Promise<string> {
-  return new SignJWT({ purpose: "zenith_oauth", dealerId })
+export interface OAuthState {
+  dealerId: string;
+  /** True when the flow was opened in a popup (drives the callback's response). */
+  popup: boolean;
+}
+
+export async function signOAuthState(dealerId: string, popup: boolean): Promise<string> {
+  return new SignJWT({ purpose: "zenith_oauth", dealerId, popup })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("10m")
     .sign(stateSecret());
 }
 
-export async function verifyOAuthState(token: string | undefined): Promise<string | null> {
+export async function verifyOAuthState(token: string | undefined): Promise<OAuthState | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, stateSecret(), { algorithms: ["HS256"] });
     if (payload.purpose !== "zenith_oauth" || typeof payload.dealerId !== "string") return null;
-    return payload.dealerId;
+    return { dealerId: payload.dealerId, popup: payload.popup === true };
   } catch {
     return null;
   }
@@ -94,12 +101,12 @@ export async function verifyOAuthState(token: string | undefined): Promise<strin
 
 // ---- Authorize redirect ----
 
-export async function buildAuthorizeUrl(dealerId: string): Promise<string> {
+export async function buildAuthorizeUrl(dealerId: string, popup: boolean): Promise<string> {
   const url = new URL(env("ZENITH_OAUTH_AUTHORIZE_URL"));
   url.searchParams.set("client_id", env("ZENITH_CLIENT_ID"));
   url.searchParams.set("redirect_uri", zenithRedirectUri());
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("state", await signOAuthState(dealerId));
+  url.searchParams.set("state", await signOAuthState(dealerId, popup));
   return url.toString();
 }
 
@@ -170,6 +177,16 @@ export async function exchangeCodeForProfile(code: string): Promise<ExchangeResu
     "tier",
     "status",
   ]);
+  const orgIdRaw = findField(json, [
+    env("ZENITH_PROFILE_ORG_FIELD"),
+    "orgId",
+    "org_id",
+    "organizationId",
+    "organization_id",
+    "organisation_id",
+    "accountId",
+    "account_id",
+  ]);
 
   return {
     ok: true,
@@ -177,6 +194,7 @@ export async function exchangeCodeForProfile(code: string): Promise<ExchangeResu
       accessToken,
       phone: phoneRaw != null ? normalisePhone(String(phoneRaw)) : null,
       plan: planRaw != null ? String(planRaw) : null,
+      orgId: orgIdRaw != null ? String(orgIdRaw) : null,
       keys: profileKeys(json),
     },
   };

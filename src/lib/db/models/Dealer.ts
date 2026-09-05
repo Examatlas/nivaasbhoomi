@@ -110,6 +110,9 @@ const dealerSchema = new Schema(
     zenithNumber: { type: String, default: null }, // registered WhatsApp number on Zenith
     zenithPlan: { type: String, default: null }, // free / paid / plan name
     zenithConnectedAt: { type: Date, default: null },
+    // The bound Zenith organization/account id. One Zenith account binds to
+    // exactly one dealer (enforced by the partial-unique index below).
+    zenithOrgId: { type: String, default: null },
   },
   {
     timestamps: true,
@@ -137,6 +140,14 @@ dealerSchema.pre("validate", function () {
 // Section 5 indexes. { phone:1 } and { slug:1 } unique come from field options.
 dealerSchema.index({ coverageCities: 1, status: 1 });
 dealerSchema.index({ coverageLocalities: 1, verificationTier: -1, rating: -1 });
+// One Zenith account -> one dealer. A PARTIAL unique index (only where
+// zenithOrgId is a string) rather than a plain sparse unique index, because a
+// sparse unique index still collides on explicit null values (disconnect sets
+// null); the partial filter indexes only connected dealers.
+dealerSchema.index(
+  { zenithOrgId: 1 },
+  { unique: true, partialFilterExpression: { zenithOrgId: { $type: "string" } } },
+);
 
 export type DealerDoc = InferSchemaType<typeof dealerSchema>;
 

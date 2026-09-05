@@ -27,6 +27,7 @@ export const POST = withErrorHandling(async () => {
   dealer.zenithNumber = null;
   dealer.zenithPlan = null;
   dealer.zenithConnectedAt = null;
+  dealer.zenithOrgId = null; // free the Zenith account so it can bind elsewhere
   await dealer.save();
 
   return ok({ disconnected: true });
