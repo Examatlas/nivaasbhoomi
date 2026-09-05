@@ -41,7 +41,11 @@ const dealerSchema = new Schema(
     name: { type: String, required: true, trim: true },
     businessName: { type: String, required: true, trim: true },
     phone: { type: String, required: true, unique: true, trim: true }, // WhatsApp number
-    email: { type: String, trim: true, lowercase: true },
+    // email is the login identity under AUTH_METHOD=password (unique, sparse so
+    // OTP-created dealers without an email still validate). passwordHash is set
+    // at email/password signup; absent for OTP-created dealers.
+    email: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
+    passwordHash: { type: String },
     slug: { type: String, unique: true, sparse: true, lowercase: true, trim: true }, // public profile URL
     profilePhoto: { type: String },
 

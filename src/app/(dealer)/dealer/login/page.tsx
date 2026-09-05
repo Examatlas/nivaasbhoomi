@@ -5,7 +5,8 @@ import { Clock } from "lucide-react";
 
 import { Logo } from "@/components/shared/logo";
 import { OtpLoginForm } from "@/components/dealer/otp-login-form";
-import { dealerLoginEnabled } from "@/lib/config/flags";
+import { DealerAuthForm } from "@/components/dealer/dealer-auth-form";
+import { dealerLoginEnabled, authMethod } from "@/lib/config/flags";
 
 export const metadata: Metadata = {
   title: "Dealer Login",
@@ -17,6 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default function DealerLoginPage() {
   const enabled = dealerLoginEnabled();
+  const method = authMethod();
 
   return (
     <div className="flex min-h-dvh items-center justify-center px-4 py-12">
@@ -32,12 +34,7 @@ export default function DealerLoginPage() {
         </div>
 
         <div className="rounded-card border border-border bg-surface p-6 shadow-card">
-          {enabled ? (
-            // useSearchParams (?next=) needs a Suspense boundary.
-            <Suspense fallback={null}>
-              <OtpLoginForm />
-            </Suspense>
-          ) : (
+          {!enabled ? (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
               <Clock className="size-10 text-clay-500" />
               <p className="font-semibold text-ink-950">Dealer sign-in is coming soon</p>
@@ -52,6 +49,11 @@ export default function DealerLoginPage() {
                 Back to home
               </Link>
             </div>
+          ) : (
+            // useSearchParams (?next=, ?mode=) needs a Suspense boundary.
+            <Suspense fallback={null}>
+              {method === "whatsapp" ? <OtpLoginForm /> : <DealerAuthForm />}
+            </Suspense>
           )}
         </div>
 

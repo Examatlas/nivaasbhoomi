@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
+import { authMethod } from "@/lib/config/flags";
 import { normalisePhone } from "@/lib/utils/whatsapp";
 import { verifyOtp } from "@/lib/auth/otp";
 import { signSession } from "@/lib/auth/jwt";
@@ -30,6 +31,9 @@ const bodySchema = z.object({
 });
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
+  if (authMethod() !== "whatsapp") {
+    return fail("FORBIDDEN", "WhatsApp OTP login is disabled.");
+  }
   let json: unknown;
   try {
     json = await req.json();

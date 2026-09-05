@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
+import { authMethod } from "@/lib/config/flags";
 import { normalisePhone } from "@/lib/utils/whatsapp";
 import { issueOtp } from "@/lib/auth/otp";
 import { sendLoginOtp } from "@/lib/whatsapp/client";
@@ -32,6 +33,9 @@ function validIndianMobile(phone: string): boolean {
 }
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
+  if (authMethod() !== "whatsapp") {
+    return fail("FORBIDDEN", "WhatsApp OTP login is disabled.");
+  }
   let json: unknown;
   try {
     json = await req.json();

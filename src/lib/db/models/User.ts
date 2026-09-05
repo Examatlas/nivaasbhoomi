@@ -1,17 +1,26 @@
 import { Schema, model, models, type InferSchemaType, type Model } from "mongoose";
 
 /**
- * Buyer (User) — the person browsing listings who signs in with a WhatsApp OTP
- * before contacting a dealer. This is NivaasBhoomi's own login (its own Meta
- * app), entirely separate from the Dealer account. A buyer is created on their
- * first successful OTP verification.
+ * Buyer (User) — the person browsing listings who signs up before contacting a
+ * dealer. NivaasBhoomi's own login, separate from the Dealer account.
  *
- * We keep only what's needed to route a "Contact Us" lead: the verified phone
- * (which becomes the Lead's buyer phone) and a display name.
+ * Auth is switchable (see lib/config/flags authMethod):
+ *   - "password" (launch): email + passwordHash are the identity. The phone is
+ *     captured at signup and STORED but NOT verified yet — it's what the dealer
+ *     calls. So phone is required-at-signup (enforced in the route) but not
+ *     unique (unverified, may repeat across family members).
+ *   - "whatsapp": a buyer is created from a verified phone with no email. email
+ *     is therefore optional + sparse-unique so both paths coexist.
+ *
+ * emailVerified is reserved for a future email-verification step (Resend/SES);
+ * launch does password-only, so it stays false and nothing gates on it yet.
  */
 const userSchema = new Schema(
   {
-    phone: { type: String, required: true, unique: true, trim: true }, // 91XXXXXXXXXX
+    phone: { type: String, required: true, trim: true }, // 91XXXXXXXXXX (stored, unverified at launch)
+    email: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
+    passwordHash: { type: String },
+    emailVerified: { type: Boolean, default: false },
     name: { type: String, trim: true },
     waProfileName: { type: String, trim: true },
     lastLoginAt: { type: Date, default: null },
