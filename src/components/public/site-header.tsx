@@ -38,7 +38,7 @@ export function SiteHeader() {
 
         <div className="ml-auto flex items-center gap-2">
           <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link href="/dealer/login">Login</Link>
+            <Link href="/login">Sign in</Link>
           </Button>
           <Button asChild variant="primary" size="sm" className="hidden md:inline-flex">
             <Link href="/dealer/login">List your property</Link>

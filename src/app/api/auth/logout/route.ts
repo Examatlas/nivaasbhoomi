@@ -1,15 +1,22 @@
 import { cookies } from "next/headers";
 
 import { ok, withErrorHandling } from "@/lib/api/response";
-import { ADMIN_COOKIE, DEALER_COOKIE, clearCookieOptions } from "@/lib/auth/cookie";
+import {
+  ADMIN_COOKIE,
+  DEALER_COOKIE,
+  USER_COOKIE,
+  clearCookieOptions,
+} from "@/lib/auth/cookie";
 
 /**
  * POST /api/auth/logout  (DEV-SPEC.txt Section 7)
- * Clears both session cookies. Safe to call whether or not one is set.
+ * Clears every session cookie (admin, dealer, buyer). Safe to call whether or
+ * not one is set.
  */
 export const POST = withErrorHandling(async () => {
   const store = await cookies();
   store.set(ADMIN_COOKIE, "", clearCookieOptions());
   store.set(DEALER_COOKIE, "", clearCookieOptions());
+  store.set(USER_COOKIE, "", clearCookieOptions());
   return ok({ loggedOut: true });
 });

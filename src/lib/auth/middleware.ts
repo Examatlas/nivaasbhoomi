@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 
 import { fail } from "@/lib/api/response";
 import { verifySession } from "@/lib/auth/jwt";
-import { ADMIN_COOKIE, DEALER_COOKIE } from "@/lib/auth/cookie";
+import { ADMIN_COOKIE, DEALER_COOKIE, USER_COOKIE } from "@/lib/auth/cookie";
 
 /**
  * Server-side auth guards for route handlers (DEV-SPEC.txt Section 8).
@@ -28,6 +28,11 @@ export interface AdminIdentity {
 export interface DealerIdentity {
   dealerId: string;
   role: "dealer";
+}
+
+export interface UserIdentity {
+  userId: string;
+  role: "user";
 }
 
 type Guarded<T> = { identity: T } | { error: ReturnType<typeof fail> };
@@ -62,6 +67,22 @@ export async function requireDealer(): Promise<Guarded<DealerIdentity>> {
   // Dealer login (WhatsApp OTP) is live, so a real session is always required -
   // no dev stub. The dealerId comes only from the verified JWT.
   return { error: fail("UNAUTHORIZED", "Please sign in as a dealer.") };
+}
+
+/** Verified buyer identity from the session cookie, or null. */
+export async function getUserSession(): Promise<UserIdentity | null> {
+  const token = (await cookies()).get(USER_COOKIE)?.value;
+  const claims = await verifySession(token);
+  if (!claims || claims.role !== "user" || !claims.userId) return null;
+  return { userId: claims.userId, role: "user" };
+}
+
+export async function requireUser(): Promise<Guarded<UserIdentity>> {
+  const identity = await getUserSession();
+  if (identity) return { identity };
+  // A buyer must sign in (WhatsApp OTP) before contacting a dealer. The userId
+  // comes only from the verified JWT.
+  return { error: fail("UNAUTHORIZED", "Please sign in to contact the dealer.") };
 }
 
 /**

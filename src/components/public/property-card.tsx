@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BedDouble, Maximize, MapPin, Sofa, Images, Camera, ShieldCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { EnquiryForm } from "@/components/public/enquiry-form";
+import { PropertyContactButton } from "@/components/public/property-contact-button";
 import { VerificationBadge } from "@/components/public/verification-badge";
 import { FreshnessIndicator } from "@/components/public/freshness-indicator";
 import { cn } from "@/lib/utils/cn";
@@ -221,7 +221,13 @@ export function PropertyCard({
 
         {/* Single action. Pushed to the bottom so every card's CTA aligns. */}
         <div className="mt-auto pt-1">
-          <EnquiryForm listingId={id} listingTitle={title} triggerLabel="Enquire" block size="md" />
+          <PropertyContactButton
+            listingId={id}
+            listingTitle={title}
+            triggerLabel="Contact Us"
+            block
+            size="md"
+          />
         </div>
       </div>
     </article>

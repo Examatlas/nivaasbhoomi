@@ -7,6 +7,8 @@ import { SESSION_MAX_AGE_SECONDS } from "@/lib/auth/jwt";
  */
 export const ADMIN_COOKIE = "nb_admin_session";
 export const DEALER_COOKIE = "nb_dealer_session";
+/** Buyer (WhatsApp-OTP) session - separate cookie from admin/dealer. */
+export const USER_COOKIE = "nb_user_session";
 
 export function sessionCookieOptions() {
   return {

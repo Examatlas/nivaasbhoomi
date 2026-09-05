@@ -87,6 +87,16 @@ const dealerSchema = new Schema(
     // status
     status: { type: String, enum: ["active", "paused", "banned"], default: "active" },
     listingCount: { type: Number, default: 0 },
+
+    /**
+     * Zenith Code automation link. FALSE for everyone at launch. When a dealer
+     * later connects a Zenith-registered WhatsApp number (verified via the
+     * Zenith Code API — a future phase), this flips to true and their listings'
+     * button switches from "Contact Us" (lead → dashboard) to a WhatsApp button
+     * that routes the buyer into the dealer's Zenith automation. See
+     * resolveContactMode() in lib/leads/contact-mode.
+     */
+    zenithConnected: { type: Boolean, default: false },
   },
   {
     timestamps: true,

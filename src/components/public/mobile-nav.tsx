@@ -50,7 +50,12 @@ export function MobileNav({ links }: { links: { href: string; label: string }[] 
           ))}
         </nav>
 
-        <SheetFooter>
+        <SheetFooter className="flex flex-col gap-2">
+          <SheetClose asChild>
+            <Button asChild variant="outline" block size="lg">
+              <Link href="/login">Sign in</Link>
+            </Button>
+          </SheetClose>
           <SheetClose asChild>
             <Button asChild variant="primary" block size="lg">
               <Link href="/dealer/login">List your property</Link>

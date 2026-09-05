@@ -37,7 +37,8 @@ import { getFreshness } from "@/lib/utils/date";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { EnquiryForm } from "@/components/public/enquiry-form";
+import { PropertyContactButton } from "@/components/public/property-contact-button";
+import { resolveContactMode } from "@/lib/leads/contact-mode";
 import { JsonLd } from "@/components/shared/json-ld";
 import { PropertyGallery } from "@/components/public/property-gallery";
 import { PropertyMap } from "@/components/public/property-map";
@@ -169,7 +170,13 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                 priceSuffix={price.suffix}
               />
               <div className="mt-3">
-                <EnquiryForm listingId={l.id} listingTitle={l.title} block />
+                <PropertyContactButton
+                  listingId={l.id}
+                  listingTitle={l.title}
+                  dealerName={l.dealer?.businessName}
+                  mode={resolveContactMode(l.dealer)}
+                  block
+                />
               </div>
             </div>
 
@@ -329,7 +336,13 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                   priceSuffix={price.suffix}
                 />
                 <div className="mt-4">
-                  <EnquiryForm listingId={l.id} listingTitle={l.title} block />
+                  <PropertyContactButton
+                  listingId={l.id}
+                  listingTitle={l.title}
+                  dealerName={l.dealer?.businessName}
+                  mode={resolveContactMode(l.dealer)}
+                  block
+                />
                 </div>
                 <p className="mt-2 text-center text-meta text-muted-foreground">
                   No spam. The verified dealer contacts you directly.
@@ -355,7 +368,14 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
               )}
             </p>
           </div>
-          <EnquiryForm listingId={l.id} listingTitle={l.title} triggerLabel="Enquire" size="md" />
+          <PropertyContactButton
+            listingId={l.id}
+            listingTitle={l.title}
+            dealerName={l.dealer?.businessName}
+            mode={resolveContactMode(l.dealer)}
+            triggerLabel="Contact"
+            size="md"
+          />
         </div>
       </div>
     </>

@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { LayoutDashboard, List, PlusCircle, BadgeCheck, MapPin } from "lucide-react";
+import {
+  LayoutDashboard,
+  List,
+  PlusCircle,
+  Inbox,
+  BadgeCheck,
+  MapPin,
+  Sparkles,
+} from "lucide-react";
 
 import { Logo } from "@/components/shared/logo";
 import { SignOutButton } from "@/components/dealer/sign-out-button";
@@ -8,8 +16,10 @@ const NAV = [
   { href: "/dealer/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dealer/listings", label: "My listings", icon: List },
   { href: "/dealer/listings/new", label: "Add listing", icon: PlusCircle },
+  { href: "/dealer/leads", label: "Leads", icon: Inbox },
   { href: "/dealer/verification", label: "Verification", icon: BadgeCheck },
   { href: "/dealer/profile", label: "Coverage & profile", icon: MapPin },
+  { href: "/dealer/automation", label: "Automation", icon: Sparkles },
 ];
 
 /**

@@ -11,7 +11,7 @@ import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
-export type Role = "admin" | "dealer";
+export type Role = "admin" | "dealer" | "user";
 
 export interface AdminClaims extends JWTPayload {
   role: "admin";
@@ -23,7 +23,17 @@ export interface DealerClaims extends JWTPayload {
   dealerId: string;
 }
 
-export type SessionClaims = AdminClaims | DealerClaims;
+/**
+ * Buyer session (WhatsApp OTP). A buyer must sign in before they can contact a
+ * dealer; the buyer's id/phone come only from this verified token, never from
+ * the client.
+ */
+export interface UserClaims extends JWTPayload {
+  role: "user";
+  userId: string;
+}
+
+export type SessionClaims = AdminClaims | DealerClaims | UserClaims;
 
 function secretKey(): Uint8Array {
   const secret = process.env.JWT_SECRET;
@@ -51,7 +61,8 @@ export async function verifySession(
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey(), { algorithms: ["HS256"] });
-    if (payload.role !== "admin" && payload.role !== "dealer") return null;
+    if (payload.role !== "admin" && payload.role !== "dealer" && payload.role !== "user")
+      return null;
     return payload as SessionClaims;
   } catch {
     return null;

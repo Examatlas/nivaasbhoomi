@@ -57,6 +57,7 @@ export async function getPublicListing(slug: string): Promise<PublicListingResul
       rating: 1,
       ratingCount: 1,
       avgResponseMinutes: 1,
+      zenithConnected: 1,
     }).lean(),
     l.stateId ? State.findById(l.stateId, { name: 1 }).lean() : null,
     l.reraStateId ? State.findById(l.reraStateId, { name: 1 }).lean() : null,
@@ -150,6 +151,7 @@ export async function getPublicListing(slug: string): Promise<PublicListingResul
           rating: dealer.rating ?? 0,
           ratingCount: dealer.ratingCount ?? 0,
           avgResponseMinutes: dealer.avgResponseMinutes ?? undefined,
+          zenithConnected: Boolean(dealer.zenithConnected),
         }
       : null,
 
