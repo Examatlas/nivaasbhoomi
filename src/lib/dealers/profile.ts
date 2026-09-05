@@ -54,6 +54,8 @@ export async function getAgentProfile(slug: string): Promise<AgentProfile | null
       avgResponseMinutes: 1,
       coverageCities: 1,
       updatedAt: 1,
+      zenithConnected: 1,
+      zenithNumber: 1,
     },
   ).lean();
   if (!dealer) return null;
@@ -94,6 +96,8 @@ export async function getAgentProfile(slug: string): Promise<AgentProfile | null
     const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
     const cityName = new Map(cities.map((c) => [String(c._id), c.name]));
     const tier = dealer.verificationTier ?? 0;
+    const zenithConnected = Boolean(dealer.zenithConnected);
+    const zenithNumber = zenithConnected ? (dealer.zenithNumber ?? null) : null;
 
     listings = rows.map((l) => {
       const photos = (l.photos ?? []).map((p) => ({
@@ -125,6 +129,8 @@ export async function getAgentProfile(slug: string): Promise<AgentProfile | null
           siteVisited: Boolean(l.badges?.siteVisited),
         },
         verificationTier: tier,
+        zenithConnected,
+        zenithNumber,
         refreshedAt: (l.lastRefreshedAt ?? l.createdAt ?? new Date()).toISOString(),
         whatsappNumber: PORTAL_WHATSAPP,
       } satisfies ListingCardData;

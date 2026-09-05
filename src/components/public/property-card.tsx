@@ -4,6 +4,7 @@ import { BedDouble, Maximize, MapPin, Sofa, Images, Camera, ShieldCheck } from "
 
 import { Badge } from "@/components/ui/badge";
 import { PropertyContactButton } from "@/components/public/property-contact-button";
+import { resolveContactMode } from "@/lib/leads/contact-mode";
 import { VerificationBadge } from "@/components/public/verification-badge";
 import { FreshnessIndicator } from "@/components/public/freshness-indicator";
 import { cn } from "@/lib/utils/cn";
@@ -62,6 +63,8 @@ export function PropertyCard({
     badges,
     verificationTier,
     refreshedAt,
+    zenithConnected,
+    zenithNumber,
     featured,
   } = listing;
 
@@ -224,6 +227,9 @@ export function PropertyCard({
           <PropertyContactButton
             listingId={id}
             listingTitle={title}
+            listingSlug={slug}
+            mode={resolveContactMode({ zenithConnected })}
+            whatsappNumber={zenithNumber ?? undefined}
             triggerLabel="Contact Us"
             block
             size="md"

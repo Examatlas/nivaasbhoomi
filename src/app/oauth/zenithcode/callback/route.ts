@@ -4,6 +4,7 @@ import { verifyOAuthState, exchangeCodeForProfile } from "@/lib/zenith/oauth";
 import { encryptSecret } from "@/lib/settings/crypto";
 import { connectDB } from "@/lib/db/connect";
 import { Dealer } from "@/lib/db/models/Dealer";
+import { revalidateDealerPublicPages } from "@/lib/listings/revalidate";
 
 /**
  * GET /oauth/zenithcode/callback
@@ -125,6 +126,10 @@ export async function GET(req: NextRequest) {
       }
       throw e; // anything else -> outer catch -> ?error=server
     }
+
+    // Cards + detail now show the WhatsApp button — refresh the dealer's public
+    // pages so they don't stay on "Contact Us" for the ISR window.
+    await revalidateDealerPublicPages(dealerId);
 
     return back({ connected: "1" });
   } catch (e) {

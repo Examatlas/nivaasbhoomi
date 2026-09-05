@@ -2,6 +2,7 @@ import { ok, fail, withErrorHandling } from "@/lib/api/response";
 import { getDealerSession } from "@/lib/auth/middleware";
 import { connectDB } from "@/lib/db/connect";
 import { Dealer } from "@/lib/db/models/Dealer";
+import { revalidateDealerPublicPages } from "@/lib/listings/revalidate";
 
 /**
  * POST /api/auth/zenith/disconnect   [dealer auth]
@@ -29,6 +30,9 @@ export const POST = withErrorHandling(async () => {
   dealer.zenithConnectedAt = null;
   dealer.zenithOrgId = null; // free the Zenith account so it can bind elsewhere
   await dealer.save();
+
+  // Cards + detail revert to "Contact Us" — refresh the dealer's public pages.
+  await revalidateDealerPublicPages(session.dealerId);
 
   return ok({ disconnected: true });
 });

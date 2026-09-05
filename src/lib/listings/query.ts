@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/db/connect";
 import { Listing } from "@/lib/db/models/Listing";
 import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
-import { Dealer } from "@/lib/db/models/Dealer";
+import { fetchDealerCardInfo } from "@/lib/listings/dealer-card-info";
 import type { FilterQuery } from "@/lib/filters/parse";
 import { filterToSegment } from "@/lib/filters/segment";
 import type { ListingCardData, ListingPurpose, PropertyType } from "@/types/listing";
@@ -109,15 +109,12 @@ export async function fetchApprovedCards(params: {
     .limit(limit)
     .lean();
 
-  // Batch dealer tiers (verification badge) - never expose phone/name.
+  // Batch the safe dealer card fields (tier + Zenith status) - never phone/name/tokens.
   const dealerIds = [...new Set(rows.map((r) => String(r.dealerId)))];
-  const dealers = await Dealer.find(
-    { _id: { $in: dealerIds } },
-    { verificationTier: 1 },
-  ).lean();
-  const tierById = new Map(dealers.map((d) => [String(d._id), d.verificationTier ?? 0]));
+  const dealerInfo = await fetchDealerCardInfo(dealerIds);
 
   return rows.map((l) => {
+    const dealer = dealerInfo.get(String(l.dealerId));
     const photos = (l.photos ?? []).map((p) => ({
       url: p.url!,
       publicId: p.publicId ?? undefined,
@@ -146,7 +143,9 @@ export async function fetchApprovedCards(params: {
         photosVerified: Boolean(l.badges?.photosVerified),
         siteVisited: Boolean(l.badges?.siteVisited),
       },
-      verificationTier: tierById.get(String(l.dealerId)) ?? 0,
+      verificationTier: dealer?.verificationTier ?? 0,
+      zenithConnected: dealer?.zenithConnected ?? false,
+      zenithNumber: dealer?.zenithNumber ?? null,
       refreshedAt: (l.lastRefreshedAt ?? l.createdAt ?? new Date()).toISOString(),
       whatsappNumber: PORTAL_WHATSAPP,
     } satisfies ListingCardData;
@@ -400,16 +399,16 @@ export async function getFeaturedListings(limit = 8): Promise<ListingCardData[]>
   const localityIds = [...new Set(rows.map((r) => String(r.localityId)))];
   const dealerIds = [...new Set(rows.map((r) => String(r.dealerId)))];
 
-  const [cities, localities, dealers] = await Promise.all([
+  const [cities, localities, dealerInfo] = await Promise.all([
     City.find({ _id: { $in: cityIds } }, { name: 1 }).lean(),
     Locality.find({ _id: { $in: localityIds } }, { name: 1 }).lean(),
-    Dealer.find({ _id: { $in: dealerIds } }, { verificationTier: 1 }).lean(),
+    fetchDealerCardInfo(dealerIds),
   ]);
   const cityName = new Map(cities.map((c) => [String(c._id), c.name]));
   const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
-  const tierById = new Map(dealers.map((d) => [String(d._id), d.verificationTier ?? 0]));
 
   return rows.map((l) => {
+    const dealer = dealerInfo.get(String(l.dealerId));
     const photos = (l.photos ?? []).map((p) => ({
       url: p.url!,
       publicId: p.publicId ?? undefined,
@@ -438,7 +437,9 @@ export async function getFeaturedListings(limit = 8): Promise<ListingCardData[]>
         photosVerified: Boolean(l.badges?.photosVerified),
         siteVisited: Boolean(l.badges?.siteVisited),
       },
-      verificationTier: tierById.get(String(l.dealerId)) ?? 0,
+      verificationTier: dealer?.verificationTier ?? 0,
+      zenithConnected: dealer?.zenithConnected ?? false,
+      zenithNumber: dealer?.zenithNumber ?? null,
       refreshedAt: (l.lastRefreshedAt ?? l.createdAt ?? new Date()).toISOString(),
       whatsappNumber: PORTAL_WHATSAPP,
     } satisfies ListingCardData;
@@ -564,14 +565,14 @@ export async function getCityListings(
 
   const localityIds = [...new Set(rows.map((r) => String(r.localityId)))];
   const dealerIds = [...new Set(rows.map((r) => String(r.dealerId)))];
-  const [localities, dealers] = await Promise.all([
+  const [localities, dealerInfo] = await Promise.all([
     Locality.find({ _id: { $in: localityIds } }, { name: 1 }).lean(),
-    Dealer.find({ _id: { $in: dealerIds } }, { verificationTier: 1 }).lean(),
+    fetchDealerCardInfo(dealerIds),
   ]);
   const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
-  const tierById = new Map(dealers.map((d) => [String(d._id), d.verificationTier ?? 0]));
 
   return rows.map((l) => {
+    const dealer = dealerInfo.get(String(l.dealerId));
     const photos = (l.photos ?? []).map((p) => ({
       url: p.url!,
       publicId: p.publicId ?? undefined,
@@ -600,7 +601,9 @@ export async function getCityListings(
         photosVerified: Boolean(l.badges?.photosVerified),
         siteVisited: Boolean(l.badges?.siteVisited),
       },
-      verificationTier: tierById.get(String(l.dealerId)) ?? 0,
+      verificationTier: dealer?.verificationTier ?? 0,
+      zenithConnected: dealer?.zenithConnected ?? false,
+      zenithNumber: dealer?.zenithNumber ?? null,
       refreshedAt: (l.lastRefreshedAt ?? l.createdAt ?? new Date()).toISOString(),
       whatsappNumber: PORTAL_WHATSAPP,
     } satisfies ListingCardData;

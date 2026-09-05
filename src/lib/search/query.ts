@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/db/connect";
 import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
 import { Listing } from "@/lib/db/models/Listing";
-import { Dealer } from "@/lib/db/models/Dealer";
+import { fetchDealerCardInfo } from "@/lib/listings/dealer-card-info";
 import type { ListingCardData, ListingPurpose, PropertyType } from "@/types/listing";
 
 const PORTAL_WHATSAPP = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
@@ -126,14 +126,14 @@ async function searchListings(
 
   const localityIds = [...new Set(rows.map((r) => String(r.localityId)))];
   const dealerIds = [...new Set(rows.map((r) => String(r.dealerId)))];
-  const [localities, dealers] = await Promise.all([
+  const [localities, dealerInfo] = await Promise.all([
     Locality.find({ _id: { $in: localityIds } }, { name: 1 }).lean(),
-    Dealer.find({ _id: { $in: dealerIds } }, { verificationTier: 1 }).lean(),
+    fetchDealerCardInfo(dealerIds),
   ]);
   const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
-  const tierById = new Map(dealers.map((d) => [String(d._id), d.verificationTier ?? 0]));
 
   return rows.map((l) => {
+    const dealer = dealerInfo.get(String(l.dealerId));
     const photos = (l.photos ?? []).map((p) => ({
       url: p.url!,
       publicId: p.publicId ?? undefined,
@@ -162,7 +162,9 @@ async function searchListings(
         photosVerified: Boolean(l.badges?.photosVerified),
         siteVisited: Boolean(l.badges?.siteVisited),
       },
-      verificationTier: tierById.get(String(l.dealerId)) ?? 0,
+      verificationTier: dealer?.verificationTier ?? 0,
+      zenithConnected: dealer?.zenithConnected ?? false,
+      zenithNumber: dealer?.zenithNumber ?? null,
       refreshedAt: (l.lastRefreshedAt ?? l.createdAt ?? new Date()).toISOString(),
       whatsappNumber: PORTAL_WHATSAPP,
     } satisfies ListingCardData;

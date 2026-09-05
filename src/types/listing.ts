@@ -74,5 +74,11 @@ export interface ListingCardData {
   /** Public WhatsApp number for the enquiry (portal or dealer number). */
   whatsappNumber: string;
 
+  /** Zenith Code automation — SAFE fields only (never a token / orgId). When the
+   *  dealer is connected the card shows a WhatsApp button to zenithNumber;
+   *  otherwise "Contact Us". */
+  zenithConnected?: boolean;
+  zenithNumber?: string | null;
+
   featured?: boolean;
 }
