@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import { Loader2, Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Loader2, Check, ChevronLeft, ChevronRight, Plus, AlertCircle, ArrowRight } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,6 +60,13 @@ const FURNISHING_DETAILS = ["AC", "Beds", "Wardrobe", "Sofa", "Fridge", "Washing
 const AMENITIES = ["Lift", "Power Backup", "24x7 Security", "CCTV", "Gym", "Swimming Pool", "Clubhouse", "Children's Park", "Gas Pipeline", "Rainwater Harvesting", "Visitor Parking", "Intercom"];
 const WATER_SOURCES = ["Municipal", "Borewell", "Tanker"];
 const TENANTS = ["Family", "Bachelors", "Company", "Any"];
+
+/** A single unmet requirement, mapped to the step + field that fixes it. */
+interface Issue {
+  step: number;
+  fieldId: string;
+  label: string;
+}
 
 interface FormValues {
   purpose: "sale" | "rent";
@@ -191,12 +198,108 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Once the dealer has reached Review (or tried to submit), surface the
+  // per-step validation flags so they can see and jump to what's incomplete.
+  const [showErrors, setShowErrors] = useState(false);
 
   const purpose = watch("purpose");
   const propertyType = watch("propertyType");
   const possessionStatus = watch("possessionStatus");
   const isPlot = propertyType === "plot";
   const effectiveLocalityId = requested?.id ?? loc.localityId;
+
+  // Live values needed to validate (RHF fields).
+  const wTitle = watch("title");
+  const wDescription = watch("description");
+  const wExpectedPrice = watch("expectedPrice");
+  const wMonthlyRent = watch("monthlyRent");
+  const wReraNumber = watch("reraNumber");
+
+  useEffect(() => {
+    if (step === STEPS.length - 1) setShowErrors(true);
+  }, [step]);
+
+  // The single source of truth for "what still needs fixing", mapped to the
+  // exact step + field so an error can jump the dealer straight there.
+  const issues = useMemo<Issue[]>(() => {
+    const list: Issue[] = [];
+    const descLen = wDescription?.trim().length ?? 0;
+    if (!wTitle || !wTitle.trim()) {
+      list.push({ step: 0, fieldId: "field-title", label: "Add a listing title" });
+    }
+    if (descLen < 100) {
+      list.push({
+        step: 0,
+        fieldId: "field-description",
+        label: `Description needs at least 100 characters (${descLen}/100)`,
+      });
+    }
+    if (!effectiveLocalityId) {
+      list.push({ step: 1, fieldId: "field-locality", label: "Select or request a locality" });
+    }
+    if (!coords) {
+      list.push({ step: 1, fieldId: "field-mappin", label: "Drop a map pin for the exact location" });
+    }
+    const priceOk = (n?: number) => typeof n === "number" && !Number.isNaN(n) && n > 0;
+    if (purpose === "sale" && !priceOk(wExpectedPrice)) {
+      list.push({ step: 4, fieldId: "field-expectedPrice", label: "Enter the expected price" });
+    }
+    if (purpose === "rent" && !priceOk(wMonthlyRent)) {
+      list.push({ step: 4, fieldId: "field-monthlyRent", label: "Enter the monthly rent" });
+    }
+    if (possessionStatus === "under-construction") {
+      if (!wReraNumber || !wReraNumber.trim()) {
+        list.push({ step: 5, fieldId: "field-reraNumber", label: "Under-construction: RERA number is required" });
+      }
+      if (!reraStateId) {
+        list.push({ step: 5, fieldId: "field-reraStateId", label: "Under-construction: RERA state is required" });
+      }
+    }
+    if (photos.length < 3) {
+      list.push({
+        step: 6,
+        fieldId: "field-photos",
+        label: `At least 3 photos are required (${photos.length}/3)`,
+      });
+    }
+    return list;
+  }, [
+    wTitle,
+    wDescription,
+    wExpectedPrice,
+    wMonthlyRent,
+    wReraNumber,
+    effectiveLocalityId,
+    coords,
+    purpose,
+    possessionStatus,
+    reraStateId,
+    photos,
+  ]);
+
+  const stepsWithIssues = useMemo(() => new Set(issues.map((i) => i.step)), [issues]);
+
+  /** Jump to the step owning a field, then scroll it into view, focus + flash it. */
+  function goToField(targetStep: number, fieldId: string) {
+    setShowErrors(true);
+    setStep(targetStep);
+    // Let the target step render before we look for the element.
+    setTimeout(() => {
+      const el = document.getElementById(fieldId);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const focusable =
+        el.matches("input, textarea, select, button")
+          ? el
+          : el.querySelector<HTMLElement>("input, textarea, select, button, [tabindex]");
+      (focusable as HTMLElement | null)?.focus?.({ preventScroll: true });
+      el.classList.remove("nb-flash");
+      // reflow so the animation can re-trigger if the same field is chosen twice
+      void el.offsetWidth;
+      el.classList.add("nb-flash");
+      window.setTimeout(() => el.classList.remove("nb-flash"), 1900);
+    }, 80);
+  }
 
   // ---- build the API payload from current state ----
   function buildPayload(): Record<string, unknown> {
@@ -311,6 +414,13 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
     if (res) router.push("/dealer/listings");
   }
   async function submitListing() {
+    setShowErrors(true);
+    // Don't round-trip a submission we already know is incomplete - take the
+    // dealer straight to the first thing that needs fixing.
+    if (issues.length > 0) {
+      goToField(issues[0]!.step, issues[0]!.fieldId);
+      return;
+    }
     setBusy(true);
     const res = await persist(true);
     setBusy(false);
@@ -356,24 +466,39 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
     <div>
       {/* Stepper */}
       <ol className="mb-6 flex flex-wrap gap-1 text-meta">
-        {STEPS.map((label, i) => (
-          <li key={label}>
-            <button
-              type="button"
-              onClick={() => setStep(i)}
-              className={
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-colors " +
-                (i === step
-                  ? "bg-ink-900 text-primary-foreground"
-                  : i < step
-                    ? "bg-success-50 text-success-700"
-                    : "bg-surface-muted text-muted-foreground hover:bg-sand-200")
-              }
-            >
-              <span className="tabular">{i + 1}</span> {label}
-            </button>
-          </li>
-        ))}
+        {STEPS.map((label, i) => {
+          const flagged = showErrors && stepsWithIssues.has(i);
+          return (
+            <li key={label}>
+              <button
+                type="button"
+                onClick={() => setStep(i)}
+                aria-invalid={flagged || undefined}
+                className={
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-colors " +
+                  (i === step
+                    ? "bg-ink-900 text-primary-foreground"
+                    : flagged
+                      ? "bg-danger-50 text-danger-700 ring-1 ring-danger-500/40 hover:bg-danger-100"
+                      : i < step
+                        ? "bg-success-50 text-success-700"
+                        : "bg-surface-muted text-muted-foreground hover:bg-sand-200")
+                }
+              >
+                <span className="tabular">{i + 1}</span> {label}
+                {flagged && (
+                  <span
+                    aria-hidden
+                    className={
+                      "size-1.5 rounded-full " +
+                      (i === step ? "bg-danger-500" : "bg-danger-600")
+                    }
+                  />
+                )}
+              </button>
+            </li>
+          );
+        })}
       </ol>
 
       <div className="rounded-card border border-border bg-surface p-5 sm:p-6">
@@ -406,7 +531,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
               </Field>
             </div>
             <Field label="Title" required error={fieldErrors.title}>
-              <Input {...register("title")} placeholder="e.g. Spacious 2 BHK flat in Kanke" maxLength={160} />
+              <Input id="field-title" {...register("title")} placeholder="e.g. Spacious 2 BHK flat in Kanke" maxLength={160} />
             </Field>
             <Field
               label="Description"
@@ -414,7 +539,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
               error={fieldErrors.description}
               hint="At least 100 characters. Describe the property honestly - rooms, condition, neighbourhood."
             >
-              <Textarea {...register("description")} rows={6} placeholder="Describe the property…" />
+              <Textarea id="field-description" {...register("description")} rows={6} placeholder="Describe the property…" />
             </Field>
           </div>
         )}
@@ -422,14 +547,16 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
         {/* ---- Step 2: Location ---- */}
         {step === 1 && (
           <div className="flex flex-col gap-4">
-            <CascadingLocation
-              value={loc}
-              onChange={(v) => {
-                setRequested(null);
-                setLoc(v);
-              }}
-              onCityCenter={setMapCenter}
-            />
+            <div id="field-locality">
+              <CascadingLocation
+                value={loc}
+                onChange={(v) => {
+                  setRequested(null);
+                  setLoc(v);
+                }}
+                onCityCenter={setMapCenter}
+              />
+            </div>
 
             {/* Request new locality */}
             {requested ? (
@@ -482,7 +609,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
               <Input {...register("fullAddress")} />
             </Field>
 
-            <div>
+            <div id="field-mappin">
               <Label required>Pin the exact location on the map</Label>
               <p className="mb-2 text-meta text-muted-foreground">
                 Drag the pin, or paste a Google Maps link.
@@ -568,7 +695,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
             {purpose === "sale" ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Expected price (₹)" required error={fieldErrors.expectedPrice}>
-                  <NumInput reg={register("expectedPrice", { valueAsNumber: true })} />
+                  <NumInput id="field-expectedPrice" reg={register("expectedPrice", { valueAsNumber: true })} />
                 </Field>
                 <Field label="Booking amount (₹)"><NumInput reg={register("bookingAmount", { valueAsNumber: true })} /></Field>
                 <CheckOne label="Price negotiable" checked={Boolean(watch("priceNegotiable"))} onChange={(c) => setValue("priceNegotiable", c)} />
@@ -576,7 +703,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Monthly rent (₹)" required error={fieldErrors.monthlyRent}>
-                  <NumInput reg={register("monthlyRent", { valueAsNumber: true })} />
+                  <NumInput id="field-monthlyRent" reg={register("monthlyRent", { valueAsNumber: true })} />
                 </Field>
                 <Field label="Security deposit (₹)"><NumInput reg={register("securityDeposit", { valueAsNumber: true })} /></Field>
                 <Field label="Available from"><Input type="date" {...register("availableFrom")} /></Field>
@@ -619,10 +746,12 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
             {possessionStatus === "under-construction" && (
               <>
                 <Field label="RERA number" required error={fieldErrors.reraNumber}>
-                  <Input {...register("reraNumber")} placeholder="RERA registration number" />
+                  <Input id="field-reraNumber" {...register("reraNumber")} placeholder="RERA registration number" />
                 </Field>
                 <Field label="RERA state" required error={fieldErrors.reraStateId}>
-                  <ReraStateSelect value={reraStateId} onChange={setReraStateId} states={reraStates} setStates={setReraStates} />
+                  <div id="field-reraStateId">
+                    <ReraStateSelect value={reraStateId} onChange={setReraStateId} states={reraStates} setStates={setReraStates} />
+                  </div>
                 </Field>
                 <p className="text-meta text-warning-700 sm:col-span-2">
                   Under-construction listings require a valid RERA number and state.
@@ -634,7 +763,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
 
         {/* ---- Step 7: Media ---- */}
         {step === 6 && (
-          <div className="flex flex-col gap-3">
+          <div id="field-photos" className="flex flex-col gap-3">
             <Label required>Photos (at least 3)</Label>
             <ImageUploader
               folder={folder}
@@ -658,31 +787,35 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
             coords={coords}
             photos={photos}
             amenities={amenities}
+            issues={issues}
+            onFix={(it) => goToField(it.step, it.fieldId)}
           />
         )}
 
         {error && <p className="mt-4 text-sm text-danger-700">{error}</p>}
       </div>
 
-      {/* Footer nav */}
-      <div className="mt-5 flex flex-wrap items-center gap-3">
+      {/* Footer nav: Back on the left, forward actions on the right. */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <Button variant="outline" onClick={prev} disabled={step === 0 || busy}>
           <ChevronLeft className="size-4" /> Back
         </Button>
-        {step < STEPS.length - 1 ? (
-          <Button onClick={next} disabled={busy}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-            Save & continue <ChevronRight className="size-4" />
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="ghost" onClick={saveDraft} disabled={busy}>
+            Save draft & exit
           </Button>
-        ) : (
-          <Button onClick={submitListing} disabled={busy} size="lg">
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-            Submit for review
-          </Button>
-        )}
-        <Button variant="ghost" onClick={saveDraft} disabled={busy}>
-          Save draft & exit
-        </Button>
+          {step < STEPS.length - 1 ? (
+            <Button onClick={next} disabled={busy}>
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+              Save & continue <ChevronRight className="size-4" />
+            </Button>
+          ) : (
+            <Button onClick={submitListing} disabled={busy} size="lg">
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+              Submit for review
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -713,8 +846,8 @@ function Field({
   );
 }
 
-function NumInput({ reg }: { reg: UseFormRegisterReturn }) {
-  return <Input type="number" inputMode="numeric" {...reg} />;
+function NumInput({ reg, id }: { reg: UseFormRegisterReturn; id?: string }) {
+  return <Input id={id} type="number" inputMode="numeric" {...reg} />;
 }
 
 function CheckOne({
@@ -798,6 +931,8 @@ function Review({
   coords,
   photos,
   amenities,
+  issues,
+  onFix,
 }: {
   values: FormValues;
   loc: LocationValue;
@@ -805,6 +940,8 @@ function Review({
   coords: { lat: number; lng: number } | null;
   photos: UploadedImage[];
   amenities: string[];
+  issues: Issue[];
+  onFix: (issue: Issue) => void;
 }) {
   const price =
     values.purpose === "sale" ? values.expectedPrice : values.monthlyRent;
@@ -833,11 +970,33 @@ function Review({
           </div>
         ))}
       </dl>
-      {(!values.description || values.description.trim().length < 100) && (
-        <p className="text-meta text-danger-700">Description needs at least 100 characters.</p>
-      )}
-      {photos.length < 3 && (
-        <p className="text-meta text-danger-700">At least 3 photos are required.</p>
+
+      {issues.length > 0 ? (
+        <div className="rounded-card border border-danger-100 bg-danger-50 p-4">
+          <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-danger-700">
+            <AlertCircle className="size-4 shrink-0" />
+            Fix {issues.length} {issues.length === 1 ? "thing" : "things"} before submitting
+          </p>
+          <ul className="flex flex-col divide-y divide-danger-100">
+            {issues.map((it) => (
+              <li key={it.fieldId} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
+                <span className="text-sm text-danger-700">{it.label}</span>
+                <button
+                  type="button"
+                  onClick={() => onFix(it)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-control border border-danger-500 bg-surface px-2.5 py-1 text-meta font-medium text-danger-700 transition-colors hover:bg-danger-100"
+                >
+                  Fix <span className="text-muted-foreground">· Step {it.step + 1}</span>
+                  <ArrowRight className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="inline-flex items-center gap-2 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-sm font-medium text-success-700">
+          <Check className="size-4" /> Everything looks good — you can submit for review.
+        </p>
       )}
     </div>
   );

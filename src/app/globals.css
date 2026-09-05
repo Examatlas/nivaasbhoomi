@@ -383,3 +383,21 @@
     font-weight: 600;
   }
 }
+
+/* Field "flash": briefly ring a form control the dealer was jumped to from a
+   validation error on the listing wizard's Review step (see listing-wizard). */
+@keyframes nb-flash {
+  0% {
+    box-shadow: 0 0 0 0 var(--color-danger-500);
+  }
+  12% {
+    box-shadow: 0 0 0 3px var(--color-danger-500);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+.nb-flash {
+  animation: nb-flash 1.8s ease-out 1;
+  border-radius: 0.5rem;
+}
