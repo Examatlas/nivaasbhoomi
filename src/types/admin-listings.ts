@@ -61,6 +61,7 @@ export interface ListingDetail {
   status: ListingStatus;
   purpose: "sale" | "rent";
   propertyType: string;
+  isCntLand?: boolean;
   description?: string;
   bhk?: string;
   bathrooms?: number;

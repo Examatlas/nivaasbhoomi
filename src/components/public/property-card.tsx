@@ -51,6 +51,7 @@ export function PropertyCard({
     title,
     purpose,
     propertyType,
+    isCntLand,
     price,
     bhk,
     area,
@@ -131,6 +132,11 @@ export function PropertyCard({
             {featured && (
               <Badge tone="clay" className="shadow-subtle">
                 Featured
+              </Badge>
+            )}
+            {isCntLand && (
+              <Badge tone="neutral" className="bg-surface/95 shadow-subtle backdrop-blur-sm">
+                CNT
               </Badge>
             )}
           </div>

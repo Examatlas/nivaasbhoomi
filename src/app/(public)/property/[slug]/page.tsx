@@ -413,6 +413,11 @@ function PriceHeader({
         <Badge tone={l.purpose === "rent" ? "clay" : "ink"} size="sm">
           {l.purpose === "rent" ? "For Rent" : "For Sale"}
         </Badge>
+        {l.isCntLand && (
+          <Badge tone="neutral" size="sm">
+            CNT
+          </Badge>
+        )}
         {l.dealer && l.dealer.verificationTier >= 1 && (
           <VerificationBadge tier={l.dealer.verificationTier} size="sm" />
         )}

@@ -148,6 +148,9 @@ const listingSchema = new Schema(
     reraNumber: { type: String },
     reraStateId: { type: Types.ObjectId, ref: "State" },
     approvedBy: { type: [String], default: [] },
+    // Dealer's own declaration that a plot falls under the Chotanagpur Tenancy
+    // Act. Plots only; NOT admin-verified — see the public "CNT" tag.
+    isCntLand: { type: Boolean, default: false },
 
     // media
     photos: { type: [photoSchema], default: [] },

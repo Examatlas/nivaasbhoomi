@@ -123,6 +123,7 @@ export async function getMyListingForEdit(
     status: l.status,
     purpose: l.purpose,
     propertyType: l.propertyType,
+    isCntLand: l.isCntLand ?? false,
     title: l.title,
     description: l.description,
     stateId: l.stateId ? String(l.stateId) : "",

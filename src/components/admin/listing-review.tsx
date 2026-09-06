@@ -258,6 +258,7 @@ export function ListingReview({ id }: { id: string }) {
             <Row label="Amenities" value={l.amenities?.join(", ")} />
             <Row label="Parking" value={l.parking} />
             <Row label="Possession" value={l.possessionStatus} />
+            <Row label="CNT land" value={l.isCntLand ? "Declared by dealer" : undefined} />
             <Row label="RERA" value={l.reraNumber} />
             <Row label="Brokerage" value={l.brokerage} />
             <Row

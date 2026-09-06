@@ -42,6 +42,8 @@ export const listingInputSchema = z
     // basic
     purpose: z.enum(["sale", "rent"]),
     propertyType: z.enum(PROPERTY_TYPES),
+    // Dealer's CNT declaration (plots only). Optional boolean, no verification.
+    isCntLand: z.boolean().optional(),
     title: z.string().trim().min(5).max(160),
     description: z
       .string()

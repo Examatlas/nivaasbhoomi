@@ -73,6 +73,7 @@ export async function getPublicListing(slug: string): Promise<PublicListingResul
     description: l.description ?? "",
     purpose: l.purpose as ListingPurpose,
     propertyType: l.propertyType as PropertyType,
+    isCntLand: Boolean(l.isCntLand),
 
     price: (l.purpose === "rent" ? l.monthlyRent : l.expectedPrice) ?? 0,
     pricePerSqft: l.pricePerSqft ?? undefined,

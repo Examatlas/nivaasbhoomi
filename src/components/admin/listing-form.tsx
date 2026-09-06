@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import {
   Select,
@@ -96,6 +97,7 @@ export function ListingForm() {
   });
   const [purpose, setPurpose] = useState<"sale" | "rent">("sale");
   const [propertyType, setPropertyType] = useState("flat");
+  const [isCntLand, setIsCntLand] = useState(false);
   const [status, setStatus] = useState<"pending" | "approved">("pending");
   const [photos, setPhotos] = useState<UploadedImage[]>([]);
   const [coverIndex, setCoverIndex] = useState(0);
@@ -142,6 +144,7 @@ export function ListingForm() {
       localityId: loc.localityId,
       purpose,
       propertyType,
+      isCntLand: isPlot ? isCntLand : false,
       status,
       title: g("title"),
       description: g("description"),
@@ -308,6 +311,17 @@ export function ListingForm() {
             </Select>
           </div>
         </div>
+        {isPlot && (
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={isCntLand} onCheckedChange={(c) => setIsCntLand(Boolean(c))} />
+              CNT land
+            </label>
+            <p className="text-meta text-muted-foreground">
+              Tick if this plot falls under the Chotanagpur Tenancy Act.
+            </p>
+          </div>
+        )}
         <TextField
           label="Title"
           value={g("title")}

@@ -36,6 +36,9 @@ export interface PublicListingDetail {
   purpose: ListingPurpose;
   propertyType: PropertyType;
 
+  /** Dealer's CNT declaration (plots only). Renders a "CNT" tag when true. */
+  isCntLand?: boolean;
+
   price: number; // expectedPrice (sale) or monthlyRent (rent)
   pricePerSqft?: number;
   priceNegotiable?: boolean;

@@ -72,6 +72,7 @@ interface Issue {
 interface FormValues {
   purpose: "sale" | "rent";
   propertyType: string;
+  isCntLand: boolean;
   title: string;
   description: string;
   subLocality?: string;
@@ -132,6 +133,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
     defaultValues: {
       purpose: initial?.purpose ?? "sale",
       propertyType: initial?.propertyType ?? "flat",
+      isCntLand: initial?.isCntLand ?? false,
       title: initial?.title ?? "",
       description: initial?.description ?? "",
       subLocality: initial?.subLocality,
@@ -310,6 +312,8 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
     const payload: Record<string, unknown> = {
       purpose: v.purpose,
       propertyType: v.propertyType,
+      // Plots only; never carry the declaration on a non-plot type.
+      isCntLand: v.propertyType === "plot" ? Boolean(v.isCntLand) : false,
       title: str(v.title),
       description: str(v.description),
       stateId: loc.stateId || undefined,
@@ -531,6 +535,20 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
                 </Select>
               </Field>
             </div>
+            {isPlot && (
+              <div className="flex flex-col gap-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={Boolean(watch("isCntLand"))}
+                    onCheckedChange={(c) => setValue("isCntLand", Boolean(c))}
+                  />
+                  CNT land
+                </label>
+                <p className="text-meta text-muted-foreground">
+                  Tick if this plot falls under the Chotanagpur Tenancy Act.
+                </p>
+              </div>
+            )}
             <Field label="Title" required error={fieldErrors.title}>
               <Input id="field-title" {...register("title")} placeholder="e.g. Spacious 2 BHK flat in Kanke" maxLength={160} />
             </Field>

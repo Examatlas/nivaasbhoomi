@@ -47,6 +47,8 @@ export const dealerListingSchema = z.object({
   // basic
   purpose: z.enum(["sale", "rent"]).optional(),
   propertyType: z.enum(PROPERTY_TYPES).optional(),
+  // Dealer's CNT declaration (plots only). Optional boolean, no verification.
+  isCntLand: z.boolean().optional(),
   title: z.string().trim().max(160).optional(),
   description: z.string().trim().max(8000).optional(),
 
