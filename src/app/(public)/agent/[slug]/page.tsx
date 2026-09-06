@@ -245,10 +245,13 @@ export default async function AgentProfilePage({
                 size="md"
               />
             ) : (
-              <p className="max-w-[16rem] text-meta text-muted-foreground">
-                Tap <span className="font-medium text-ink-800">Contact Us</span> on any listing
-                below to reach {agent.businessName}.
-              </p>
+              <PropertyContactButton
+                mode="contact"
+                dealerId={agent.id}
+                dealerName={agent.businessName}
+                triggerLabel="Contact Us"
+                size="md"
+              />
             )}
           </div>
         </header>

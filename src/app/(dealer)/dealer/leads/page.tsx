@@ -118,12 +118,17 @@ function LeadCard({ lead: l }: { lead: DealerLeadRow }) {
         )}
       </div>
 
-      {l.listing && (
+      {l.listing ? (
         <p className="mt-2 inline-flex items-center gap-1.5 text-meta text-muted-foreground">
           <Home className="size-3.5 text-clay-500" /> Enquired about:{" "}
           <span className="font-medium text-ink-800">{l.listing.title}</span>
         </p>
-      )}
+      ) : l.source === "agent_profile" ? (
+        <p className="mt-2 inline-flex items-center gap-1.5 text-meta text-clay-700">
+          <Home className="size-3.5" /> Contacted you via your{" "}
+          <span className="font-medium">public profile</span>
+        </p>
+      ) : null}
 
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-meta text-muted-foreground">
         {(l.localityName || l.cityName) && (

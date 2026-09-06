@@ -130,6 +130,7 @@ function QueueRow({ lead: l }: { lead: AdminLeadRow }) {
           {l.bhk ? ` · ${l.bhk} BHK` : ""}
           {l.localityName ? ` · ${l.localityName}` : ""}
           {l.listing ? ` · re: ${l.listing.title}` : ""}
+          {l.source === "agent_profile" ? " · via dealer profile" : ""}
         </p>
       </div>
       <Link
@@ -211,6 +212,9 @@ async function AllLeads({ sp }: { sp: Record<string, string | string[] | undefin
                 <td className="px-3 py-2">
                   <div className="font-medium text-ink-950">{l.buyerName}</div>
                   <div className="text-meta text-muted-foreground">+{l.phone}</div>
+                  {l.source === "agent_profile" && (
+                    <div className="text-meta text-clay-700">via dealer profile</div>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   <Badge tone={STATUS_TONE[l.status] ?? "neutral"} size="sm">{l.status}</Badge>

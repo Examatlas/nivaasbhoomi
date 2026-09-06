@@ -50,18 +50,21 @@ export function PropertyContactButton({
   whatsappNumber,
   listingSlug,
   profileSlug,
+  dealerId,
   triggerLabel = "Contact Us",
   block,
   size = "lg",
 }: {
-  /** Required for the "contact" (enquiry) mode. Optional for a dealer-profile
-   *  WhatsApp button, which has no single listing. */
+  /** Required for the listing "contact" enquiry. Omitted for a dealer-profile
+   *  contact, which uses dealerId instead. */
   listingId?: string;
   listingTitle?: string;
   dealerName?: string;
   mode?: ContactMode;
   whatsappNumber?: string;
   listingSlug?: string;
+  /** Dealer id — a direct-to-dealer enquiry from the /agent profile. */
+  dealerId?: string;
   /** Dealer profile slug — used to build the WhatsApp message on the dealer page
    *  where there's no listing context. */
   profileSlug?: string;
@@ -98,16 +101,18 @@ export function PropertyContactButton({
     );
   }
 
-  // "contact" mode is listing-based; callers on cards/property always pass an id.
+  // "contact" mode: a listing enquiry (listingId) or a direct dealer enquiry
+  // from the /agent profile (dealerId).
   return (
     <ContactDialog
-      {...{ listingId: listingId ?? "", listingTitle, dealerName, triggerLabel, block, size }}
+      {...{ listingId: listingId ?? "", dealerId, listingTitle, dealerName, triggerLabel, block, size }}
     />
   );
 }
 
 function ContactDialog({
   listingId,
+  dealerId,
   listingTitle,
   dealerName,
   triggerLabel,
@@ -115,6 +120,7 @@ function ContactDialog({
   size,
 }: {
   listingId: string;
+  dealerId?: string;
   listingTitle?: string;
   dealerName?: string;
   triggerLabel: string;
@@ -154,7 +160,7 @@ function ContactDialog({
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingId }),
+        body: JSON.stringify(dealerId ? { dealerId } : { listingId }),
       });
       const body = await res.json();
       if (res.status === 401) {

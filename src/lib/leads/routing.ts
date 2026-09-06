@@ -365,3 +365,57 @@ async function notifyDealerUpgrade(dealerId: string): Promise<void> {
     "You just missed a lead because your monthly lead quota is full. Upgrade your plan on NivaasBhoomi to receive more leads.",
   );
 }
+
+/**
+ * Direct assignment to a CHOSEN dealer — a buyer contacting a dealer from their
+ * public /agent profile. Reuses the exact rules as routeLead: exclusivity + lock
+ * via the atomic claim, quota consumption via applyAssignSideEffects, and the
+ * over-quota -> admin queue fallback. No coverage rotation: the buyer picked this
+ * dealer. Never throws.
+ */
+export async function routeLeadToDealer(
+  leadId: string,
+  dealerId: string,
+): Promise<RouteResult> {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(leadId) || !mongoose.Types.ObjectId.isValid(dealerId)) {
+      return { decision: "skip", reason: "invalid id", leadId };
+    }
+    await connectDB();
+
+    const lead = await Lead.findById(leadId);
+    if (!lead) return { decision: "skip", reason: "lead not found", leadId };
+    if (lead.assignedDealerId) {
+      return {
+        decision: "already-assigned",
+        reason: "lead already assigned",
+        leadId,
+        dealerId: String(lead.assignedDealerId),
+        assignedNow: false,
+      };
+    }
+
+    const dealerDoc = await Dealer.findById(dealerId).lean();
+    if (!dealerDoc) return { decision: "unmatched", reason: "dealer not found", leadId };
+    const dealer = toDealerLite(dealerDoc);
+
+    if (dealer.status !== "active") {
+      await Lead.updateOne(
+        { _id: lead._id, assignedDealerId: null },
+        { $set: { status: "unmatched" } },
+      );
+      return { decision: "unmatched", reason: `dealer is ${dealer.status}`, leadId };
+    }
+    if (!hasQuota(dealer)) {
+      await Lead.updateOne(
+        { _id: lead._id, assignedDealerId: null },
+        { $set: { status: "quota-exceeded" } },
+      );
+      return { decision: "quota-exceeded", reason: "dealer over monthly quota", leadId, dealerId };
+    }
+
+    return await performAssignment(lead, dealerId, "direct dealer contact (agent profile)");
+  } catch (e) {
+    return { decision: "skip", reason: e instanceof Error ? e.message : "route error", leadId };
+  }
+}

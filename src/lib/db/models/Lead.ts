@@ -18,7 +18,7 @@ const leadSchema = new Schema(
     waProfileName: { type: String },
 
     // source
-    source: { type: String, enum: ["listing", "generic", "ad"], required: true },
+    source: { type: String, enum: ["listing", "generic", "ad", "agent_profile"], required: true },
     listingId: { type: Types.ObjectId, ref: "Listing" }, // null if generic
 
     // location intent

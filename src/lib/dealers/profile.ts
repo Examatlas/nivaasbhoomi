@@ -27,6 +27,8 @@ export interface WorkingHours {
 }
 
 export interface AgentProfile {
+  /** Dealer id — an opaque handle used only to POST a direct profile enquiry. */
+  id: string;
   slug: string;
   businessName: string;
   profilePhoto?: string;
@@ -220,6 +222,7 @@ export async function getAgentProfile(slug: string): Promise<AgentProfile | null
   }
 
   return {
+    id: String(dealerId),
     slug: dealer.slug!,
     businessName: dealer.businessName,
     profilePhoto: dealer.profilePhoto ?? undefined,

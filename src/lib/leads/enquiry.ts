@@ -3,8 +3,10 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db/connect";
 import { Conversation } from "@/lib/db/models/Conversation";
 import { Listing } from "@/lib/db/models/Listing";
+import { Lead } from "@/lib/db/models/Lead";
+import { Dealer } from "@/lib/db/models/Dealer";
 import { upsertLead } from "@/lib/leads/upsert";
-import { routeLead } from "@/lib/leads/routing";
+import { routeLead, routeLeadToDealer } from "@/lib/leads/routing";
 
 /**
  * Direct on-site enquiry (launch flow, no WhatsApp). A buyer submits a simple
@@ -95,6 +97,91 @@ export async function createEnquiry(input: EnquiryInput): Promise<EnquiryResult>
   return {
     ok: true,
     leadId: leadId ?? "",
+    assignedNow: Boolean(r.assignedNow),
+    decision: r.decision,
+  };
+}
+
+export interface AgentProfileEnquiryInput {
+  dealerId: string;
+  name: string;
+  phone: string; // normalised (91XXXXXXXXXX)
+  message?: string;
+}
+
+/**
+ * A buyer contacting a dealer DIRECTLY from their public /agent profile. Unlike a
+ * listing enquiry, this creates a DEDICATED lead for the chosen dealer (source
+ * "agent_profile") and assigns it straight to them — no coverage rotation, since
+ * the buyer picked this dealer. It goes through routeLeadToDealer, so it consumes
+ * quota, is locked/exclusive, and falls to the admin over-quota queue when the
+ * dealer is over quota — identical rules to every other lead.
+ *
+ * Deduped: if the buyer already has an open lead with this dealer, we return it
+ * instead of creating a duplicate.
+ */
+export async function createAgentProfileEnquiry(
+  input: AgentProfileEnquiryInput,
+): Promise<EnquiryResult> {
+  await connectDB();
+
+  if (!mongoose.Types.ObjectId.isValid(input.dealerId)) {
+    return { ok: true, leadId: "", assignedNow: false, decision: "skip" };
+  }
+  const dealer = await Dealer.findById(input.dealerId, { status: 1 }).lean();
+  if (!dealer || dealer.status === "banned") {
+    return { ok: true, leadId: "", assignedNow: false, decision: "skip" };
+  }
+
+  const dealerObjId = new mongoose.Types.ObjectId(input.dealerId);
+
+  // Dedup: an open lead already with this dealer for this phone.
+  const existing = await Lead.findOne(
+    {
+      phone: input.phone,
+      assignedDealerId: dealerObjId,
+      status: { $nin: ["converted", "lost"] },
+    },
+    { _id: 1 },
+  ).lean();
+  if (existing) {
+    return {
+      ok: true,
+      leadId: String(existing._id),
+      assignedNow: false,
+      decision: "already-assigned",
+    };
+  }
+
+  const now = new Date();
+  const body = input.message?.trim() || "Contacted via your NivaasBhoomi profile.";
+
+  await Conversation.findOneAndUpdate(
+    { phone: input.phone },
+    {
+      $push: { messages: { direction: "in", type: "enquiry", body, timestamp: now } },
+      $set: {
+        lastMessageAt: now,
+        windowExpiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+      },
+    },
+    { upsert: true },
+  );
+
+  // A dedicated lead for THIS dealer (never reuse an unrelated open lead).
+  const lead = await Lead.create({
+    phone: input.phone,
+    name: input.name,
+    source: "agent_profile",
+    status: "new",
+  });
+  const leadId = String(lead._id);
+  await Conversation.updateOne({ phone: input.phone }, { $set: { leadId } });
+
+  const r = await routeLeadToDealer(leadId, input.dealerId);
+  return {
+    ok: true,
+    leadId,
     assignedNow: Boolean(r.assignedNow),
     decision: r.decision,
   };
