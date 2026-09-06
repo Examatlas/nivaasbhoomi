@@ -3,25 +3,21 @@ import { z } from "zod";
 
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
 import { requireAdmin } from "@/lib/auth/middleware";
-import { adminAssignUnmatched, adminOverrideReassign } from "@/lib/leads/assign";
+import { adminReassignLead } from "@/lib/leads/assign";
 
 /**
  * POST /api/leads/[id]/assign   [admin auth]   (DEV-SPEC.txt Sections 7, 12, 15)
- *   body: { dealerId, override?: boolean, reason? }
+ *   body: { dealerId, reason? }
  *
- * The ONLY admin entry point for placing a lead by hand:
- *   - override=false (default): manually assign an UNMATCHED (unassigned) lead.
- *     Refuses if the lead is already assigned.
- *   - override=true: reassign an ALREADY-assigned (locked) lead to a different
- *     dealer - the single sanctioned exception to the exclusivity lock. Audited.
- *
- * Both paths apply the same assign() side effects (lock, counters, template) and
- * write an audit record. This admin-only route is the ONLY caller of the
- * override; no automatic path can reach it.
+ * The single admin entry point for manually (re)assigning ANY non-closed lead
+ * (assigned, unassigned, unclaimed, viewed, unviewed) to a chosen active dealer.
+ * Refunds the previous dealer's quota, charges the new one, records a "manual"
+ * assignment-history entry with the admin's note, resets the SLA (except
+ * whatsapp_click), and does NOT count toward the SLA cron's auto-reassign limit.
+ * Admin-only; no automatic path can reach it.
  */
 const bodySchema = z.object({
   dealerId: z.string().min(1),
-  override: z.boolean().default(false),
   reason: z.string().trim().max(500).optional(),
 });
 
@@ -43,19 +39,15 @@ export const POST = withErrorHandling(
       return fail("VALIDATION_ERROR", "dealerId is required.", parsed.error.flatten());
     }
 
-    const adminId = auth.identity.adminId;
-    const result = parsed.data.override
-      ? await adminOverrideReassign(
-          id,
-          parsed.data.dealerId,
-          adminId,
-          parsed.data.reason ?? "admin override reassignment",
-        )
-      : await adminAssignUnmatched(id, parsed.data.dealerId, adminId);
+    const result = await adminReassignLead(
+      id,
+      parsed.data.dealerId,
+      auth.identity.adminId,
+      parsed.data.reason,
+    );
 
     if (!result.ok) {
-      // A conflict (already assigned / not assigned) is a 409; other issues 422.
-      const conflict = /already assigned|not assigned/i.test(result.error);
+      const conflict = /already assigned to that dealer/i.test(result.error);
       return fail(conflict ? "DUPLICATE" : "VALIDATION_ERROR", result.error);
     }
     return ok(result);

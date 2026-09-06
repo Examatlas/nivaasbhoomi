@@ -3,9 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MessageSquare, ScrollText, User } from "lucide-react";
 
-import { getLeadDetail, getEligibleDealers } from "@/lib/leads/admin-leads";
+import { getLeadDetail } from "@/lib/leads/admin-leads";
 import { Badge } from "@/components/ui/badge";
-import { AdminAssignPanel } from "@/components/admin/admin-assign-panel";
+import { LeadReassignAction } from "@/components/admin/lead-reassign-action";
 
 export const metadata: Metadata = { title: "Admin — Lead" };
 export const dynamic = "force-dynamic";
@@ -22,7 +22,6 @@ export default async function AdminLeadDetailPage({ params }: PageProps<"/admin/
   const lead = await getLeadDetail(id);
   if (!lead) notFound();
 
-  const dealers = await getEligibleDealers(lead.cityId);
   const isAssigned = Boolean(lead.assignedDealer);
 
   return (
@@ -107,12 +106,20 @@ export default async function AdminLeadDetailPage({ params }: PageProps<"/admin/
 
         {/* Right: assignment + audit */}
         <div className="flex flex-col gap-6">
-          <AdminAssignPanel
-            leadId={lead.id}
-            isAssigned={isAssigned}
-            currentDealerName={lead.assignedDealer?.businessName}
-            dealers={dealers}
-          />
+          <section className="rounded-card border border-border bg-surface p-4">
+            <h3 className="mb-1 font-semibold text-ink-950">Manual reassign</h3>
+            <p className="mb-3 text-meta text-muted-foreground">
+              Move this lead to any active dealer. Available on every lead except converted/lost.
+            </p>
+            <LeadReassignAction
+              leadId={lead.id}
+              status={lead.status}
+              cityId={lead.cityId}
+              currentDealerName={lead.assignedDealer?.businessName}
+              size="md"
+              variant="primary"
+            />
+          </section>
 
           <section className="rounded-card border border-border bg-surface p-5">
             <h2 className="mb-3 text-sm font-semibold text-ink-950">Assignment timeline</h2>

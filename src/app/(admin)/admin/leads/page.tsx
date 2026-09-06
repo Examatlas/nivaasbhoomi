@@ -10,6 +10,7 @@ import {
   type AdminLeadRow,
 } from "@/lib/leads/admin-leads";
 import { Badge } from "@/components/ui/badge";
+import { LeadReassignAction } from "@/components/admin/lead-reassign-action";
 
 export const metadata: Metadata = { title: "Admin — Leads" };
 export const dynamic = "force-dynamic";
@@ -141,12 +142,15 @@ function QueueRow({ lead: l }: { lead: AdminLeadRow }) {
           </p>
         )}
       </div>
-      <Link
-        href={`/admin/leads/${l.id}`}
-        className="inline-flex items-center gap-1 rounded-control bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-      >
-        Review & assign <ArrowRight className="size-3.5" />
-      </Link>
+      <div className="flex items-center gap-2">
+        <LeadReassignAction leadId={l.id} status={l.status} cityId={l.cityId} currentDealerName={l.assignedDealer?.businessName} />
+        <Link
+          href={`/admin/leads/${l.id}`}
+          className="inline-flex items-center gap-1 rounded-control bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+        >
+          Review <ArrowRight className="size-3.5" />
+        </Link>
+      </div>
     </li>
   );
 }
@@ -266,10 +270,13 @@ async function AllLeads({ sp }: { sp: Record<string, string | string[] | undefin
                   <Badge tone={STATUS_TONE[l.status] ?? "neutral"} size="sm">{l.status}</Badge>
                 </td>
                 <td className="px-3 py-2 text-meta text-muted-foreground">{l.reassignCount || ""}</td>
-                <td className="px-3 py-2 text-right">
-                  <Link href={`/admin/leads/${l.id}`} className="font-medium text-clay-700 hover:underline">
-                    View
-                  </Link>
+                <td className="px-3 py-2">
+                  <div className="flex items-center justify-end gap-2">
+                    <LeadReassignAction leadId={l.id} status={l.status} cityId={l.cityId} currentDealerName={l.assignedDealer?.businessName} />
+                    <Link href={`/admin/leads/${l.id}`} className="font-medium text-clay-700 hover:underline">
+                      View
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}

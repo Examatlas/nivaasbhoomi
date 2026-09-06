@@ -9,8 +9,15 @@ import { BRAND } from "@/lib/seo/site";
 import { applyAssignSideEffects, logAudit } from "@/lib/leads/assign";
 import { hasQuota, rankCandidates, SLA_MS, type DealerLite } from "@/lib/leads/routing";
 
-/** Max automatic reassignments before a lead falls to the admin queue. */
+/** Max AUTOMATIC reassignments before a lead falls to the admin queue. */
 export const MAX_REASSIGN = 3;
+
+/** Whether the SLA cron's auto-reassign limit is exhausted. Counts ONLY auto
+ *  reassignments — admin manual reassigns bump reassignCount, not this, so they
+ *  never exhaust the limit (admins get unlimited manual reassigns). */
+export function hasExhaustedAutoReassign(autoReassignCount: number, max = MAX_REASSIGN): boolean {
+  return autoReassignCount >= max;
+}
 
 /** Pure: which leads the SLA cron may touch — assigned, unviewed, past deadline,
  *  and NOT a whatsapp_click lead (those are exempt). */
@@ -87,8 +94,9 @@ export async function reassignExpiredLead(leadId: string): Promise<ReassignOutco
 
     const fromDealerId = lead.assignedDealerId ? String(lead.assignedDealerId) : null;
 
-    // Exhausted attempts → admin queue.
-    if ((lead.reassignCount ?? 0) >= MAX_REASSIGN) {
+    // Exhausted AUTO attempts → admin queue. Manual admin reassigns don't count
+    // (they bump reassignCount but not autoReassignCount).
+    if (hasExhaustedAutoReassign(lead.autoReassignCount ?? 0)) {
       lead.status = "unclaimed";
       await lead.save();
       if (fromDealerId) {
@@ -162,7 +170,7 @@ export async function reassignExpiredLead(leadId: string): Promise<ReassignOutco
           viewedAt: null,
           slaDeadline: new Date(now.getTime() + SLA_MS),
         },
-        $inc: { reassignCount: 1 },
+        $inc: { reassignCount: 1, autoReassignCount: 1 },
         $push: {
           assignmentHistory: { dealerId: toOid, assignedAt: now, viewedAt: null, reason: "sla_timeout" },
         },

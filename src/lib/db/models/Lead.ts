@@ -63,7 +63,11 @@ const leadSchema = new Schema(
     viewedAt: { type: Date, default: null },
     slaDeadline: { type: Date, default: null }, // = assignedAt + 30 min
     deliveredAt: { type: Date, default: null }, // whatsapp_click delivery time
+    // Total reassignments (auto + manual), for display.
     reassignCount: { type: Number, default: 0 },
+    // ONLY the SLA cron's automatic reassignments — the 3-transfer auto limit is
+    // counted against this, so unlimited admin manual reassigns never exhaust it.
+    autoReassignCount: { type: Number, default: 0 },
     assignmentHistory: {
       type: [
         new Schema(
@@ -72,6 +76,7 @@ const leadSchema = new Schema(
             assignedAt: { type: Date },
             viewedAt: { type: Date, default: null },
             reason: { type: String, enum: ["initial", "sla_timeout", "manual"] },
+            note: { type: String }, // admin note on a manual reassign
           },
           { _id: false },
         ),

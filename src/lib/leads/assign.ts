@@ -7,6 +7,8 @@ import { Listing } from "@/lib/db/models/Listing";
 import { Locality } from "@/lib/db/models/Locality";
 import { AuditLog } from "@/lib/db/models/AuditLog";
 import { sendBusinessTemplate } from "@/lib/whatsapp/send";
+import { sendEmail } from "@/lib/email/mailer";
+import { BRAND } from "@/lib/seo/site";
 
 /**
  * Shared lead-assignment side effects + audit (DEV-SPEC.txt Sections 12, 16).
@@ -133,72 +135,44 @@ export type AdminAssignResult =
   | { ok: true; action: "assigned" | "reassigned"; dealerId: string; templateSent: boolean }
   | { ok: false; error: string };
 
-/**
- * ADMIN: manually place an UNMATCHED lead onto a chosen dealer. Same atomic
- * claim as the router (only assigns while still unassigned), same side effects,
- * plus an audit record. The dealer must be active.
- */
-export async function adminAssignUnmatched(
-  leadId: string,
-  dealerId: string,
-  adminId: string,
-): Promise<AdminAssignResult> {
-  if (!mongoose.Types.ObjectId.isValid(leadId) || !mongoose.Types.ObjectId.isValid(dealerId)) {
-    return { ok: false, error: "Invalid id." };
-  }
-  await connectDB();
+/** Closed leads (converted / lost) can never be reassigned; everything else can. */
+export function canReassign(status: string): boolean {
+  return status !== "converted" && status !== "lost";
+}
 
-  const dealer = await Dealer.findById(dealerId, { status: 1 }).lean();
-  if (!dealer) return { ok: false, error: "Dealer not found." };
-  if (dealer.status !== "active") return { ok: false, error: "Dealer is not active." };
+/** New SLA deadline for a (re)assignment — null for whatsapp_click (SLA-exempt),
+ *  otherwise now + 30 min so the new dealer also has a response window. */
+export function slaDeadlineForReassign(source: string, now: Date): Date | null {
+  return source === "whatsapp_click" ? null : new Date(now.getTime() + SLA_MS);
+}
 
-  const now = new Date();
-  // Atomic claim: only assign if still unassigned (never steals a locked lead).
-  const claimedDealerOid = new mongoose.Types.ObjectId(dealerId);
-  const claimed = await Lead.findOneAndUpdate(
-    { _id: leadId, assignedDealerId: null },
-    {
-      $set: {
-        assignedDealerId: claimedDealerOid,
-        assignedAt: now,
-        isLocked: true,
-        status: "assigned",
-        viewedAt: null,
-        slaDeadline: new Date(now.getTime() + SLA_MS),
-      },
-      $push: {
-        assignmentHistory: { dealerId: claimedDealerOid, assignedAt: now, viewedAt: null, reason: "manual" },
-      },
-    },
-    { new: true },
-  );
-  if (!claimed) {
-    return { ok: false, error: "Lead is already assigned - use override to reassign." };
-  }
-
-  const { templateSent } = await applyAssignSideEffects(dealerId, claimed, now);
-  await logAudit({
-    action: "lead.admin-assign",
-    actor: { actorType: "admin", actorId: adminId },
-    leadId,
-    dealerId,
-    reason: "admin manual assignment of an unmatched lead",
-  });
-  return { ok: true, action: "assigned", dealerId, templateSent };
+/** Best-effort dealer email notification (never throws). */
+async function notifyDealerEmail(dealerId: string, subject: string, line: string): Promise<void> {
+  const d = await Dealer.findById(dealerId, { email: 1 }).lean();
+  if (!d?.email) return;
+  await sendEmail({
+    to: d.email,
+    subject: `[${BRAND}] ${subject}`,
+    text: `${line}\n\nOpen your dealer dashboard to see your leads.`,
+    html: `<p>${line}</p><p>Open your dealer dashboard to see your leads.</p>`,
+  }).catch(() => {});
 }
 
 /**
- * ADMIN OVERRIDE: reassign an ALREADY-assigned (locked) lead to a different
- * dealer. This is the single, explicit, admin-only exception to the exclusivity
- * lock (Section 12). It is deliberately NOT reachable by any automatic path -
- * only this function, called from the admin route. The previous dealer's quota
- * is refunded and the new dealer's is charged, and the move is audited.
+ * ADMIN manual (re)assignment — the single flow for placing ANY non-closed lead
+ * onto a chosen active dealer, whether it was unassigned, assigned, unclaimed,
+ * viewed or unviewed. Refunds the previous dealer's quota (if any), charges the
+ * new one, records a "manual" assignment-history entry (with the admin's note),
+ * resets viewedAt and the SLA (+30 min, except whatsapp_click which stays
+ * SLA-exempt). Bumps reassignCount (total) but NOT autoReassignCount, so admin
+ * reassigns are unlimited and never count toward the SLA cron's 3-transfer auto
+ * limit. Emails both dealers. Audited. Admin-only (guarded by the route).
  */
-export async function adminOverrideReassign(
+export async function adminReassignLead(
   leadId: string,
   newDealerId: string,
   adminId: string,
-  reason: string,
+  note?: string,
 ): Promise<AdminAssignResult> {
   if (!mongoose.Types.ObjectId.isValid(leadId) || !mongoose.Types.ObjectId.isValid(newDealerId)) {
     return { ok: false, error: "Invalid id." };
@@ -207,55 +181,83 @@ export async function adminOverrideReassign(
 
   const lead = await Lead.findById(leadId);
   if (!lead) return { ok: false, error: "Lead not found." };
-  if (!lead.assignedDealerId) {
-    return { ok: false, error: "Lead is not assigned yet - use assign, not override." };
-  }
-  const prevDealerId = String(lead.assignedDealerId);
-  if (prevDealerId === newDealerId) {
-    return { ok: false, error: "Lead is already assigned to that dealer." };
+  if (!canReassign(String(lead.status))) {
+    return { ok: false, error: "A converted or lost lead cannot be reassigned." };
   }
 
   const newDealer = await Dealer.findById(newDealerId, { status: 1 }).lean();
   if (!newDealer) return { ok: false, error: "Target dealer not found." };
   if (newDealer.status !== "active") return { ok: false, error: "Target dealer is not active." };
 
+  const prevDealerId = lead.assignedDealerId ? String(lead.assignedDealerId) : null;
+  if (prevDealerId === newDealerId) {
+    return { ok: false, error: "Lead is already assigned to that dealer." };
+  }
+
   const now = new Date();
-  const newDealerOid = new mongoose.Types.ObjectId(newDealerId);
-  // Unconditional move (the lead is locked; this is the sanctioned override).
-  lead.set({
-    assignedDealerId: newDealerOid,
-    assignedAt: now,
-    isLocked: true,
-    status: "assigned",
-    viewedAt: null,
-    slaDeadline: new Date(now.getTime() + SLA_MS),
-  });
-  await lead.save();
-  // Record the move in the assignment history (reason "manual") + bump the count.
+  const newOid = new mongoose.Types.ObjectId(newDealerId);
+  const sla = slaDeadlineForReassign(String(lead.source), now);
+
   await Lead.updateOne(
     { _id: leadId },
     {
-      $push: {
-        assignmentHistory: { dealerId: newDealerOid, assignedAt: now, viewedAt: null, reason: "manual" },
+      $set: {
+        assignedDealerId: newOid,
+        assignedAt: now,
+        isLocked: true,
+        status: "assigned",
+        viewedAt: null,
+        slaDeadline: sla,
       },
-      $inc: { reassignCount: 1 },
+      $inc: { reassignCount: 1 }, // total only — never autoReassignCount
+      $push: {
+        assignmentHistory: {
+          dealerId: newOid,
+          assignedAt: now,
+          viewedAt: null,
+          reason: "manual",
+          ...(note ? { note } : {}),
+        },
+      },
     },
   );
 
-  // Refund the previous dealer's quota, charge the new dealer.
-  await Dealer.updateOne(
-    { _id: prevDealerId, leadsUsedThisMonth: { $gt: 0 } },
-    { $inc: { leadsUsedThisMonth: -1 } },
-  );
-  const { templateSent } = await applyAssignSideEffects(newDealerId, lead, now);
+  // Refund the previous dealer (if any); charge the new one + fire the template.
+  if (prevDealerId) {
+    await Dealer.updateOne(
+      { _id: prevDealerId, leadsUsedThisMonth: { $gt: 0 } },
+      { $inc: { leadsUsedThisMonth: -1 } },
+    );
+  }
+  const fresh = (await Lead.findById(leadId)) ?? lead;
+  const { templateSent } = await applyAssignSideEffects(newDealerId, fresh, now);
 
   await logAudit({
-    action: "lead.admin-override-reassign",
+    action: prevDealerId ? "lead.admin-override-reassign" : "lead.admin-assign",
     actor: { actorType: "admin", actorId: adminId },
     leadId,
     dealerId: newDealerId,
-    prevDealerId,
-    reason: reason || "admin override reassignment",
+    prevDealerId: prevDealerId ?? undefined,
+    reason: note || "admin manual reassignment",
   });
-  return { ok: true, action: "reassigned", dealerId: newDealerId, templateSent };
+
+  await notifyDealerEmail(
+    newDealerId,
+    "You have a new lead",
+    "A lead has been assigned to you by our team. View it before the response deadline.",
+  );
+  if (prevDealerId) {
+    await notifyDealerEmail(
+      prevDealerId,
+      "A lead was reassigned",
+      "A lead has been moved to another dealer by our team. Your quota was refunded.",
+    );
+  }
+
+  return {
+    ok: true,
+    action: prevDealerId ? "reassigned" : "assigned",
+    dealerId: newDealerId,
+    templateSent,
+  };
 }
