@@ -35,6 +35,8 @@ export interface DealerLeadRow {
   loanRequired?: boolean;
   qualificationScore?: number;
   status: string;
+  /** listing | generic | ad | agent_profile — how the lead reached the dealer. */
+  source: string;
   cityName?: string;
   localityName?: string;
   listing?: { id: string; title: string; slug?: string };
@@ -147,6 +149,7 @@ async function hydrate(
       loanRequired: d.loanRequired as boolean | undefined,
       qualificationScore: d.qualificationScore as number | undefined,
       status: String(d.status),
+      source: String(d.source ?? ""),
       cityName: d.cityId ? cityName.get(String(d.cityId)) : undefined,
       localityName: d.localityId ? localityName.get(String(d.localityId)) : undefined,
       listing: listing

@@ -49,30 +49,39 @@ export function PropertyContactButton({
   mode = "contact",
   whatsappNumber,
   listingSlug,
+  profileSlug,
+  dealerId,
   triggerLabel = "Contact Us",
   block,
   size = "lg",
 }: {
-  listingId: string;
+  /** Required for the listing "contact" enquiry. Omitted for a dealer-profile
+   *  contact, which uses dealerId instead. */
+  listingId?: string;
   listingTitle?: string;
   dealerName?: string;
   mode?: ContactMode;
   whatsappNumber?: string;
   listingSlug?: string;
+  /** Dealer id — a direct-to-dealer enquiry from the /agent profile. */
+  dealerId?: string;
+  /** Dealer profile slug — used to build the WhatsApp message on the dealer page
+   *  where there's no listing context. */
+  profileSlug?: string;
   triggerLabel?: string;
   block?: boolean;
   size?: ButtonProps["size"];
 }) {
-  // WhatsApp mode (Zenith-connected dealer). The property URL is built HERE, on
-  // the client, from window.location.origin — so it always uses the real live
-  // domain and can never carry a build-time-baked localhost. Falls back to
-  // "contact" if we somehow have no dealer number.
+  // WhatsApp mode (Zenith-connected dealer). The URL is built HERE, on the
+  // client, from window.location.origin — so it always uses the real live domain
+  // and can never carry a build-time-baked localhost. Works for a listing
+  // (property URL + [Ref]) OR a dealer profile (profile URL).
   if (mode === "whatsapp" && whatsappNumber) {
     const openWhatsApp = () => {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const propertyUrl = `${origin}/property/${listingSlug ?? ""}`;
-      const text =
-        `Hi, I'm interested in this property:\n${listingTitle ?? ""}\n${propertyUrl}\n[Ref: ${listingId}]`;
+      const text = listingSlug
+        ? `Hi, I'm interested in this property:\n${listingTitle ?? ""}\n${origin}/property/${listingSlug}${listingId ? `\n[Ref: ${listingId}]` : ""}`
+        : `Hi, I found ${dealerName ?? "you"} on NivaasBhoomi:\n${origin}/agent/${profileSlug ?? ""}`;
       window.open(
         `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`,
         "_blank",
@@ -92,11 +101,18 @@ export function PropertyContactButton({
     );
   }
 
-  return <ContactDialog {...{ listingId, listingTitle, dealerName, triggerLabel, block, size }} />;
+  // "contact" mode: a listing enquiry (listingId) or a direct dealer enquiry
+  // from the /agent profile (dealerId).
+  return (
+    <ContactDialog
+      {...{ listingId: listingId ?? "", dealerId, listingTitle, dealerName, triggerLabel, block, size }}
+    />
+  );
 }
 
 function ContactDialog({
   listingId,
+  dealerId,
   listingTitle,
   dealerName,
   triggerLabel,
@@ -104,6 +120,7 @@ function ContactDialog({
   size,
 }: {
   listingId: string;
+  dealerId?: string;
   listingTitle?: string;
   dealerName?: string;
   triggerLabel: string;
@@ -143,7 +160,7 @@ function ContactDialog({
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingId }),
+        body: JSON.stringify(dealerId ? { dealerId } : { listingId }),
       });
       const body = await res.json();
       if (res.status === 401) {

@@ -181,20 +181,39 @@ export interface AgentSeo {
   slug: string;
   businessName: string;
   cityNames: string[];
+  localityName?: string;
+  dealTypes?: string[];
   listingCount: number;
   image?: string;
+  noindex?: boolean;
 }
 
+const DEAL_TYPE_LABEL: Record<string, string> = {
+  plot: "plots",
+  flat: "flats",
+  house: "houses",
+  commercial: "commercial property",
+  rent: "rentals",
+  resale: "resale property",
+};
+
 export function agentMetadata(a: AgentSeo): Metadata {
-  const cities = a.cityNames.slice(0, 2).join(", ");
+  const place = a.localityName
+    ? `${a.localityName}, ${a.cityNames[0] ?? ""}`.replace(/, $/, "")
+    : a.cityNames.slice(0, 2).join(", ");
+  const deals = (a.dealTypes ?? [])
+    .map((d) => DEAL_TYPE_LABEL[d] ?? d)
+    .slice(0, 3)
+    .join(", ");
   return build({
-    title: `${a.businessName} - Verified Property Dealer${cities ? ` in ${cities}` : ""} | ${BRAND}`,
+    title: `${a.businessName} - Verified Property Dealer${place ? ` in ${place}` : ""} | ${BRAND}`,
     description: truncateDescription(
-      `${a.businessName}: ${a.listingCount} verified listings${cities ? ` in ${cities}` : ""}. ` +
-        `Contact directly on WhatsApp for site visits and details.`,
+      `${a.businessName}: ${a.listingCount} verified listings${place ? ` in ${place}` : ""}` +
+        `${deals ? ` — ${deals}` : ""}. Contact directly for site visits and details.`,
     ),
     path: `/agent/${a.slug}`,
     image: a.image,
+    ...(a.noindex ? { noindex: true } : {}),
   });
 }
 

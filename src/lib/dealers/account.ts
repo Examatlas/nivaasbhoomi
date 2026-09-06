@@ -32,6 +32,32 @@ export interface CoverageCity {
   localities: { localityId: string; name: string }[];
 }
 
+export interface DealerProfileFields {
+  slug?: string;
+  slugLockUntil?: string;
+  tagline?: string;
+  /** Raw (unsanitized) about — the dealer edits this; it's sanitized on save. */
+  about?: string;
+  establishedYear?: number;
+  yearsExperience?: number;
+  teamSize?: number;
+  dealTypes: string[];
+  languages: string[];
+  priceRangeMin?: number;
+  priceRangeMax?: number;
+  reraNumber?: string;
+  gstNumber?: string;
+  officeAddress?: string;
+  mapLat?: number;
+  mapLng?: number;
+  workingHours: { day: string; open?: string; close?: string; closed: boolean }[];
+  publicEmail?: string;
+  publicEmailOptIn: boolean;
+  publicPhoneOptIn: boolean;
+  bannerImage?: { url: string; publicId?: string };
+  logoImage?: { url: string; publicId?: string };
+}
+
 export interface MyDealer {
   id: string;
   name: string;
@@ -53,6 +79,8 @@ export interface MyDealer {
   listingCounts: { total: number; approved: number; pending: number; draft: number };
   /** True once the dealer has filled in real profile + at least one coverage city. */
   profileComplete: boolean;
+  /** Editable public-profile fields (Phase 4 edit panel). */
+  profile: DealerProfileFields;
   /** Zenith Code automation connection (per-dealer OAuth). */
   zenithConnected: boolean;
   zenithNumber?: string;
@@ -68,6 +96,49 @@ const DOC_META: { key: DocStatus["key"]; label: string; mandatory: boolean }[] =
   { key: "rera", label: "RERA registration", mandatory: false },
   { key: "officePhoto", label: "Office photo", mandatory: false },
 ];
+
+/**
+ * Map a Dealer document to the editable public-profile fields. Shared by the
+ * dealer's own account view and the admin dealer view.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function toDealerProfileFields(d: any): DealerProfileFields {
+  return {
+    slug: d.slug ?? undefined,
+    slugLockUntil: d.slugLockUntil ? new Date(d.slugLockUntil).toISOString() : undefined,
+    tagline: d.tagline ?? undefined,
+    about: d.about ?? undefined,
+    establishedYear: d.establishedYear ?? undefined,
+    yearsExperience: d.yearsExperience ?? undefined,
+    teamSize: d.teamSize ?? undefined,
+    dealTypes: d.dealTypes ?? [],
+    languages: d.languages ?? [],
+    priceRangeMin: d.priceRangeMin ?? undefined,
+    priceRangeMax: d.priceRangeMax ?? undefined,
+    reraNumber: d.reraNumber ?? undefined,
+    gstNumber: d.gstNumber ?? undefined,
+    officeAddress: d.officeAddress ?? undefined,
+    mapLat: d.mapLat ?? undefined,
+    mapLng: d.mapLng ?? undefined,
+    workingHours: (d.workingHours ?? []).map(
+      (w: { day?: string; open?: string; close?: string; closed?: boolean }) => ({
+        day: w.day ?? "",
+        open: w.open ?? undefined,
+        close: w.close ?? undefined,
+        closed: Boolean(w.closed),
+      }),
+    ),
+    publicEmail: d.publicEmail ?? undefined,
+    publicEmailOptIn: Boolean(d.publicEmailOptIn),
+    publicPhoneOptIn: Boolean(d.publicPhoneOptIn),
+    bannerImage: d.bannerImage?.url
+      ? { url: d.bannerImage.url, publicId: d.bannerImage.publicId ?? undefined }
+      : undefined,
+    logoImage: d.logoImage?.url
+      ? { url: d.logoImage.url, publicId: d.logoImage.publicId ?? undefined }
+      : undefined,
+  };
+}
 
 /** Resolve the signed-in dealer's full account, or null if not signed in. */
 export async function getMyDealer(): Promise<MyDealer | null> {
@@ -137,6 +208,7 @@ export async function getMyDealer(): Promise<MyDealer | null> {
       draft: byStatus.get("draft") ?? 0,
     },
     profileComplete,
+    profile: toDealerProfileFields(d),
     zenithConnected: Boolean(d.zenithConnected),
     zenithNumber: d.zenithNumber ?? undefined,
     zenithPlan: d.zenithPlan ?? undefined,
@@ -246,4 +318,44 @@ export function tierLadder(dealer: MyDealer): TierRung[] {
 
 export function tierName(tier: number): string {
   return TIER_LABEL[tier] ?? "Unverified";
+}
+
+export interface CompletenessItem {
+  label: string;
+  done: boolean;
+  /** Required to qualify for search indexing (verified + 3 listings + about). */
+  forIndex?: boolean;
+}
+
+export interface ProfileCompleteness {
+  percent: number;
+  qualifiesForIndex: boolean;
+  items: CompletenessItem[];
+}
+
+/**
+ * Profile-completeness meter (Phase 4). The `forIndex` items are the hard gate
+ * for the profile to be indexable (verified + 3 live listings + about filled);
+ * the rest raise the completeness percentage and richness of the public page.
+ */
+export function profileCompleteness(d: MyDealer): ProfileCompleteness {
+  const p = d.profile;
+  const items: CompletenessItem[] = [
+    { label: "Verified (Tier 1 or higher)", done: d.verificationTier >= 1, forIndex: true },
+    { label: "3+ live listings", done: d.listingCounts.approved >= 3, forIndex: true },
+    { label: "About section written", done: Boolean(p.about && p.about.trim()), forIndex: true },
+    { label: "Logo uploaded", done: Boolean(p.logoImage) },
+    { label: "Banner uploaded", done: Boolean(p.bannerImage) },
+    { label: "Tagline", done: Boolean(p.tagline && p.tagline.trim()) },
+    { label: "Deal types selected", done: p.dealTypes.length > 0 },
+    { label: "Service areas (coverage)", done: d.coverageCities.length > 0 },
+    { label: "Working hours", done: p.workingHours.length > 0 },
+    { label: "Office address", done: Boolean(p.officeAddress && p.officeAddress.trim()) },
+  ];
+  const done = items.filter((i) => i.done).length;
+  return {
+    percent: Math.round((done / items.length) * 100),
+    qualifiesForIndex: items.filter((i) => i.forIndex).every((i) => i.done),
+    items,
+  };
 }

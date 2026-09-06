@@ -214,19 +214,34 @@ export const getCitySitemapEntries = cache(
       });
     }
 
-    // 5) All dealers with coverage in this city (public /agent profiles). A slug
-    //    is required (that IS the public URL) and banned dealers are excluded.
+    // 5) Dealers with coverage in this city (public /agent profiles). Only
+    //    INDEX-WORTHY profiles are listed (S10): verified (Tier 1+), an about
+    //    field, AND 3+ active listings. Thin profiles stay noindex and out of the
+    //    sitemap so they don't drag down domain quality.
     const dealers = await Dealer.find(
       {
         coverageCities: cityId,
         slug: { $type: "string" },
         status: { $ne: "banned" },
+        verificationTier: { $gte: 1 },
+        about: { $type: "string", $ne: "" },
       },
       { slug: 1, updatedAt: 1 },
     )
       .sort({ slug: 1 })
       .lean();
+
+    const dealerIds = dealers.map((d) => d._id);
+    const listingCounts = dealerIds.length
+      ? await Listing.aggregate<{ _id: unknown; n: number }>([
+          { $match: { dealerId: { $in: dealerIds }, status: "approved" } },
+          { $group: { _id: "$dealerId", n: { $sum: 1 } } },
+        ])
+      : [];
+    const countByDealer = new Map(listingCounts.map((c) => [String(c._id), c.n]));
+
     for (const d of dealers) {
+      if ((countByDealer.get(String(d._id)) ?? 0) < 3) continue; // gate: 3+ listings
       entries.push({
         url: absoluteUrl(`/agent/${d.slug}`),
         lastModified: d.updatedAt ?? new Date(),

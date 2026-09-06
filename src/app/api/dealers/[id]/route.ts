@@ -8,6 +8,8 @@ import { connectDB } from "@/lib/db/connect";
 import { Dealer } from "@/lib/db/models/Dealer";
 import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
+import { generateDealerSlugFromCoverage } from "@/lib/dealers/slug-server";
+import { revalidateDealerPublicPages } from "@/lib/listings/revalidate";
 
 /**
  * PATCH /api/dealers/[id]   [dealer auth, self]   (DEV-SPEC.txt Sections 4, 7)
@@ -97,6 +99,26 @@ export const PATCH = withErrorHandling(
 
     await dealer.save(); // pre-validate hook re-derives tier (unchanged here)
 
-    return ok({ id: String(dealer._id), profileComplete: cityIds.length > 0 });
+    // Auto-generate the public-profile slug at onboarding: once the dealer has a
+    // coverage city/locality and no slug yet, derive it from business name +
+    // primary locality/city. Auto-generation never starts the 30-day change lock.
+    if (!dealer.slug && cityIds.length > 0) {
+      try {
+        dealer.slug = await generateDealerSlugFromCoverage(dealer);
+        await dealer.save();
+      } catch (e) {
+        console.error("[dealer] slug auto-generation failed:", e);
+      }
+    }
+
+    // Refresh the dealer's public pages so profile edits show without waiting
+    // for the ISR window (Option A).
+    await revalidateDealerPublicPages(String(dealer._id));
+
+    return ok({
+      id: String(dealer._id),
+      slug: dealer.slug ?? null,
+      profileComplete: cityIds.length > 0,
+    });
   },
 );

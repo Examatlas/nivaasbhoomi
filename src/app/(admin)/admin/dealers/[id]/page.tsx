@@ -6,7 +6,19 @@ import { ArrowLeft } from "lucide-react";
 import { getDealerVerification } from "@/lib/dealers/admin";
 import { getDealerActivity } from "@/lib/admin/users";
 import { AdminVerifyPanel } from "@/components/admin/admin-verify-panel";
+import { AdminDealerEditor } from "@/components/admin/admin-dealer-editor";
+import { sanitizeAbout } from "@/lib/security/sanitize";
+import { SITE_URL } from "@/lib/seo/site";
 import { Badge } from "@/components/ui/badge";
+
+const DEAL_LABELS: Record<string, string> = {
+  plot: "Plots",
+  flat: "Flats",
+  house: "Houses",
+  commercial: "Commercial",
+  rent: "Rentals",
+  resale: "Resale",
+};
 
 export const metadata: Metadata = { title: "Admin — Verify Dealer" };
 export const dynamic = "force-dynamic";
@@ -112,6 +124,107 @@ export default async function AdminDealerVerifyPage({ params }: PageProps<"/admi
           )}
         </div>
       </div>
+
+      {/* Public profile (read view) + slug history */}
+      <section className="mt-6 rounded-card border border-border bg-surface p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-ink-950">Public profile</h2>
+          {dealer.profile.slug && (
+            <a
+              href={`${SITE_URL}/agent/${dealer.profile.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-meta text-clay-600 hover:underline"
+            >
+              {SITE_URL}/agent/{dealer.profile.slug} ↗
+            </a>
+          )}
+        </div>
+
+        {dealer.profile.tagline && (
+          <p className="text-sm text-ink-800">{dealer.profile.tagline}</p>
+        )}
+
+        {dealer.profile.dealTypes.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {dealer.profile.dealTypes.map((d) => (
+              <span key={d} className="rounded-full bg-ink-50 px-2.5 py-0.5 text-meta text-ink-800">
+                {DEAL_LABELS[d] ?? d}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {dealer.profile.about ? (
+          <div
+            className="prose-about mt-3 max-w-none text-sm text-ink-800 [&_a]:text-clay-600 [&_a]:underline"
+            dangerouslySetInnerHTML={{ __html: sanitizeAbout(dealer.profile.about) }}
+          />
+        ) : (
+          <p className="mt-3 text-meta text-muted-foreground">No about text yet.</p>
+        )}
+
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-4">
+          {dealer.profile.officeAddress && (
+            <div className="col-span-2 sm:col-span-4">
+              <dt className="text-meta text-muted-foreground">Office</dt>
+              <dd className="text-ink-950">{dealer.profile.officeAddress}</dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-meta text-muted-foreground">Public email</dt>
+            <dd className="text-ink-950">
+              {dealer.profile.publicEmailOptIn && dealer.profile.publicEmail
+                ? dealer.profile.publicEmail
+                : "Hidden"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-meta text-muted-foreground">Public phone</dt>
+            <dd className="text-ink-950">{dealer.profile.publicPhoneOptIn ? "Shown" : "Hidden"}</dd>
+          </div>
+          {dealer.profile.reraNumber && (
+            <div>
+              <dt className="text-meta text-muted-foreground">RERA</dt>
+              <dd className="text-ink-950">{dealer.profile.reraNumber}</dd>
+            </div>
+          )}
+          {dealer.profile.gstNumber && (
+            <div>
+              <dt className="text-meta text-muted-foreground">GST</dt>
+              <dd className="text-ink-950">{dealer.profile.gstNumber}</dd>
+            </div>
+          )}
+        </dl>
+
+        {dealer.slugHistory.length > 0 && (
+          <div className="mt-4 border-t border-border pt-3">
+            <h3 className="text-meta font-semibold text-muted-foreground">Link history</h3>
+            <ul className="mt-1.5 flex flex-wrap gap-1.5">
+              {dealer.slugHistory.map((s, i) => (
+                <li
+                  key={s}
+                  className={
+                    "rounded-full px-2.5 py-0.5 text-meta " +
+                    (i === 0
+                      ? "bg-success-50 font-medium text-success-700"
+                      : "bg-ink-50 text-muted-foreground line-through")
+                  }
+                >
+                  /agent/{s}
+                  {i === 0 ? " (current)" : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
+
+      {/* Force-edit (admin override) */}
+      <section className="mt-6 rounded-card border border-border bg-surface p-5">
+        <h2 className="mb-3 text-sm font-semibold text-ink-950">Force-edit</h2>
+        <AdminDealerEditor dealer={dealer} />
+      </section>
 
       {activity && (
         <div className="mt-6 grid gap-6 lg:grid-cols-2">

@@ -204,21 +204,45 @@ export interface AgentJsonLdInput {
   slug: string;
   businessName: string;
   cityNames: string[];
-  profilePhoto?: string;
+  localityNames?: string[];
+  image?: string;
+  officeAddress?: string;
+  mapLat?: number;
+  mapLng?: number;
+  /** Public phone — only pass when the dealer opted in. */
+  telephone?: string;
   rating?: number;
   ratingCount?: number;
 }
 
-/** LocalBusiness (agent profile), with aggregateRating when there are reviews. */
+/** RealEstateAgent (agent profile), with aggregateRating when there are reviews. */
 export function localBusinessJsonLd(a: AgentJsonLdInput): JsonLdObject {
   const url = absoluteUrl(`/agent/${a.slug}`);
+  const areaServed = [
+    ...a.cityNames.map((name) => ({ "@type": "City", name })),
+    ...(a.localityNames ?? []).map((name) => ({ "@type": "Place", name })),
+  ];
   return {
     "@context": "https://schema.org",
     "@type": "RealEstateAgent",
     name: a.businessName,
     url,
-    ...(a.profilePhoto ? { image: a.profilePhoto } : {}),
-    areaServed: a.cityNames.map((name) => ({ "@type": "City", name })),
+    ...(a.image ? { image: a.image } : {}),
+    ...(a.telephone ? { telephone: a.telephone } : {}),
+    ...(a.officeAddress
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: a.officeAddress,
+            ...(a.cityNames[0] ? { addressLocality: a.cityNames[0] } : {}),
+            addressCountry: "IN",
+          },
+        }
+      : {}),
+    ...(typeof a.mapLat === "number" && typeof a.mapLng === "number"
+      ? { geo: { "@type": "GeoCoordinates", latitude: a.mapLat, longitude: a.mapLng } }
+      : {}),
+    ...(areaServed.length ? { areaServed } : {}),
     ...(a.ratingCount && a.ratingCount > 0 && a.rating
       ? {
           aggregateRating: {
