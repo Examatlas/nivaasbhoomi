@@ -9,6 +9,7 @@ import { ZenithDisconnectButton } from "@/components/dealer/zenith-disconnect-bu
 import { ZenithConnectButton } from "@/components/dealer/zenith-connect-button";
 import { ZENITH_ERROR_MESSAGES } from "@/lib/zenith/errors";
 import { Badge } from "@/components/ui/badge";
+import { AutomationExplainer } from "@/components/dealer/automation-explainer";
 
 export const metadata: Metadata = {
   title: "Automation",
@@ -57,7 +58,10 @@ export default async function DealerAutomationPage({
         </div>
       )}
 
-      <div className="rounded-card border border-border bg-surface p-6 shadow-card">
+      <div
+        id="zenith-connect"
+        className="scroll-mt-28 rounded-card border border-border bg-surface p-6 shadow-card"
+      >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="flex size-11 items-center justify-center rounded-full bg-clay-50 text-clay-700">
@@ -132,6 +136,8 @@ export default async function DealerAutomationPage({
         Zenith Code is a separate product. Connecting is optional — your leads keep flowing to
         this dashboard either way.
       </p>
+
+      <AutomationExplainer connected={dealer.zenithConnected} />
     </DealerShell>
   );
 }
