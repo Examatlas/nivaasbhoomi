@@ -49,30 +49,36 @@ export function PropertyContactButton({
   mode = "contact",
   whatsappNumber,
   listingSlug,
+  profileSlug,
   triggerLabel = "Contact Us",
   block,
   size = "lg",
 }: {
-  listingId: string;
+  /** Required for the "contact" (enquiry) mode. Optional for a dealer-profile
+   *  WhatsApp button, which has no single listing. */
+  listingId?: string;
   listingTitle?: string;
   dealerName?: string;
   mode?: ContactMode;
   whatsappNumber?: string;
   listingSlug?: string;
+  /** Dealer profile slug — used to build the WhatsApp message on the dealer page
+   *  where there's no listing context. */
+  profileSlug?: string;
   triggerLabel?: string;
   block?: boolean;
   size?: ButtonProps["size"];
 }) {
-  // WhatsApp mode (Zenith-connected dealer). The property URL is built HERE, on
-  // the client, from window.location.origin — so it always uses the real live
-  // domain and can never carry a build-time-baked localhost. Falls back to
-  // "contact" if we somehow have no dealer number.
+  // WhatsApp mode (Zenith-connected dealer). The URL is built HERE, on the
+  // client, from window.location.origin — so it always uses the real live domain
+  // and can never carry a build-time-baked localhost. Works for a listing
+  // (property URL + [Ref]) OR a dealer profile (profile URL).
   if (mode === "whatsapp" && whatsappNumber) {
     const openWhatsApp = () => {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const propertyUrl = `${origin}/property/${listingSlug ?? ""}`;
-      const text =
-        `Hi, I'm interested in this property:\n${listingTitle ?? ""}\n${propertyUrl}\n[Ref: ${listingId}]`;
+      const text = listingSlug
+        ? `Hi, I'm interested in this property:\n${listingTitle ?? ""}\n${origin}/property/${listingSlug}${listingId ? `\n[Ref: ${listingId}]` : ""}`
+        : `Hi, I found ${dealerName ?? "you"} on NivaasBhoomi:\n${origin}/agent/${profileSlug ?? ""}`;
       window.open(
         `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`,
         "_blank",
@@ -92,7 +98,12 @@ export function PropertyContactButton({
     );
   }
 
-  return <ContactDialog {...{ listingId, listingTitle, dealerName, triggerLabel, block, size }} />;
+  // "contact" mode is listing-based; callers on cards/property always pass an id.
+  return (
+    <ContactDialog
+      {...{ listingId: listingId ?? "", listingTitle, dealerName, triggerLabel, block, size }}
+    />
+  );
 }
 
 function ContactDialog({

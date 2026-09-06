@@ -9,6 +9,7 @@ import { Dealer } from "@/lib/db/models/Dealer";
 import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
 import { generateDealerSlugFromCoverage } from "@/lib/dealers/slug-server";
+import { revalidateDealerPublicPages } from "@/lib/listings/revalidate";
 
 /**
  * PATCH /api/dealers/[id]   [dealer auth, self]   (DEV-SPEC.txt Sections 4, 7)
@@ -109,6 +110,10 @@ export const PATCH = withErrorHandling(
         console.error("[dealer] slug auto-generation failed:", e);
       }
     }
+
+    // Refresh the dealer's public pages so profile edits show without waiting
+    // for the ISR window (Option A).
+    await revalidateDealerPublicPages(String(dealer._id));
 
     return ok({
       id: String(dealer._id),
