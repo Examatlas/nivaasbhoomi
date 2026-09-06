@@ -11,7 +11,7 @@
  * the positional variables the build() fills in order.
  */
 
-export type TemplateCategory = "utility" | "marketing" | "authentication";
+export type TemplateCategory = "utility" | "marketing";
 
 /** A Cloud API template component (body params, button params, …). */
 export interface TemplateComponent {
@@ -38,26 +38,9 @@ function body(...texts: (string | number)[]): TemplateComponent[] {
   ];
 }
 
-// ---- login_otp (authentication) ----
-// Body: "{{1}} is your NivaasBhoomi verification code."
-// + one-time-password (copy code) button carrying {{1}}.
-export interface LoginOtpParams {
-  code: string;
-}
-export const loginOtp: TemplateDef<LoginOtpParams> = {
-  name: "login_otp",
-  category: "authentication",
-  language: "en",
-  build: ({ code }) => [
-    { type: "body", parameters: [{ type: "text", text: code }] },
-    {
-      type: "button",
-      sub_type: "url",
-      index: "0",
-      parameters: [{ type: "text", text: code }],
-    },
-  ],
-};
+// NOTE: login OTP is handled by the dedicated OTP login flow
+// (src/app/api/auth/otp/*), which calls the Meta Cloud API directly — it is not
+// part of this automation template registry.
 
 // ---- lead_assigned (utility) — to the dealer ----
 // "New lead! {{1}} ({{2}}) wants property in {{3}}, budget {{4}}, timeline {{5}}.
@@ -136,7 +119,6 @@ export const followupNudge: TemplateDef<FollowupNudgeParams> = {
 
 /** All templates keyed by name, for the client + admin tooling. */
 export const TEMPLATES = {
-  login_otp: loginOtp,
   lead_assigned: leadAssigned,
   listing_expiry_warning: listingExpiryWarning,
   site_visit_reminder: siteVisitReminder,

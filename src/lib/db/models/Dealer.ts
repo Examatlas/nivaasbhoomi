@@ -40,7 +40,7 @@ const dealerSchema = new Schema(
     // identity
     name: { type: String, required: true, trim: true },
     businessName: { type: String, required: true, trim: true },
-    phone: { type: String, required: true, unique: true, trim: true }, // WhatsApp number
+    phone: { type: String, required: true, trim: true }, // WhatsApp number (partial-unique index below)
     // Set false whenever the dealer changes their phone; re-verification via
     // WhatsApp OTP is blocked (WABA unverified) — see the phone route's TODO.
     phoneVerified: { type: Boolean, default: false },
@@ -217,7 +217,13 @@ dealerSchema.pre("validate", function () {
   );
 });
 
-// Section 5 indexes. { phone:1 } and { slug:1 } unique come from field options.
+// Section 5 indexes. { slug:1 } unique comes from field options.
+// Phone is the login identity (WhatsApp OTP): partial-unique so it's enforced
+// whenever present (always — required) without null collisions.
+dealerSchema.index(
+  { phone: 1 },
+  { unique: true, partialFilterExpression: { phone: { $type: "string" } } },
+);
 dealerSchema.index({ coverageCities: 1, status: 1 });
 dealerSchema.index({ coverageLocalities: 1, verificationTier: -1, rating: -1 });
 // Resolve an old slug -> its dealer for the 301 redirect (never 404).

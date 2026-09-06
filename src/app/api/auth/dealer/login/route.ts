@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
-import { authMethod, dealerLoginEnabled } from "@/lib/config/flags";
+import { dealerLoginEnabled } from "@/lib/config/flags";
 import { verifyPassword, TIMING_DUMMY_HASH } from "@/lib/auth/password";
 import { signSession } from "@/lib/auth/jwt";
 import { DEALER_COOKIE, sessionCookieOptions } from "@/lib/auth/cookie";
@@ -45,9 +45,8 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   if (!dealerLoginEnabled()) {
     return fail("FORBIDDEN", "Dealer sign-in is not available yet.");
   }
-  if (authMethod() !== "password") {
-    return fail("FORBIDDEN", "Password login is disabled.");
-  }
+  // Password login stays available as a permanent fallback for dealers (e.g. if
+  // WhatsApp is down), independent of AUTH_METHOD — OTP is the primary path.
 
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||

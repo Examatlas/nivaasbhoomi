@@ -31,6 +31,9 @@ import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
 import { State } from "@/lib/db/models/State";
 import { Lead } from "@/lib/db/models/Lead";
+import { User } from "@/lib/db/models/User";
+import { Otp } from "@/lib/db/models/Otp";
+import { OtpRequestLog } from "@/lib/db/models/OtpRequestLog";
 
 function mask(uri: string): string {
   return uri.replace(/(:\/\/[^:/@]+:)[^@]+(@)/, "$1****$2");
@@ -44,6 +47,9 @@ const MODELS: [string, Model<any>][] = [
   ["Locality", Locality],
   ["State", State],
   ["Lead", Lead],
+  ["User", User],
+  ["Otp", Otp],
+  ["OtpRequestLog", OtpRequestLog],
 ];
 
 async function main() {

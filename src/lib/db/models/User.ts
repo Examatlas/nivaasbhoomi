@@ -17,7 +17,8 @@ import { Schema, model, models, type InferSchemaType, type Model } from "mongoos
  */
 const userSchema = new Schema(
   {
-    phone: { type: String, required: true, trim: true }, // 91XXXXXXXXXX (stored, unverified at launch)
+    phone: { type: String, required: true, trim: true }, // canonical "91XXXXXXXXXX"
+    phoneVerified: { type: Boolean, default: false }, // true once a login OTP is confirmed
     email: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
     passwordHash: { type: String },
     emailVerified: { type: Boolean, default: false },
@@ -29,6 +30,13 @@ const userSchema = new Schema(
     timestamps: true,
     toJSON: { virtuals: true },
   },
+);
+
+// Phone is the login identity under WhatsApp OTP. Partial-unique so it's enforced
+// whenever a phone is present (it always is — required), without null collisions.
+userSchema.index(
+  { phone: 1 },
+  { unique: true, partialFilterExpression: { phone: { $type: "string" } } },
 );
 
 export type UserDoc = InferSchemaType<typeof userSchema>;

@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Clock } from "lucide-react";
+import { Clock, ChevronDown } from "lucide-react";
 
 import { Logo } from "@/components/shared/logo";
-import { OtpLoginForm } from "@/components/dealer/otp-login-form";
+import { OtpLoginForm } from "@/components/auth/otp-login-form";
 import { DealerAuthForm } from "@/components/dealer/dealer-auth-form";
-import { dealerLoginEnabled, authMethod } from "@/lib/config/flags";
+import { dealerLoginEnabled } from "@/lib/config/flags";
 
 export const metadata: Metadata = {
   title: "Dealer Login",
@@ -18,7 +18,6 @@ export const dynamic = "force-dynamic";
 
 export default function DealerLoginPage() {
   const enabled = dealerLoginEnabled();
-  const method = authMethod();
 
   return (
     <div className="flex min-h-dvh items-center justify-center px-4 py-12">
@@ -50,9 +49,19 @@ export default function DealerLoginPage() {
               </Link>
             </div>
           ) : (
-            // useSearchParams (?next=, ?mode=) needs a Suspense boundary.
             <Suspense fallback={null}>
-              {method === "whatsapp" ? <OtpLoginForm /> : <DealerAuthForm />}
+              <OtpLoginForm role="dealer" />
+
+              {/* Password is the fallback if WhatsApp is unavailable. */}
+              <details className="group mt-6 border-t border-border pt-4">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium text-ink-800 [&::-webkit-details-marker]:hidden">
+                  Login with password instead
+                  <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="mt-4">
+                  <DealerAuthForm />
+                </div>
+              </details>
             </Suspense>
           )}
         </div>

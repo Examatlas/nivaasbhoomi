@@ -156,8 +156,3 @@ export async function sendTemplate<N extends TemplateName>(
     tpl.name,
   );
 }
-
-/** Convenience wrapper kept for the dealer OTP route (Phase 4). */
-export function sendLoginOtp(phone: string, code: string): Promise<SendResult> {
-  return sendTemplate(phone, "login_otp", { code });
-}
