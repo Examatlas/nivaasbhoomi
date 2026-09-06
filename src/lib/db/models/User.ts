@@ -1,4 +1,4 @@
-import { Schema, model, models, type InferSchemaType, type Model } from "mongoose";
+import { Schema, model, models, Types, type InferSchemaType, type Model } from "mongoose";
 
 /**
  * Buyer (User) — the person browsing listings who signs up before contacting a
@@ -25,6 +25,8 @@ const userSchema = new Schema(
     name: { type: String, trim: true },
     waProfileName: { type: String, trim: true },
     lastLoginAt: { type: Date, default: null },
+    // Set when this buyer upgrades to (or is linked with) a Dealer account.
+    dealerId: { type: Types.ObjectId, ref: "Dealer", default: null },
   },
   {
     timestamps: true,
@@ -44,6 +46,8 @@ userSchema.index(
   { email: 1 },
   { unique: true, partialFilterExpression: { email: { $type: "string" } } },
 );
+// Link to the buyer's Dealer account (present only after an upgrade).
+userSchema.index({ dealerId: 1 }, { sparse: true });
 
 export type UserDoc = InferSchemaType<typeof userSchema>;
 

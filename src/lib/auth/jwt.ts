@@ -31,6 +31,8 @@ export interface DealerClaims extends JWTPayload {
 export interface UserClaims extends JWTPayload {
   role: "user";
   userId: string;
+  /** Present when this buyer is also a linked dealer (post-upgrade). */
+  dealerId?: string;
 }
 
 export type SessionClaims = AdminClaims | DealerClaims | UserClaims;

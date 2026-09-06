@@ -41,7 +41,13 @@ export function DealerShell({
           <span className="rounded-full bg-ink-50 px-2 py-0.5 text-overline font-semibold text-ink-700 uppercase">
             Dealer
           </span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            <Link
+              href="/"
+              className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline"
+            >
+              Switch to buyer view
+            </Link>
             <SignOutButton />
           </div>
         </div>

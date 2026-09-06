@@ -44,6 +44,9 @@ export interface AdminLeadRow {
    *  assigned dealer, so no cross-dealer listing is exposed. Secondary context. */
   otherListings?: { id: string; title: string }[];
   assignedDealer?: { id: string; businessName: string };
+  viewed: boolean;
+  viewedAt?: string;
+  reassignCount: number;
   createdAt: string;
 }
 
@@ -115,6 +118,9 @@ async function hydrateRows(docs: Record<string, unknown>[]): Promise<AdminLeadRo
       assignedDealer: dealer
         ? { id: String(dealer._id), businessName: dealer.businessName }
         : undefined,
+      viewed: Boolean(d.viewedAt),
+      viewedAt: d.viewedAt ? new Date(d.viewedAt as Date).toISOString() : undefined,
+      reassignCount: (d.reassignCount as number) ?? 0,
       createdAt: new Date((d.createdAt as Date) ?? new Date()).toISOString(),
     };
   });
@@ -180,6 +186,11 @@ export interface AdminLeadsResult {
 export async function getAllLeads(opts: {
   status?: string;
   cityId?: string;
+  dealerId?: string;
+  source?: string;
+  notViewed?: boolean;
+  from?: string;
+  to?: string;
   q?: string;
   page?: number;
 }): Promise<AdminLeadsResult> {
@@ -188,6 +199,17 @@ export async function getAllLeads(opts: {
   if (opts.status) filter.status = opts.status;
   if (opts.cityId && mongoose.Types.ObjectId.isValid(opts.cityId)) {
     filter.cityId = new mongoose.Types.ObjectId(opts.cityId);
+  }
+  if (opts.dealerId && mongoose.Types.ObjectId.isValid(opts.dealerId)) {
+    filter.assignedDealerId = new mongoose.Types.ObjectId(opts.dealerId);
+  }
+  if (opts.source) filter.source = opts.source;
+  if (opts.notViewed) filter.viewedAt = null;
+  if (opts.from || opts.to) {
+    const range: Record<string, Date> = {};
+    if (opts.from) range.$gte = new Date(opts.from);
+    if (opts.to) range.$lte = new Date(`${opts.to}T23:59:59.999Z`);
+    filter.createdAt = range;
   }
   if (opts.q && opts.q.trim()) {
     const rx = new RegExp(opts.q.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -234,9 +256,20 @@ export interface AuditEntry {
   reason?: string;
   at: string;
 }
+export interface AssignmentHistoryEntry {
+  dealerId: string;
+  dealerName: string;
+  assignedAt?: string;
+  viewedAt?: string;
+  reason?: string;
+}
+
 export interface AdminLeadDetail extends AdminLeadRow {
   loanRequired?: boolean;
   dealerNotes?: string;
+  slaDeadline?: string;
+  deliveredAt?: string;
+  assignmentHistory: AssignmentHistoryEntry[];
   conversation: ConversationMessage[];
   audit: AuditEntry[];
 }
@@ -278,13 +311,92 @@ export async function getLeadDetail(id: string): Promise<AdminLeadDetail | null>
     at: new Date((a.createdAt as Date) ?? new Date()).toISOString(),
   }));
 
+  // Assignment-history timeline with dealer names.
+  const history = (doc.assignmentHistory ?? []) as Array<{
+    dealerId?: unknown;
+    assignedAt?: Date;
+    viewedAt?: Date;
+    reason?: string;
+  }>;
+  const histDealerIds = [...new Set(history.map((h) => String(h.dealerId)).filter(Boolean))];
+  const histDealers = await Dealer.find(
+    { _id: { $in: histDealerIds } },
+    { businessName: 1 },
+  ).lean();
+  const histName = new Map(histDealers.map((d) => [String(d._id), d.businessName]));
+  const assignmentHistory: AssignmentHistoryEntry[] = history.map((h) => ({
+    dealerId: String(h.dealerId),
+    dealerName: histName.get(String(h.dealerId)) ?? "Unknown dealer",
+    assignedAt: h.assignedAt ? new Date(h.assignedAt).toISOString() : undefined,
+    viewedAt: h.viewedAt ? new Date(h.viewedAt).toISOString() : undefined,
+    reason: h.reason,
+  }));
+
   return {
     ...row!,
     loanRequired: doc.loanRequired ?? undefined,
     dealerNotes: doc.dealerNotes ?? undefined,
+    slaDeadline: doc.slaDeadline ? new Date(doc.slaDeadline).toISOString() : undefined,
+    deliveredAt: doc.deliveredAt ? new Date(doc.deliveredAt).toISOString() : undefined,
+    assignmentHistory,
     conversation,
     audit,
   };
+}
+
+/** Per-dealer lead summary for the admin overview. */
+export interface DealerLeadSummary {
+  dealerId: string;
+  businessName: string;
+  received: number;
+  viewed: number;
+  slaMissed: number; // reassigned away at least once
+  avgViewMinutes: number | null;
+  whatsappLeads: number;
+  platformLeads: number;
+}
+
+export async function getDealerLeadSummary(): Promise<DealerLeadSummary[]> {
+  await connectDB();
+  const rows = await Lead.aggregate([
+    { $match: { assignedDealerId: { $ne: null } } },
+    {
+      $group: {
+        _id: "$assignedDealerId",
+        received: { $sum: 1 },
+        viewed: { $sum: { $cond: [{ $ifNull: ["$viewedAt", false] }, 1, 0] } },
+        slaMissed: { $sum: { $cond: [{ $gt: ["$reassignCount", 0] }, 1, 0] } },
+        whatsappLeads: { $sum: { $cond: [{ $eq: ["$source", "whatsapp_click"] }, 1, 0] } },
+        platformLeads: { $sum: { $cond: [{ $ne: ["$source", "whatsapp_click"] }, 1, 0] } },
+        viewMs: {
+          $avg: {
+            $cond: [
+              { $and: [{ $ifNull: ["$viewedAt", false] }, { $ifNull: ["$assignedAt", false] }] },
+              { $subtract: ["$viewedAt", "$assignedAt"] },
+              null,
+            ],
+          },
+        },
+      },
+    },
+    { $sort: { received: -1 } },
+    { $limit: 200 },
+  ]);
+
+  const dealerIds = rows.map((r) => String(r._id));
+  const dealers = await Dealer.find({ _id: { $in: dealerIds } }, { businessName: 1 }).lean();
+  const nameById = new Map(dealers.map((d) => [String(d._id), d.businessName]));
+
+  return rows.map((r) => ({
+    dealerId: String(r._id),
+    businessName: nameById.get(String(r._id)) ?? "Unknown dealer",
+    received: r.received ?? 0,
+    viewed: r.viewed ?? 0,
+    slaMissed: r.slaMissed ?? 0,
+    avgViewMinutes: r.viewMs != null ? Math.round(r.viewMs / 60000) : null,
+    whatsappLeads: r.whatsappLeads ?? 0,
+    platformLeads: r.platformLeads ?? 0,
+  }));
 }
 
 // ---- eligible dealers for admin assignment ----

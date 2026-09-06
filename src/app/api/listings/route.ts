@@ -5,6 +5,7 @@ import { ok, fail, withErrorHandling } from "@/lib/api/response";
 import { requireDealer } from "@/lib/auth/middleware";
 import { connectDB } from "@/lib/db/connect";
 import { Listing } from "@/lib/db/models/Listing";
+import { Dealer } from "@/lib/db/models/Dealer";
 import { dealerListingRequestSchema } from "@/lib/listings/dealer-schema";
 import {
   applyDealerInput,
@@ -40,6 +41,16 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const { submit, ...input } = parsed.data;
 
   await connectDB();
+
+  // A pending (upgrade-created, unapproved) dealer cannot create listings.
+  // Server-side block — not just UI (Section 13).
+  const me = await Dealer.findById(auth.identity.dealerId, { status: 1 }).lean();
+  if (me?.status === "pending") {
+    return fail(
+      "FORBIDDEN",
+      "Your dealer account is awaiting admin approval. You can add listings once it is approved.",
+    );
+  }
 
   const listing = new Listing({
     dealerId: new mongoose.Types.ObjectId(auth.identity.dealerId),

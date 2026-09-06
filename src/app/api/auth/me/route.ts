@@ -20,7 +20,12 @@ export const GET = withErrorHandling(async () => {
   if (!session) return ok({ authed: false as const });
 
   await connectDB();
-  const user = await User.findById(session.userId, { name: 1, email: 1, phone: 1 }).lean();
+  const user = await User.findById(session.userId, {
+    name: 1,
+    email: 1,
+    phone: 1,
+    dealerId: 1,
+  }).lean();
   if (!user) return ok({ authed: false as const });
 
   return ok({
@@ -30,6 +35,7 @@ export const GET = withErrorHandling(async () => {
     name: user.name ?? null,
     email: user.email ?? null,
     phone: user.phone ?? null,
+    dealerId: user.dealerId ? String(user.dealerId) : null,
     profileComplete: Boolean(user.name),
   });
 });

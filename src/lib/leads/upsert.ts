@@ -74,18 +74,14 @@ export async function upsertLead(args: UpsertLeadArgs): Promise<string | null> {
       ? new mongoose.Types.ObjectId(args.listingId)
       : null;
 
-  // The conversation's linked lead, else the latest open lead for this phone,
-  // else a new lead. (This is what makes re-processing idempotent: the same
-  // phone maps to the same open lead, so routeLead sees it already assigned.)
-  let lead =
+  // Continuity for the AI pipeline comes ONLY from the conversation's linked
+  // lead. There is deliberately NO phone-only reuse here — buyer-contact dedup
+  // (phone + dealer + listing, 24h) lives in lib/leads/dedupe and is applied by
+  // the contact paths before they create a lead.
+  const lead =
     args.convLeadId && mongoose.Types.ObjectId.isValid(args.convLeadId)
       ? await Lead.findById(args.convLeadId)
       : null;
-  if (!lead) {
-    lead = await Lead.findOne({ phone: args.phone, status: { $nin: ["converted", "lost"] } })
-      .sort({ createdAt: -1 })
-      .exec();
-  }
 
   if (lead) {
     lead.set(set);

@@ -40,6 +40,8 @@ const dealerSchema = new Schema(
     // identity
     name: { type: String, required: true, trim: true },
     businessName: { type: String, required: true, trim: true },
+    // Set when this Dealer was created by (or linked to) a buyer User upgrade.
+    userId: { type: Types.ObjectId, ref: "User", default: null },
     phone: { type: String, required: true, trim: true }, // WhatsApp number (partial-unique index below)
     // Set false whenever the dealer changes their phone; re-verification via
     // WhatsApp OTP is blocked (WABA unverified) — see the phone route's TODO.
@@ -96,7 +98,15 @@ const dealerSchema = new Schema(
     planExpiresAt: { type: Date },
 
     // status
-    status: { type: String, enum: ["active", "paused", "banned"], default: "active" },
+    // "pending" = created via a buyer upgrade, awaiting admin approval. A pending
+    // dealer is NOT "active", so it is excluded from ALL lead routing (rotation,
+    // listing-owner and agent-profile paths all gate on status === "active") and
+    // is blocked from creating listings — until an admin sets it "active".
+    status: {
+      type: String,
+      enum: ["active", "paused", "banned", "pending"],
+      default: "active",
+    },
     listingCount: { type: Number, default: 0 },
 
     /**
@@ -224,6 +234,8 @@ dealerSchema.index(
   { phone: 1 },
   { unique: true, partialFilterExpression: { phone: { $type: "string" } } },
 );
+// Link to the buyer User this dealer was upgraded from (present only after link).
+dealerSchema.index({ userId: 1 }, { sparse: true });
 dealerSchema.index({ coverageCities: 1, status: 1 });
 dealerSchema.index({ coverageLocalities: 1, verificationTier: -1, rating: -1 });
 // Resolve an old slug -> its dealer for the 301 redirect (never 404).

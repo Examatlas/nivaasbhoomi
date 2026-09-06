@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import type { AdminDealerVerification } from "@/lib/dealers/admin";
 
-const STATUSES = ["active", "paused", "banned"] as const;
+const STATUSES = ["active", "paused", "banned", "pending"] as const;
 
 /**
  * Admin force-edit panel (Phase 5). Edits the fields ONLY an admin can touch —

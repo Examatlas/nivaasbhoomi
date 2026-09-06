@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User as UserIcon, LogOut, ChevronDown } from "lucide-react";
+import { User as UserIcon, LogOut, ChevronDown, LayoutDashboard, Store } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/components/auth/session-provider";
@@ -85,6 +85,25 @@ export function HeaderAuth() {
             {me.phone && <p className="text-meta text-muted-foreground">{formatSessionPhone(me.phone)}</p>}
           </div>
           <div className="flex flex-col py-1">
+            {me.dealerId ? (
+              <Link
+                href="/dealer/dashboard"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-ink-800 hover:bg-surface-muted"
+                role="menuitem"
+              >
+                <LayoutDashboard className="size-4 text-muted-foreground" /> Dealer Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/become-dealer"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-ink-800 hover:bg-surface-muted"
+                role="menuitem"
+              >
+                <Store className="size-4 text-muted-foreground" /> Become a dealer
+              </Link>
+            )}
             <Link
               href="/profile"
               onClick={() => setOpen(false)}

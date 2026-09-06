@@ -77,16 +77,31 @@ export function PropertyContactButton({
   // and can never carry a build-time-baked localhost. Works for a listing
   // (property URL + [Ref]) OR a dealer profile (profile URL).
   if (mode === "whatsapp" && whatsappNumber) {
-    const openWhatsApp = () => {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const text = listingSlug
-        ? `Hi, I'm interested in this property:\n${listingTitle ?? ""}\n${origin}/property/${listingSlug}${listingId ? `\n[Ref: ${listingId}]` : ""}`
-        : `Hi, I found ${dealerName ?? "you"} on NivaasBhoomi:\n${origin}/agent/${profileSlug ?? ""}`;
-      window.open(
-        `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`,
-        "_blank",
-        "noopener,noreferrer",
-      );
+    const openWhatsApp = async () => {
+      // Pre-open a tab synchronously (in the click gesture) so the popup blocker
+      // doesn't kill it after the await; we set its URL once the server responds.
+      const win = window.open("", "_blank");
+      try {
+        const res = await fetch("/api/leads/whatsapp-click", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify(listingId ? { listingId } : { dealerId }),
+        });
+        if (res.status === 401) {
+          win?.close();
+          const next = window.location.pathname + window.location.search;
+          window.location.href = `/login?next=${encodeURIComponent(next)}`;
+          return;
+        }
+        const json = (await res.json()) as { data?: { waUrl?: string } };
+        const waUrl = json?.data?.waUrl;
+        if (waUrl && win) win.location.href = waUrl;
+        else if (waUrl) window.open(waUrl, "_blank", "noopener,noreferrer");
+        else win?.close();
+      } catch {
+        win?.close();
+      }
     };
     return (
       <Button

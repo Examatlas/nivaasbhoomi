@@ -68,7 +68,7 @@ export interface MyDealer {
   profilePhoto?: string;
   phone: string;
   phoneVerified: boolean;
-  status: "active" | "paused" | "banned";
+  status: "active" | "paused" | "banned" | "pending";
   verificationTier: number;
   rating: number;
   ratingCount: number;

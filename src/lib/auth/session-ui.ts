@@ -9,6 +9,8 @@ export interface Me {
   name?: string | null;
   email?: string | null;
   phone?: string | null;
+  /** Set when this buyer is also a linked dealer (post-upgrade). */
+  dealerId?: string | null;
   profileComplete?: boolean;
 }
 

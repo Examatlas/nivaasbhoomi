@@ -115,6 +115,33 @@ export default async function AdminLeadDetailPage({ params }: PageProps<"/admin/
           />
 
           <section className="rounded-card border border-border bg-surface p-5">
+            <h2 className="mb-3 text-sm font-semibold text-ink-950">Assignment timeline</h2>
+            {lead.assignmentHistory.length === 0 ? (
+              <p className="text-meta text-muted-foreground">Not assigned yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {lead.assignmentHistory.map((h, i) => (
+                  <li key={i} className="border-l-2 border-clay-200 pl-3 text-sm">
+                    <p className="font-medium text-ink-950">
+                      {h.dealerName}{" "}
+                      <span className="text-meta font-normal text-muted-foreground">
+                        ({h.reason ?? "assigned"})
+                      </span>
+                    </p>
+                    <p className="text-overline text-subtle-foreground">
+                      Assigned {h.assignedAt ? new Date(h.assignedAt).toLocaleString("en-IN") : "—"}
+                      {" · "}
+                      {h.viewedAt
+                        ? `Viewed ${new Date(h.viewedAt).toLocaleString("en-IN")}`
+                        : "Not viewed"}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="rounded-card border border-border bg-surface p-5">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink-950">
               <ScrollText className="size-4 text-clay-600" /> Audit trail
             </h2>

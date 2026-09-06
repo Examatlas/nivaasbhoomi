@@ -6,6 +6,7 @@ import {
   getUnmatchedByCity,
   getAllLeads,
   getLeadCities,
+  getDealerLeadSummary,
   type AdminLeadRow,
 } from "@/lib/leads/admin-leads";
 import { Badge } from "@/components/ui/badge";
@@ -26,13 +27,14 @@ const STATUS_TONE: Record<string, "neutral" | "warning" | "success" | "danger" |
 };
 
 const ALL_STATUSES = [
-  "new", "assigned", "contacted", "site-visit-scheduled", "site-visit-done",
-  "converted", "lost", "unmatched", "quota-exceeded",
+  "new", "assigned", "delivered", "contacted", "site-visit-scheduled", "site-visit-done",
+  "converted", "lost", "unmatched", "quota-exceeded", "unclaimed",
 ];
+const SOURCES = ["listing", "agent_profile", "whatsapp_click", "generic", "ad"];
 
 export default async function AdminLeadsPage({ searchParams }: PageProps<"/admin/leads">) {
   const sp = await searchParams;
-  const view = sp.view === "all" ? "all" : "queue";
+  const view = sp.view === "all" ? "all" : sp.view === "dealers" ? "dealers" : "queue";
 
   return (
     <div className="mx-auto max-w-page px-4 py-8 sm:px-6">
@@ -47,9 +49,10 @@ export default async function AdminLeadsPage({ searchParams }: PageProps<"/admin
       <div className="mb-6 flex gap-1.5">
         <Tab label="Unmatched queue" href="/admin/leads" active={view === "queue"} />
         <Tab label="All leads" href="/admin/leads?view=all" active={view === "all"} />
+        <Tab label="Dealer summary" href="/admin/leads?view=dealers" active={view === "dealers"} />
       </div>
 
-      {view === "queue" ? <Queue /> : <AllLeads sp={sp} />}
+      {view === "queue" ? <Queue /> : view === "dealers" ? <DealerSummary /> : <AllLeads sp={sp} />}
     </div>
   );
 }
@@ -151,13 +154,18 @@ function QueueRow({ lead: l }: { lead: AdminLeadRow }) {
 // ---- all leads (searchable) ----
 
 async function AllLeads({ sp }: { sp: Record<string, string | string[] | undefined> }) {
-  const status = typeof sp.status === "string" ? sp.status : undefined;
-  const cityId = typeof sp.city === "string" ? sp.city : undefined;
-  const q = typeof sp.q === "string" ? sp.q : undefined;
-  const page = Number(typeof sp.page === "string" ? sp.page : "1") || 1;
+  const s = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
+  const status = s("status");
+  const cityId = s("city");
+  const source = s("source");
+  const from = s("from");
+  const to = s("to");
+  const notViewed = sp.notViewed === "1";
+  const q = s("q");
+  const page = Number(s("page") ?? "1") || 1;
 
   const [result, cities] = await Promise.all([
-    getAllLeads({ status, cityId, q, page }),
+    getAllLeads({ status, cityId, source, from, to, notViewed, q, page }),
     getLeadCities(),
   ]);
 
@@ -192,6 +200,26 @@ async function AllLeads({ sp }: { sp: Record<string, string | string[] | undefin
             ))}
           </select>
         </label>
+        <label className="flex flex-col gap-1 text-meta text-muted-foreground">
+          Source
+          <select name="source" defaultValue={source ?? ""} className="h-9 rounded-control border border-border bg-background px-2 text-sm">
+            <option value="">Any</option>
+            {SOURCES.map((sc) => (
+              <option key={sc} value={sc}>{sc}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-meta text-muted-foreground">
+          From
+          <input type="date" name="from" defaultValue={from} className="h-9 rounded-control border border-border bg-background px-2 text-sm" />
+        </label>
+        <label className="flex flex-col gap-1 text-meta text-muted-foreground">
+          To
+          <input type="date" name="to" defaultValue={to} className="h-9 rounded-control border border-border bg-background px-2 text-sm" />
+        </label>
+        <label className="flex items-center gap-1.5 self-end pb-2 text-meta text-muted-foreground">
+          <input type="checkbox" name="notViewed" value="1" defaultChecked={notViewed} /> Not viewed
+        </label>
         <button type="submit" className="h-9 rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground">
           Filter
         </button>
@@ -203,30 +231,41 @@ async function AllLeads({ sp }: { sp: Record<string, string | string[] | undefin
         <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-surface-muted text-left text-meta text-muted-foreground">
             <tr>
+              <th className="px-3 py-2 font-medium">Created</th>
               <th className="px-3 py-2 font-medium">Buyer</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 font-medium">City</th>
+              <th className="px-3 py-2 font-medium">Source</th>
+              <th className="px-3 py-2 font-medium">Listing</th>
               <th className="px-3 py-2 font-medium">Assigned to</th>
-              <th className="px-3 py-2 font-medium">Budget</th>
+              <th className="px-3 py-2 font-medium">Viewed</th>
+              <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2 font-medium">↻</th>
               <th className="px-3 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {result.rows.map((l) => (
               <tr key={l.id} className="bg-surface">
+                <td className="px-3 py-2 whitespace-nowrap text-meta text-muted-foreground">
+                  {new Date(l.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                </td>
                 <td className="px-3 py-2">
                   <div className="font-medium text-ink-950">{l.buyerName}</div>
                   <div className="text-meta text-muted-foreground">+{l.phone}</div>
-                  {l.source === "agent_profile" && (
-                    <div className="text-meta text-clay-700">via dealer profile</div>
+                </td>
+                <td className="px-3 py-2 text-meta text-muted-foreground">{l.source}</td>
+                <td className="px-3 py-2 text-meta text-muted-foreground">{l.listing?.title ?? "—"}</td>
+                <td className="px-3 py-2 text-muted-foreground">{l.assignedDealer?.businessName ?? "—"}</td>
+                <td className="px-3 py-2">
+                  {l.viewed ? (
+                    <Badge tone="success" size="sm">Viewed</Badge>
+                  ) : (
+                    <Badge tone="neutral" size="sm">No</Badge>
                   )}
                 </td>
                 <td className="px-3 py-2">
                   <Badge tone={STATUS_TONE[l.status] ?? "neutral"} size="sm">{l.status}</Badge>
                 </td>
-                <td className="px-3 py-2 text-muted-foreground">{l.cityName ?? "—"}</td>
-                <td className="px-3 py-2 text-muted-foreground">{l.assignedDealer?.businessName ?? "—"}</td>
-                <td className="px-3 py-2 text-muted-foreground">{l.budget ?? "—"}</td>
+                <td className="px-3 py-2 text-meta text-muted-foreground">{l.reassignCount || ""}</td>
                 <td className="px-3 py-2 text-right">
                   <Link href={`/admin/leads/${l.id}`} className="font-medium text-clay-700 hover:underline">
                     View
@@ -236,7 +275,7 @@ async function AllLeads({ sp }: { sp: Record<string, string | string[] | undefin
             ))}
             {result.rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">
+                <td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">
                   No leads match.
                 </td>
               </tr>
@@ -244,6 +283,51 @@ async function AllLeads({ sp }: { sp: Record<string, string | string[] | undefin
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// ---- dealer-wise summary ----
+
+async function DealerSummary() {
+  const rows = await getDealerLeadSummary();
+  if (rows.length === 0) {
+    return (
+      <p className="rounded-card border border-border bg-surface px-4 py-16 text-center text-muted-foreground">
+        No leads have been assigned to any dealer yet.
+      </p>
+    );
+  }
+  return (
+    <div className="overflow-x-auto rounded-card border border-border">
+      <table className="w-full min-w-[720px] text-sm">
+        <thead className="bg-surface-muted text-left text-meta text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 font-medium">Dealer</th>
+            <th className="px-3 py-2 font-medium">Received</th>
+            <th className="px-3 py-2 font-medium">Viewed</th>
+            <th className="px-3 py-2 font-medium">SLA missed</th>
+            <th className="px-3 py-2 font-medium">Avg view</th>
+            <th className="px-3 py-2 font-medium">Platform</th>
+            <th className="px-3 py-2 font-medium">WhatsApp</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((r) => (
+            <tr key={r.dealerId} className="bg-surface">
+              <td className="px-3 py-2 font-medium text-ink-950">{r.businessName}</td>
+              <td className="px-3 py-2 text-muted-foreground">{r.received}</td>
+              <td className="px-3 py-2 text-muted-foreground">{r.viewed}</td>
+              <td className="px-3 py-2 text-muted-foreground">{r.slaMissed}</td>
+              <td className="px-3 py-2 text-muted-foreground">
+                {r.avgViewMinutes != null ? `${r.avgViewMinutes} min` : "—"}
+              </td>
+              <td className="px-3 py-2 text-muted-foreground">{r.platformLeads}</td>
+              <td className="px-3 py-2 text-muted-foreground">{r.whatsappLeads}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

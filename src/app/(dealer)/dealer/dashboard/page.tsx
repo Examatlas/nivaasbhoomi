@@ -37,6 +37,16 @@ export default async function DealerDashboardPage() {
         <p className="mt-1 text-muted-foreground">{dealer.businessName}</p>
       </div>
 
+      {dealer.status === "pending" && (
+        <div className="mb-6 rounded-card border border-warning-100 bg-warning-50 px-4 py-4 text-sm text-warning-700">
+          <p className="font-semibold">Your account is awaiting admin approval.</p>
+          <p className="mt-1">
+            You can complete your profile now, but adding listings and receiving buyer leads will
+            begin once our team approves your account.
+          </p>
+        </div>
+      )}
+
       {dealer.status === "paused" && (
         <div className="mb-6 rounded-card border border-warning-100 bg-warning-50 px-4 py-3 text-sm text-warning-700">
           Your account is paused, so new leads are on hold. Contact support to resolve this.

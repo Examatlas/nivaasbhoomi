@@ -56,6 +56,10 @@ export function hasQuota(d: DealerLite): boolean {
   return d.leadsUsedThisMonth < d.maxLeadsPerMonth;
 }
 
+/** Response-SLA: the assigned dealer must VIEW the lead within this window. */
+export const SLA_MINUTES = 30;
+export const SLA_MS = SLA_MINUTES * 60 * 1000;
+
 /**
  * Rank generic-lead candidates (Section 12): verificationTier DESC, then rating
  * DESC, then lastAssignedAt ASC (round-robin fairness - a dealer who was
@@ -312,6 +316,16 @@ async function performAssignment(
         assignedAt: now,
         isLocked: true,
         status: "assigned",
+        viewedAt: null,
+        slaDeadline: new Date(now.getTime() + SLA_MS),
+      },
+      $push: {
+        assignmentHistory: {
+          dealerId: new mongoose.Types.ObjectId(dealerId),
+          assignedAt: now,
+          viewedAt: null,
+          reason: "initial",
+        },
       },
     },
     { new: true },

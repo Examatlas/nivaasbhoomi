@@ -26,7 +26,13 @@ export type DealerEditableStatus = (typeof LEAD_STATUSES)[number];
 export interface DealerLeadRow {
   id: string;
   buyerName: string;
-  phone: string;
+  /** Revealed ONLY when the dealer has viewed the lead, or it's a whatsapp_click
+   *  lead (buyer already reached out). Otherwise null — reveal via the view API. */
+  phone: string | null;
+  viewed: boolean;
+  viewedAt?: string;
+  slaDeadline?: string;
+  reassignCount?: number;
   purpose?: string;
   propertyType?: string;
   bhk?: string;
@@ -166,7 +172,12 @@ async function hydrate(
     return {
       id: String(d._id),
       buyerName: (d.name as string) || (d.waProfileName as string) || "Unknown buyer",
-      phone: String(d.phone),
+      phone:
+        d.viewedAt || d.source === "whatsapp_click" ? String(d.phone) : null,
+      viewed: Boolean(d.viewedAt),
+      viewedAt: d.viewedAt ? new Date(d.viewedAt as Date).toISOString() : undefined,
+      slaDeadline: d.slaDeadline ? new Date(d.slaDeadline as Date).toISOString() : undefined,
+      reassignCount: (d.reassignCount as number) ?? 0,
       purpose: d.purpose as string | undefined,
       propertyType: d.propertyType as string | undefined,
       bhk: d.bhk as string | undefined,

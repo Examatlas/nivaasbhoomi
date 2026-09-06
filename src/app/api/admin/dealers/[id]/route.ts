@@ -47,7 +47,7 @@ const bodySchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   businessName: z.string().trim().min(1).max(160).optional(),
   email: z.string().trim().toLowerCase().email().max(200).optional().or(z.literal("")),
-  status: z.enum(["active", "paused", "banned"]).optional(),
+  status: z.enum(["active", "paused", "banned", "pending"]).optional(),
   slug: z.string().trim().toLowerCase().min(1).max(80).optional(),
   // Toggle the verified flag on private verification documents, by index.
   docVerifications: z

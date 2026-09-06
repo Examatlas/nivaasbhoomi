@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Phone, Home, MapPin, Wallet, Clock, Banknote, Star } from "lucide-react";
+import { Home, MapPin, Wallet, Clock, Banknote, Star } from "lucide-react";
 
 import { getMyLeads, LEAD_STATUSES, type DealerLeadRow } from "@/lib/leads/dealer-leads";
 import { DealerShell } from "@/components/dealer/dealer-shell";
 import { LeadStatusEditor } from "@/components/dealer/lead-status-editor";
+import { LeadContact } from "@/components/dealer/lead-contact";
 import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
@@ -100,12 +101,13 @@ function LeadCard({ lead: l }: { lead: DealerLeadRow }) {
               </span>
             )}
           </div>
-          <a
-            href={`tel:+${l.phone}`}
-            className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-wa-700 hover:underline"
-          >
-            <Phone className="size-4" /> +{l.phone}
-          </a>
+          <LeadContact
+            leadId={l.id}
+            phone={l.phone}
+            viewed={l.viewed}
+            source={l.source}
+            slaDeadline={l.slaDeadline}
+          />
         </div>
         {l.assignedAt && (
           <span className="text-meta text-muted-foreground">

@@ -18,7 +18,11 @@ const leadSchema = new Schema(
     waProfileName: { type: String },
 
     // source
-    source: { type: String, enum: ["listing", "generic", "ad", "agent_profile"], required: true },
+    source: {
+      type: String,
+      enum: ["listing", "generic", "ad", "agent_profile", "whatsapp_click"],
+      required: true,
+    },
     listingId: { type: Types.ObjectId, ref: "Listing" }, // null if generic
     // Other listings the SAME buyer enquired on after this lead was created.
     // Secondary context only — the primary listingId and the assignment never
@@ -50,7 +54,30 @@ const leadSchema = new Schema(
     // assignment - EXCLUSIVE
     assignedDealerId: { type: Types.ObjectId, ref: "Dealer" },
     assignedAt: { type: Date },
-    isLocked: { type: Boolean, default: true }, // NEVER reassign
+    isLocked: { type: Boolean, default: true }, // NEVER auto-reassign once viewed
+
+    // SLA + reassignment (Section 12). The assigned dealer must VIEW the lead
+    // (reveal the buyer phone) before slaDeadline, else the SLA cron transfers it
+    // to the next eligible dealer. whatsapp_click leads are exempt (the chat is
+    // already on the dealer's WhatsApp).
+    viewedAt: { type: Date, default: null },
+    slaDeadline: { type: Date, default: null }, // = assignedAt + 30 min
+    deliveredAt: { type: Date, default: null }, // whatsapp_click delivery time
+    reassignCount: { type: Number, default: 0 },
+    assignmentHistory: {
+      type: [
+        new Schema(
+          {
+            dealerId: { type: Types.ObjectId, ref: "Dealer" },
+            assignedAt: { type: Date },
+            viewedAt: { type: Date, default: null },
+            reason: { type: String, enum: ["initial", "sla_timeout", "manual"] },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
 
     // lifecycle
     status: {
@@ -67,6 +94,11 @@ const leadSchema = new Schema(
         // Routing outcome (Section 12): the listing's owner dealer is over quota.
         // Sits in the admin queue; the dealer is nudged to upgrade.
         "quota-exceeded",
+        // SLA cron exhausted all reassign attempts (or found no eligible dealer):
+        // sits in the admin queue for manual placement.
+        "unclaimed",
+        // WhatsApp-click lead: delivered straight to the dealer's WhatsApp.
+        "delivered",
       ],
       default: "new",
     },
@@ -90,6 +122,8 @@ leadSchema.index({ phone: 1, createdAt: -1 });
 leadSchema.index({ assignedDealerId: 1, status: 1 });
 leadSchema.index({ status: 1, createdAt: -1 });
 leadSchema.index({ listingId: 1 });
+// SLA cron: unviewed + past-deadline leads.
+leadSchema.index({ status: 1, viewedAt: 1, slaDeadline: 1 });
 
 export type LeadDoc = InferSchemaType<typeof leadSchema>;
 

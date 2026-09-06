@@ -101,7 +101,26 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     user.lastLoginAt = new Date();
     await user.save();
   }
-  const token = await signSession({ role: "user", userId: String(user._id) });
-  (await cookies()).set(USER_COOKIE, token, sessionCookieOptions());
-  return ok({ role: "user", userId: String(user._id), isNew, redirect: "/" });
+
+  const linkedDealerId = user.dealerId ? String(user.dealerId) : undefined;
+  const store = await cookies();
+  const token = await signSession({
+    role: "user",
+    userId: String(user._id),
+    ...(linkedDealerId ? { dealerId: linkedDealerId } : {}),
+  });
+  store.set(USER_COOKIE, token, sessionCookieOptions());
+  // A linked buyer→dealer gets the dealer session too, so one login serves both
+  // panels (no second sign-in). Dealer Dashboard then shows in the header.
+  if (linkedDealerId) {
+    const dealerToken = await signSession({ role: "dealer", dealerId: linkedDealerId });
+    store.set(DEALER_COOKIE, dealerToken, sessionCookieOptions());
+  }
+  return ok({
+    role: "user",
+    userId: String(user._id),
+    dealerId: linkedDealerId ?? null,
+    isNew,
+    redirect: "/",
+  });
 });

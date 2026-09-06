@@ -24,6 +24,9 @@ export interface AuditActor {
   actorId?: string;
 }
 
+// Response SLA window (kept here to avoid a circular import with routing.ts).
+const SLA_MS = 30 * 60 * 1000;
+
 interface LeadForTemplate {
   name?: string | null;
   waProfileName?: string | null;
@@ -151,14 +154,20 @@ export async function adminAssignUnmatched(
 
   const now = new Date();
   // Atomic claim: only assign if still unassigned (never steals a locked lead).
+  const claimedDealerOid = new mongoose.Types.ObjectId(dealerId);
   const claimed = await Lead.findOneAndUpdate(
     { _id: leadId, assignedDealerId: null },
     {
       $set: {
-        assignedDealerId: new mongoose.Types.ObjectId(dealerId),
+        assignedDealerId: claimedDealerOid,
         assignedAt: now,
         isLocked: true,
         status: "assigned",
+        viewedAt: null,
+        slaDeadline: new Date(now.getTime() + SLA_MS),
+      },
+      $push: {
+        assignmentHistory: { dealerId: claimedDealerOid, assignedAt: now, viewedAt: null, reason: "manual" },
       },
     },
     { new: true },
@@ -211,14 +220,27 @@ export async function adminOverrideReassign(
   if (newDealer.status !== "active") return { ok: false, error: "Target dealer is not active." };
 
   const now = new Date();
+  const newDealerOid = new mongoose.Types.ObjectId(newDealerId);
   // Unconditional move (the lead is locked; this is the sanctioned override).
   lead.set({
-    assignedDealerId: new mongoose.Types.ObjectId(newDealerId),
+    assignedDealerId: newDealerOid,
     assignedAt: now,
     isLocked: true,
     status: "assigned",
+    viewedAt: null,
+    slaDeadline: new Date(now.getTime() + SLA_MS),
   });
   await lead.save();
+  // Record the move in the assignment history (reason "manual") + bump the count.
+  await Lead.updateOne(
+    { _id: leadId },
+    {
+      $push: {
+        assignmentHistory: { dealerId: newDealerOid, assignedAt: now, viewedAt: null, reason: "manual" },
+      },
+      $inc: { reassignCount: 1 },
+    },
+  );
 
   // Refund the previous dealer's quota, charge the new dealer.
   await Dealer.updateOne(
