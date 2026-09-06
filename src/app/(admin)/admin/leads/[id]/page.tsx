@@ -59,6 +59,9 @@ export default async function AdminLeadDetailPage({ params }: PageProps<"/admin/
               <Row k="Locality" v={lead.localityName} />
               <Row k="Qualification" v={lead.qualificationScore != null ? `${lead.qualificationScore}/100` : undefined} />
               {lead.listing && <Row k="Listing" v={lead.listing.title} />}
+              {lead.otherListings && lead.otherListings.length > 0 && (
+                <Row k="Also enquired (same dealer)" v={lead.otherListings.map((o) => o.title).join(", ")} />
+              )}
               {lead.assignedDealer && <Row k="Assigned to" v={lead.assignedDealer.businessName} />}
             </dl>
 

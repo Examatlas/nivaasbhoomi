@@ -64,9 +64,15 @@ export async function upsertLead(args: UpsertLeadArgs): Promise<string | null> {
   if (args.stage) set.stage = args.stage;
   if (cityId) set.cityId = cityId;
   if (localityId) set.localityId = localityId;
-  if (args.listingId && mongoose.Types.ObjectId.isValid(args.listingId)) {
-    set.listingId = new mongoose.Types.ObjectId(args.listingId);
-  }
+
+  // listingId is intentionally NOT part of `set`. On an ASSIGNED lead the primary
+  // listing must never move — overwriting it made a dealer see a listing that
+  // isn't theirs. Applied explicitly below (primary on create / when unassigned;
+  // otherwise recorded as secondary context).
+  const listingObjId =
+    args.listingId && mongoose.Types.ObjectId.isValid(args.listingId)
+      ? new mongoose.Types.ObjectId(args.listingId)
+      : null;
 
   // The conversation's linked lead, else the latest open lead for this phone,
   // else a new lead. (This is what makes re-processing idempotent: the same
@@ -83,6 +89,22 @@ export async function upsertLead(args: UpsertLeadArgs): Promise<string | null> {
 
   if (lead) {
     lead.set(set);
+    if (listingObjId) {
+      if (lead.assignedDealerId) {
+        // Locked to a dealer: freeze the primary listing. Record interest in
+        // ANOTHER listing as secondary context only (deduped, never the primary).
+        // Assignment, lock, quota and exclusivity are all untouched.
+        const isPrimary = lead.listingId ? lead.listingId.equals(listingObjId) : false;
+        const already = (lead.otherListingIds ?? []).some((x) => x.equals(listingObjId));
+        if (!isPrimary && !already) {
+          lead.otherListingIds = [...(lead.otherListingIds ?? []), listingObjId];
+        }
+      } else {
+        // Not yet assigned — routing may still use this listing, so keep the
+        // previous behaviour (the bug only affects already-assigned leads).
+        lead.listingId = listingObjId;
+      }
+    }
     await lead.save();
     return String(lead._id);
   }
@@ -92,6 +114,7 @@ export async function upsertLead(args: UpsertLeadArgs): Promise<string | null> {
     source: args.listingId ? "listing" : "generic",
     status: "new",
     ...set,
+    ...(listingObjId ? { listingId: listingObjId } : {}),
   });
   return String(created._id);
 }

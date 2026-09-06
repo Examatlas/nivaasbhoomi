@@ -20,6 +20,10 @@ const leadSchema = new Schema(
     // source
     source: { type: String, enum: ["listing", "generic", "ad", "agent_profile"], required: true },
     listingId: { type: Types.ObjectId, ref: "Listing" }, // null if generic
+    // Other listings the SAME buyer enquired on after this lead was created.
+    // Secondary context only — the primary listingId and the assignment never
+    // move. Views only surface entries owned by the assigned dealer.
+    otherListingIds: { type: [{ type: Types.ObjectId, ref: "Listing" }], default: [] },
 
     // location intent
     cityId: { type: Types.ObjectId, ref: "City" },

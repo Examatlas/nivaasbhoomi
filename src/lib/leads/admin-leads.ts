@@ -40,6 +40,9 @@ export interface AdminLeadRow {
   cityName?: string;
   localityName?: string;
   listing?: { id: string; title: string };
+  /** Other listings the buyer also enquired on — restricted to ones owned by the
+   *  assigned dealer, so no cross-dealer listing is exposed. Secondary context. */
+  otherListings?: { id: string; title: string }[];
   assignedDealer?: { id: string; businessName: string };
   createdAt: string;
 }
@@ -58,24 +61,40 @@ async function hydrateRows(docs: Record<string, unknown>[]): Promise<AdminLeadRo
   const cityIds = [...new Set(docs.map((d) => d.cityId).filter(Boolean).map(String))];
   const localityIds = [...new Set(docs.map((d) => d.localityId).filter(Boolean).map(String))];
   const listingIds = [...new Set(docs.map((d) => d.listingId).filter(Boolean).map(String))];
+  const otherIds = [
+    ...new Set(docs.flatMap((d) => ((d.otherListingIds as unknown[]) ?? []).map(String))),
+  ];
   const dealerIds = [
     ...new Set(docs.map((d) => d.assignedDealerId).filter(Boolean).map(String)),
   ];
 
-  const [cities, localities, listings, dealers] = await Promise.all([
+  const [cities, localities, listings, otherListings, dealers] = await Promise.all([
     City.find({ _id: { $in: cityIds } }, { name: 1 }).lean(),
     Locality.find({ _id: { $in: localityIds } }, { name: 1 }).lean(),
     Listing.find({ _id: { $in: listingIds } }, { title: 1 }).lean(),
+    // Carry each other-listing's owner so we can restrict to the assigned dealer.
+    otherIds.length
+      ? Listing.find({ _id: { $in: otherIds } }, { title: 1, dealerId: 1 }).lean()
+      : Promise.resolve([]),
     Dealer.find({ _id: { $in: dealerIds } }, { businessName: 1 }).lean(),
   ]);
   const cityName = new Map(cities.map((c) => [String(c._id), c.name]));
   const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
   const listingById = new Map(listings.map((l) => [String(l._id), l]));
+  const otherById = new Map(otherListings.map((l) => [String(l._id), l]));
   const dealerById = new Map(dealers.map((d) => [String(d._id), d]));
 
   return docs.map((d) => {
     const listing = d.listingId ? listingById.get(String(d.listingId)) : undefined;
     const dealer = d.assignedDealerId ? dealerById.get(String(d.assignedDealerId)) : undefined;
+    const assignedDealerId = d.assignedDealerId ? String(d.assignedDealerId) : null;
+    const others = assignedDealerId
+      ? ((d.otherListingIds as unknown[]) ?? [])
+          .map(String)
+          .map((oid) => otherById.get(oid))
+          .filter((l): l is NonNullable<typeof l> => Boolean(l && String(l.dealerId) === assignedDealerId))
+          .map((l) => ({ id: String(l._id), title: l.title ?? "(untitled)" }))
+      : [];
     return {
       id: String(d._id),
       buyerName: (d.name as string) || (d.waProfileName as string) || "Unknown buyer",
@@ -92,6 +111,7 @@ async function hydrateRows(docs: Record<string, unknown>[]): Promise<AdminLeadRo
       cityName: d.cityId ? cityName.get(String(d.cityId)) : undefined,
       localityName: d.localityId ? localityName.get(String(d.localityId)) : undefined,
       listing: listing ? { id: String(listing._id), title: listing.title ?? "(untitled)" } : undefined,
+      otherListings: others.length ? others : undefined,
       assignedDealer: dealer
         ? { id: String(dealer._id), businessName: dealer.businessName }
         : undefined,

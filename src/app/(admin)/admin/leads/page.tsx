@@ -132,6 +132,11 @@ function QueueRow({ lead: l }: { lead: AdminLeadRow }) {
           {l.listing ? ` · re: ${l.listing.title}` : ""}
           {l.source === "agent_profile" ? " · via dealer profile" : ""}
         </p>
+        {l.otherListings && l.otherListings.length > 0 && (
+          <p className="mt-0.5 text-meta text-muted-foreground">
+            Also enquired (same dealer): {l.otherListings.map((o) => o.title).join(", ")}
+          </p>
+        )}
       </div>
       <Link
         href={`/admin/leads/${l.id}`}

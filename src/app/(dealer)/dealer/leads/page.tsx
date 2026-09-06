@@ -130,6 +130,15 @@ function LeadCard({ lead: l }: { lead: DealerLeadRow }) {
         </p>
       ) : null}
 
+      {l.otherListings && l.otherListings.length > 0 && (
+        <p className="mt-1 text-meta text-muted-foreground">
+          Also enquired on your:{" "}
+          <span className="text-ink-800">
+            {l.otherListings.map((o) => o.title).join(", ")}
+          </span>
+        </p>
+      )}
+
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-meta text-muted-foreground">
         {(l.localityName || l.cityName) && (
           <span className="inline-flex items-center gap-1">

@@ -40,6 +40,9 @@ export interface DealerLeadRow {
   cityName?: string;
   localityName?: string;
   listing?: { id: string; title: string; slug?: string };
+  /** Other listings the buyer also enquired on — ONLY this dealer's own, never
+   *  another dealer's. Secondary context, separate from the primary listing. */
+  otherListings?: { id: string; title: string; slug?: string }[];
   dealerNotes?: string;
   assignedAt?: string;
   createdAt: string;
@@ -87,7 +90,7 @@ export async function getMyLeads(opts: {
     .limit(PAGE_SIZE)
     .lean();
 
-  const rows = await hydrate(docs);
+  const rows = await hydrate(docs, session.dealerId);
   return {
     rows,
     total,
@@ -121,22 +124,45 @@ export async function getMyLeadBreakdown(
 
 async function hydrate(
   docs: Record<string, unknown>[],
+  dealerId: string,
 ): Promise<DealerLeadRow[]> {
   const cityIds = [...new Set(docs.map((d) => d.cityId).filter(Boolean).map(String))];
   const localityIds = [...new Set(docs.map((d) => d.localityId).filter(Boolean).map(String))];
   const listingIds = [...new Set(docs.map((d) => d.listingId).filter(Boolean).map(String))];
+  const otherIds = [
+    ...new Set(
+      docs.flatMap((d) => ((d.otherListingIds as unknown[]) ?? []).map(String)),
+    ),
+  ];
 
-  const [cities, localities, listings] = await Promise.all([
+  const [cities, localities, listings, otherListings] = await Promise.all([
     City.find({ _id: { $in: cityIds } }, { name: 1 }).lean(),
     Locality.find({ _id: { $in: localityIds } }, { name: 1 }).lean(),
     Listing.find({ _id: { $in: listingIds } }, { title: 1, slug: 1 }).lean(),
+    // Only THIS dealer's own listings — never surface another dealer's listing.
+    otherIds.length
+      ? Listing.find(
+          { _id: { $in: otherIds }, dealerId: new mongoose.Types.ObjectId(dealerId) },
+          { title: 1, slug: 1 },
+        ).lean()
+      : Promise.resolve([]),
   ]);
   const cityName = new Map(cities.map((c) => [String(c._id), c.name]));
   const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
   const listingById = new Map(listings.map((l) => [String(l._id), l]));
+  const ownedOtherById = new Map(otherListings.map((l) => [String(l._id), l]));
 
   return docs.map((d) => {
     const listing = d.listingId ? listingById.get(String(d.listingId)) : undefined;
+    const others = ((d.otherListingIds as unknown[]) ?? [])
+      .map(String)
+      .map((oid) => ownedOtherById.get(oid))
+      .filter((l): l is NonNullable<typeof l> => Boolean(l))
+      .map((l) => ({
+        id: String(l._id),
+        title: l.title ?? "(untitled)",
+        slug: l.slug ?? undefined,
+      }));
     return {
       id: String(d._id),
       buyerName: (d.name as string) || (d.waProfileName as string) || "Unknown buyer",
@@ -155,6 +181,7 @@ async function hydrate(
       listing: listing
         ? { id: String(listing._id), title: listing.title ?? "(untitled)", slug: listing.slug ?? undefined }
         : undefined,
+      otherListings: others.length ? others : undefined,
       dealerNotes: d.dealerNotes as string | undefined,
       assignedAt: d.assignedAt ? new Date(d.assignedAt as Date).toISOString() : undefined,
       createdAt: new Date((d.createdAt as Date) ?? new Date()).toISOString(),
