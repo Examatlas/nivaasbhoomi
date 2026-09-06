@@ -2,10 +2,11 @@ import { cache } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Home, MapPin, Building2, Clock, Star } from "lucide-react";
 
 import { getAgentProfile, getAgentStaticParams } from "@/lib/dealers/profile";
+import { resolveDealerSlugRedirect } from "@/lib/dealers/slug-server";
 import { agentMetadata } from "@/lib/seo/metadata";
 import { localBusinessJsonLd } from "@/lib/seo/jsonld";
 
@@ -45,7 +46,13 @@ export default async function AgentProfilePage({
 }: PageProps<"/agent/[slug]">) {
   const { slug } = await params;
   const agent = await load(slug);
-  if (!agent) notFound();
+  if (!agent) {
+    // Not a current slug — 301 to the dealer's current slug if this is an old
+    // one (protects indexed URLs, shared links, GBP entries); else 404.
+    const to = await resolveDealerSlugRedirect(slug);
+    if (to) permanentRedirect(`/agent/${to}`);
+    notFound();
+  }
 
   const hasRating = agent.ratingCount > 0;
   const cloudinaryPhoto =

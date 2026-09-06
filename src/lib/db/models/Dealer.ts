@@ -113,6 +113,79 @@ const dealerSchema = new Schema(
     // The bound Zenith organization/account id. One Zenith account binds to
     // exactly one dealer (enforced by the partial-unique index below).
     zenithOrgId: { type: String, default: null },
+
+    // ---- Public profile (Phase 2+) — slug infra ----
+    // Old slugs kept so they 301-redirect to the current one (never 404).
+    slugHistory: { type: [String], default: [] },
+    // The 30-day change lock starts from the FIRST MANUAL slug change, not signup.
+    slugLockUntil: { type: Date, default: null },
+    slugManuallyChangedAt: { type: Date, default: null },
+
+    // ---- Public profile — branding ----
+    bannerImage: {
+      type: new Schema({ url: String, publicId: String }, { _id: false }),
+      default: null,
+    },
+    logoImage: {
+      type: new Schema({ url: String, publicId: String }, { _id: false }),
+      default: null,
+    },
+
+    // ---- Public profile — business ----
+    tagline: { type: String, trim: true, maxlength: 120 },
+    establishedYear: { type: Number },
+    about: { type: String }, // 500–2000 chars, SERVER-SANITIZED before save
+
+    // ---- Public profile — offering ----
+    dealTypes: {
+      type: [{ type: String, enum: ["plot", "flat", "house", "commercial", "rent", "resale"] }],
+      default: [],
+    },
+    // serviceAreas REUSE coverageCities / coverageLocalities (one source of truth).
+
+    // ---- Public profile — details ----
+    priceRangeMin: { type: Number },
+    priceRangeMax: { type: Number },
+    reraNumber: { type: String, trim: true }, // public registry data
+    gstNumber: { type: String, trim: true },
+    languages: { type: [String], default: [] },
+    yearsExperience: { type: Number },
+    teamSize: { type: Number },
+
+    // ---- Public profile — contact ----
+    officeAddress: { type: String, trim: true },
+    mapLat: { type: Number },
+    mapLng: { type: Number },
+    workingHours: {
+      type: [
+        new Schema(
+          { day: String, open: String, close: String, closed: { type: Boolean, default: false } },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    publicEmail: { type: String, trim: true, lowercase: true },
+    // Email/phone are exposed publicly ONLY when the dealer opts in (Section 13).
+    publicEmailOptIn: { type: Boolean, default: false },
+    publicPhoneOptIn: { type: Boolean, default: false },
+
+    // ---- Verification documents — PRIVATE, admin-only. Never public. ----
+    verificationDocs: {
+      type: [
+        new Schema(
+          {
+            type: { type: String },
+            url: { type: String },
+            publicId: { type: String },
+            verified: { type: Boolean, default: false },
+            uploadedAt: { type: Date, default: Date.now },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -140,6 +213,8 @@ dealerSchema.pre("validate", function () {
 // Section 5 indexes. { phone:1 } and { slug:1 } unique come from field options.
 dealerSchema.index({ coverageCities: 1, status: 1 });
 dealerSchema.index({ coverageLocalities: 1, verificationTier: -1, rating: -1 });
+// Resolve an old slug -> its dealer for the 301 redirect (never 404).
+dealerSchema.index({ slugHistory: 1 });
 // One Zenith account -> one dealer. A PARTIAL unique index (only where
 // zenithOrgId is a string) rather than a plain sparse unique index, because a
 // sparse unique index still collides on explicit null values (disconnect sets
