@@ -4,7 +4,8 @@ import { connectDB } from "@/lib/db/connect";
 import { Dealer } from "@/lib/db/models/Dealer";
 import { Listing } from "@/lib/db/models/Listing";
 import { State } from "@/lib/db/models/State";
-import { tierName } from "@/lib/dealers/account";
+import { tierName, toDealerProfileFields } from "@/lib/dealers/account";
+import type { DealerProfileFields } from "@/lib/dealers/account";
 
 /**
  * Admin dealer + verification views (DEV-SPEC.txt Sections 13, 15). These
@@ -93,6 +94,18 @@ export interface AdminDealerVerification {
   zenithConnected: boolean;
   zenithNumber?: string;
   zenithOrgId?: string;
+  /** Public-profile fields (admin can force-edit any of these). */
+  profile: DealerProfileFields;
+  /** Every slug this dealer has ever held; the first is the current one. */
+  slugHistory: string[];
+  /** Private uploaded verification documents (admin-only). */
+  verificationDocs: {
+    type?: string;
+    url?: string;
+    publicId?: string;
+    verified: boolean;
+    uploadedAt?: string;
+  }[];
 }
 
 const DOC_META: { key: (typeof DOC_KEYS)[number]; label: string }[] = [
@@ -160,5 +173,23 @@ export async function getDealerVerification(
     zenithConnected: Boolean(d.zenithConnected),
     zenithNumber: d.zenithNumber ?? undefined,
     zenithOrgId: d.zenithOrgId ?? undefined,
+    profile: toDealerProfileFields(d),
+    slugHistory: [
+      ...(d.slug ? [d.slug] : []),
+      ...((d.slugHistory ?? []) as string[]).filter((s) => s && s !== d.slug),
+    ],
+    verificationDocs: ((d.verificationDocs ?? []) as Array<{
+      type?: string;
+      url?: string;
+      publicId?: string;
+      verified?: boolean;
+      uploadedAt?: Date | string;
+    }>).map((v) => ({
+      type: v.type ?? undefined,
+      url: v.url ?? undefined,
+      publicId: v.publicId ?? undefined,
+      verified: Boolean(v.verified),
+      uploadedAt: v.uploadedAt ? new Date(v.uploadedAt).toISOString() : undefined,
+    })),
   };
 }

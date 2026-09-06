@@ -97,6 +97,49 @@ const DOC_META: { key: DocStatus["key"]; label: string; mandatory: boolean }[] =
   { key: "officePhoto", label: "Office photo", mandatory: false },
 ];
 
+/**
+ * Map a Dealer document to the editable public-profile fields. Shared by the
+ * dealer's own account view and the admin dealer view.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function toDealerProfileFields(d: any): DealerProfileFields {
+  return {
+    slug: d.slug ?? undefined,
+    slugLockUntil: d.slugLockUntil ? new Date(d.slugLockUntil).toISOString() : undefined,
+    tagline: d.tagline ?? undefined,
+    about: d.about ?? undefined,
+    establishedYear: d.establishedYear ?? undefined,
+    yearsExperience: d.yearsExperience ?? undefined,
+    teamSize: d.teamSize ?? undefined,
+    dealTypes: d.dealTypes ?? [],
+    languages: d.languages ?? [],
+    priceRangeMin: d.priceRangeMin ?? undefined,
+    priceRangeMax: d.priceRangeMax ?? undefined,
+    reraNumber: d.reraNumber ?? undefined,
+    gstNumber: d.gstNumber ?? undefined,
+    officeAddress: d.officeAddress ?? undefined,
+    mapLat: d.mapLat ?? undefined,
+    mapLng: d.mapLng ?? undefined,
+    workingHours: (d.workingHours ?? []).map(
+      (w: { day?: string; open?: string; close?: string; closed?: boolean }) => ({
+        day: w.day ?? "",
+        open: w.open ?? undefined,
+        close: w.close ?? undefined,
+        closed: Boolean(w.closed),
+      }),
+    ),
+    publicEmail: d.publicEmail ?? undefined,
+    publicEmailOptIn: Boolean(d.publicEmailOptIn),
+    publicPhoneOptIn: Boolean(d.publicPhoneOptIn),
+    bannerImage: d.bannerImage?.url
+      ? { url: d.bannerImage.url, publicId: d.bannerImage.publicId ?? undefined }
+      : undefined,
+    logoImage: d.logoImage?.url
+      ? { url: d.logoImage.url, publicId: d.logoImage.publicId ?? undefined }
+      : undefined,
+  };
+}
+
 /** Resolve the signed-in dealer's full account, or null if not signed in. */
 export async function getMyDealer(): Promise<MyDealer | null> {
   const session = await getDealerSession();
@@ -165,39 +208,7 @@ export async function getMyDealer(): Promise<MyDealer | null> {
       draft: byStatus.get("draft") ?? 0,
     },
     profileComplete,
-    profile: {
-      slug: d.slug ?? undefined,
-      slugLockUntil: d.slugLockUntil ? new Date(d.slugLockUntil).toISOString() : undefined,
-      tagline: d.tagline ?? undefined,
-      about: d.about ?? undefined,
-      establishedYear: d.establishedYear ?? undefined,
-      yearsExperience: d.yearsExperience ?? undefined,
-      teamSize: d.teamSize ?? undefined,
-      dealTypes: d.dealTypes ?? [],
-      languages: d.languages ?? [],
-      priceRangeMin: d.priceRangeMin ?? undefined,
-      priceRangeMax: d.priceRangeMax ?? undefined,
-      reraNumber: d.reraNumber ?? undefined,
-      gstNumber: d.gstNumber ?? undefined,
-      officeAddress: d.officeAddress ?? undefined,
-      mapLat: d.mapLat ?? undefined,
-      mapLng: d.mapLng ?? undefined,
-      workingHours: (d.workingHours ?? []).map((w) => ({
-        day: w.day ?? "",
-        open: w.open ?? undefined,
-        close: w.close ?? undefined,
-        closed: Boolean(w.closed),
-      })),
-      publicEmail: d.publicEmail ?? undefined,
-      publicEmailOptIn: Boolean(d.publicEmailOptIn),
-      publicPhoneOptIn: Boolean(d.publicPhoneOptIn),
-      bannerImage: d.bannerImage?.url
-        ? { url: d.bannerImage.url, publicId: d.bannerImage.publicId ?? undefined }
-        : undefined,
-      logoImage: d.logoImage?.url
-        ? { url: d.logoImage.url, publicId: d.logoImage.publicId ?? undefined }
-        : undefined,
-    },
+    profile: toDealerProfileFields(d),
     zenithConnected: Boolean(d.zenithConnected),
     zenithNumber: d.zenithNumber ?? undefined,
     zenithPlan: d.zenithPlan ?? undefined,
