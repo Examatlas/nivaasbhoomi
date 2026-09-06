@@ -5,6 +5,7 @@ import { getMyDealer, profileCompleteness } from "@/lib/dealers/account";
 import { SITE_URL } from "@/lib/seo/site";
 import { DealerShell } from "@/components/dealer/dealer-shell";
 import { DealerProfileForm } from "@/components/dealer/dealer-profile-form";
+import { AccountDetailsForm } from "@/components/dealer/account-details-form";
 import { DealerProfileEditor } from "@/components/dealer/dealer-profile-editor";
 import { DealerSlugEditor } from "@/components/dealer/dealer-slug-editor";
 import { ProfileCompletenessMeter } from "@/components/dealer/profile-completeness-meter";
@@ -45,6 +46,8 @@ export default async function DealerProfilePage() {
           <h2 className="mb-2 text-sm font-semibold text-ink-950">Basics & coverage</h2>
           <DealerProfileForm dealer={dealer} mode="edit" />
         </div>
+
+        <AccountDetailsForm dealer={dealer} />
 
         <DealerProfileEditor dealer={dealer} />
       </div>

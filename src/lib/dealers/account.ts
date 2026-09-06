@@ -63,8 +63,11 @@ export interface MyDealer {
   name: string;
   businessName: string;
   email?: string;
+  /** A requested-but-unverified new email awaiting confirmation, if any. */
+  pendingEmail?: string;
   profilePhoto?: string;
   phone: string;
+  phoneVerified: boolean;
   status: "active" | "paused" | "banned";
   verificationTier: number;
   rating: number;
@@ -188,6 +191,8 @@ export async function getMyDealer(): Promise<MyDealer | null> {
     name: d.name,
     businessName: d.businessName,
     email: d.email ?? undefined,
+    pendingEmail: d.pendingEmail ?? undefined,
+    phoneVerified: Boolean(d.phoneVerified),
     profilePhoto: d.profilePhoto ?? undefined,
     phone: d.phone,
     status: d.status as MyDealer["status"],

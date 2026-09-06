@@ -7,6 +7,7 @@ import { ok, fail, withErrorHandling } from "@/lib/api/response";
 import { requireAdmin } from "@/lib/auth/middleware";
 import { connectDB } from "@/lib/db/connect";
 import { Dealer } from "@/lib/db/models/Dealer";
+import { emailInUse } from "@/lib/auth/account-guards";
 import { validateDealerSlug } from "@/lib/dealers/slug";
 import { isDealerSlugAvailable } from "@/lib/dealers/slug-server";
 import { sanitizeAbout } from "@/lib/security/sanitize";
@@ -136,6 +137,12 @@ export const PATCH = withErrorHandling(
     await connectDB();
     const dealer = await Dealer.findById(id);
     if (!dealer) return fail("NOT_FOUND", "Dealer not found.");
+
+    // Admin can set email directly (no verification), but a collision would break
+    // the password-reset lookup (email must be unique across Dealers + Users).
+    if (b.email && b.email !== dealer.email && (await emailInUse(b.email, id))) {
+      return fail("DUPLICATE", "That email is already in use by another Dealer or User.");
+    }
 
     const oldSlug = dealer.slug ?? null;
 

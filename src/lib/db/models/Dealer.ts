@@ -41,10 +41,17 @@ const dealerSchema = new Schema(
     name: { type: String, required: true, trim: true },
     businessName: { type: String, required: true, trim: true },
     phone: { type: String, required: true, unique: true, trim: true }, // WhatsApp number
+    // Set false whenever the dealer changes their phone; re-verification via
+    // WhatsApp OTP is blocked (WABA unverified) — see the phone route's TODO.
+    phoneVerified: { type: Boolean, default: false },
     // email is the login identity under AUTH_METHOD=password (unique, sparse so
     // OTP-created dealers without an email still validate). passwordHash is set
     // at email/password signup; absent for OTP-created dealers.
     email: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
+    // A requested-but-unverified new email. Swapped into `email` only after the
+    // dealer clicks the verification link sent to THIS address (never written
+    // directly). Not unique — a transient collision is resolved at verify time.
+    pendingEmail: { type: String, trim: true, lowercase: true, default: null },
     passwordHash: { type: String },
     slug: { type: String, unique: true, sparse: true, lowercase: true, trim: true }, // public profile URL
     profilePhoto: { type: String },

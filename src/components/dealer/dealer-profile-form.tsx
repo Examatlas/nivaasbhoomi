@@ -28,7 +28,6 @@ export function DealerProfileForm({
   const [businessName, setBusinessName] = useState(
     PLACEHOLDER_RE.test(dealer.businessName) ? "" : dealer.businessName,
   );
-  const [email, setEmail] = useState(dealer.email ?? "");
   const [photo, setPhoto] = useState<UploadedImage[]>(
     dealer.profilePhoto
       ? [{ url: dealer.profilePhoto, publicId: "", width: 400, height: 400 }]
@@ -71,7 +70,6 @@ export function DealerProfileForm({
         body: JSON.stringify({
           name: name.trim(),
           businessName: businessName.trim(),
-          email: email.trim(),
           profilePhoto: photo[0]?.url ?? "",
           coverageCities,
           coverageLocalities,
@@ -121,22 +119,11 @@ export function DealerProfileForm({
               required
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>WhatsApp number</Label>
-            <Input value={`+${dealer.phone}`} disabled />
-            <p className="text-meta text-muted-foreground">Your login number can&apos;t be changed here.</p>
-          </div>
         </div>
+        <p className="text-meta text-muted-foreground">
+          Manage your account email and phone number under{" "}
+          <span className="font-medium text-ink-800">Account details</span> below.
+        </p>
 
         <div className="flex flex-col gap-1.5">
           <Label>Profile photo</Label>

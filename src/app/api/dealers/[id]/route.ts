@@ -27,7 +27,9 @@ const objectId = (label: string) =>
 const bodySchema = z.object({
   name: z.string().trim().min(2).max(120),
   businessName: z.string().trim().min(2).max(160),
-  email: z.string().trim().email().max(200).optional().or(z.literal("")),
+  // NOTE: email is intentionally NOT editable here. It's a login credential and
+  // must be verified — see POST /api/dealers/[id]/email (pendingEmail flow). Any
+  // `email` key in the body is ignored.
   profilePhoto: z.string().trim().url().max(500).optional().or(z.literal("")),
   coverageCities: z.array(objectId("cityId")).max(100).default([]),
   coverageLocalities: z.array(objectId("localityId")).max(500).default([]),
@@ -91,7 +93,7 @@ export const PATCH = withErrorHandling(
 
     dealer.name = data.name;
     dealer.businessName = data.businessName;
-    dealer.email = data.email || undefined;
+    // email intentionally not written here — see the pendingEmail verify flow.
     if (data.profilePhoto) dealer.profilePhoto = data.profilePhoto;
     else dealer.profilePhoto = undefined;
     dealer.coverageCities = cityIds.map((c) => new mongoose.Types.ObjectId(c));
