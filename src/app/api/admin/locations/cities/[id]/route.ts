@@ -39,7 +39,9 @@ export const GET = withErrorHandling(
     const city = await City.findById(id).lean();
     if (!city) return fail("NOT_FOUND", "City not found.");
 
-    const state = await State.findById(city.stateId, { name: 1, slug: 1 }).lean();
+    const state = mongoose.isValidObjectId(city.stateId)
+      ? await State.findById(city.stateId, { name: 1, slug: 1 }).lean()
+      : null;
     const activation = await canActivateCity(id);
 
     return ok({

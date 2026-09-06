@@ -37,9 +37,9 @@ export const POST = withErrorHandling(
       return fail("VALIDATION_ERROR", "A deleted listing cannot be approved.");
     }
 
-    const dealer = await Dealer.findById(listing.dealerId, {
-      verificationTier: 1,
-    }).lean();
+    const dealer = mongoose.isValidObjectId(listing.dealerId)
+      ? await Dealer.findById(listing.dealerId, { verificationTier: 1 }).lean()
+      : null;
     if (!dealer || (dealer.verificationTier ?? 0) < 1) {
       return fail(
         "VALIDATION_ERROR",

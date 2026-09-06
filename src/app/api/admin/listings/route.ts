@@ -100,9 +100,15 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     Listing.countDocuments(filter),
   ]);
 
-  // Resolve city + dealer names in bulk.
-  const cityIds = [...new Set(items.map((l) => String(l.cityId)))];
-  const dealerIds = [...new Set(items.map((l) => String(l.dealerId)))];
+  // Resolve city + dealer names in bulk. Guard against listings with a
+  // missing/invalid cityId or dealerId: String(undefined) === "undefined",
+  // which CastErrors when cast to ObjectId inside the $in lookup.
+  const cityIds = [
+    ...new Set(items.map((l) => l.cityId).filter((v) => mongoose.isValidObjectId(v)).map(String)),
+  ];
+  const dealerIds = [
+    ...new Set(items.map((l) => l.dealerId).filter((v) => mongoose.isValidObjectId(v)).map(String)),
+  ];
   const [cities, dealers] = await Promise.all([
     City.find({ _id: { $in: cityIds } }, { name: 1 }).lean(),
     Dealer.find({ _id: { $in: dealerIds } }, { businessName: 1 }).lean(),

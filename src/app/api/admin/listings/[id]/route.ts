@@ -33,19 +33,29 @@ export const GET = withErrorHandling(
     const l = await Listing.findById(id).lean();
     if (!l) return fail("NOT_FOUND", "Listing not found.");
 
+    // Guard every foreign-id lookup: a listing with a missing/invalid stored id
+    // would otherwise CastError (String(undefined) → "undefined").
     const [dealer, city, locality, state] = await Promise.all([
-      Dealer.findById(l.dealerId, {
-        name: 1,
-        businessName: 1,
-        phone: 1,
-        verificationTier: 1,
-        rating: 1,
-        ratingCount: 1,
-        status: 1,
-      }).lean(),
-      City.findById(l.cityId, { name: 1, slug: 1 }).lean(),
-      Locality.findById(l.localityId, { name: 1, slug: 1, status: 1 }).lean(),
-      l.stateId ? State.findById(l.stateId, { name: 1 }).lean() : null,
+      mongoose.isValidObjectId(l.dealerId)
+        ? Dealer.findById(l.dealerId, {
+            name: 1,
+            businessName: 1,
+            phone: 1,
+            verificationTier: 1,
+            rating: 1,
+            ratingCount: 1,
+            status: 1,
+          }).lean()
+        : null,
+      mongoose.isValidObjectId(l.cityId)
+        ? City.findById(l.cityId, { name: 1, slug: 1 }).lean()
+        : null,
+      mongoose.isValidObjectId(l.localityId)
+        ? Locality.findById(l.localityId, { name: 1, slug: 1, status: 1 }).lean()
+        : null,
+      mongoose.isValidObjectId(l.stateId)
+        ? State.findById(l.stateId, { name: 1 }).lean()
+        : null,
     ]);
 
     // Admin sees full listing (incl. fullAddress and dealer phone) - the privacy
@@ -53,9 +63,9 @@ export const GET = withErrorHandling(
     return ok({
       ...l,
       _id: String(l._id),
-      dealerId: String(l.dealerId),
-      cityId: String(l.cityId),
-      localityId: String(l.localityId),
+      dealerId: l.dealerId ? String(l.dealerId) : null,
+      cityId: l.cityId ? String(l.cityId) : null,
+      localityId: l.localityId ? String(l.localityId) : null,
       stateId: l.stateId ? String(l.stateId) : null,
       dealer: dealer
         ? {

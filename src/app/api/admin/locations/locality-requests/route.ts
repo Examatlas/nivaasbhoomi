@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import type mongoose from "mongoose";
+import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db/connect";
 import { Locality } from "@/lib/db/models/Locality";
@@ -51,8 +51,11 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     Locality.countDocuments(filter),
   ]);
 
-  // Resolve city names in one query.
-  const cityIds = [...new Set(items.map((l) => String(l.cityId)))];
+  // Resolve city names in one query. Guard against requests with a
+  // missing/invalid cityId (String(undefined) === "undefined" → CastError).
+  const cityIds = [
+    ...new Set(items.map((l) => l.cityId).filter((v) => mongoose.isValidObjectId(v)).map(String)),
+  ];
   const cities = await City.find({ _id: { $in: cityIds } }, { name: 1, slug: 1 }).lean();
   const cityById = new Map(cities.map((c) => [String(c._id), c]));
 

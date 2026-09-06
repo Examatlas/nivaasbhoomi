@@ -46,7 +46,9 @@ export const GET = withErrorHandling(
     const l = await Locality.findById(id).lean();
     if (!l) return fail("NOT_FOUND", "Locality not found.");
 
-    const city = await City.findById(l.cityId, { name: 1, slug: 1 }).lean();
+    const city = mongoose.isValidObjectId(l.cityId)
+      ? await City.findById(l.cityId, { name: 1, slug: 1 }).lean()
+      : null;
     const introTextChars = (l.introText ?? "").trim().length;
 
     return ok({

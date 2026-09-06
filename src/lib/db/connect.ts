@@ -50,6 +50,12 @@ export async function connectDB(): Promise<Mongoose> {
         // dead connection into a 10s hang instead of an immediate, catchable error.
         bufferCommands: false,
 
+        // Never build indexes on the request path. Otherwise a schema-declared
+        // index that prod lacks triggers a slow createIndex on first model use,
+        // stalling (and, under contention, failing) live requests. Indexes are
+        // synced out of band instead: `npm run db:sync-indexes`.
+        autoIndex: false,
+
         // One warm container serves requests sequentially, so a large pool is
         // wasted Atlas capacity. Small pool, many containers.
         maxPoolSize: 10,
