@@ -34,6 +34,7 @@ import { Lead } from "@/lib/db/models/Lead";
 import { User } from "@/lib/db/models/User";
 import { Otp } from "@/lib/db/models/Otp";
 import { OtpRequestLog } from "@/lib/db/models/OtpRequestLog";
+import { ContactMessage } from "@/lib/db/models/ContactMessage";
 
 function mask(uri: string): string {
   return uri.replace(/(:\/\/[^:/@]+:)[^@]+(@)/, "$1****$2");
@@ -50,6 +51,7 @@ const MODELS: [string, Model<any>][] = [
   ["User", User],
   ["Otp", Otp],
   ["OtpRequestLog", OtpRequestLog],
+  ["ContactMessage", ContactMessage],
 ];
 
 async function main() {

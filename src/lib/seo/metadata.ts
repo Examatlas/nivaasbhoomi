@@ -53,6 +53,16 @@ function build({ title, description, path, image, noindex }: BaseSeo): Metadata 
   };
 }
 
+// ---- Static / legal pages (index + follow, self-canonical) ----
+
+export function staticPageMetadata(opts: {
+  title: string;
+  description: string;
+  path: string;
+}): Metadata {
+  return build({ title: opts.title, description: opts.description, path: opts.path });
+}
+
 // ---- Home ----
 
 export function homeMetadata(): Metadata {

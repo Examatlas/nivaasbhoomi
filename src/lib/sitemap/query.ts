@@ -355,5 +355,11 @@ export function getStaticSitemapEntries(): SitemapEntry[] {
     { url: absoluteUrl("/tools"), lastModified: now, changeFrequency: "monthly" },
     { url: absoluteUrl("/tools/emi-calculator"), lastModified: now, changeFrequency: "monthly" },
     { url: absoluteUrl("/tools/stamp-duty-calculator"), lastModified: now, changeFrequency: "monthly" },
+    { url: absoluteUrl("/about-us"), lastModified: now, changeFrequency: "monthly" },
+    { url: absoluteUrl("/contact-us"), lastModified: now, changeFrequency: "monthly" },
+    { url: absoluteUrl("/privacy-policy"), lastModified: now, changeFrequency: "yearly" },
+    { url: absoluteUrl("/terms-and-conditions"), lastModified: now, changeFrequency: "yearly" },
+    { url: absoluteUrl("/refund-policy"), lastModified: now, changeFrequency: "yearly" },
+    { url: absoluteUrl("/disclaimer"), lastModified: now, changeFrequency: "yearly" },
   ];
 }

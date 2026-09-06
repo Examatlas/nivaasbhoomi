@@ -1,11 +1,10 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Clock, ChevronDown } from "lucide-react";
+import { Clock } from "lucide-react";
 
 import { Logo } from "@/components/shared/logo";
-import { OtpLoginForm } from "@/components/auth/otp-login-form";
-import { DealerAuthForm } from "@/components/dealer/dealer-auth-form";
+import { DealerLoginPanel } from "@/components/dealer/dealer-login-panel";
 import { dealerLoginEnabled } from "@/lib/config/flags";
 
 export const metadata: Metadata = {
@@ -50,18 +49,7 @@ export default function DealerLoginPage() {
             </div>
           ) : (
             <Suspense fallback={null}>
-              <OtpLoginForm role="dealer" />
-
-              {/* Password is the fallback if WhatsApp is unavailable. */}
-              <details className="group mt-6 border-t border-border pt-4">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium text-ink-800 [&::-webkit-details-marker]:hidden">
-                  Login with password instead
-                  <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
-                </summary>
-                <div className="mt-4">
-                  <DealerAuthForm />
-                </div>
-              </details>
+              <DealerLoginPanel />
             </Suspense>
           )}
         </div>

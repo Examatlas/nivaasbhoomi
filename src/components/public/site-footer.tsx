@@ -9,31 +9,29 @@ import { Logo } from "@/components/shared/logo";
  */
 const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
   {
-    title: "Popular Cities",
+    title: "Explore",
     links: [
-      { href: "/", label: "Ranchi" },
-      { href: "/", label: "Patna" },
-      { href: "/", label: "Jamshedpur" },
-      { href: "/", label: "Dhanbad" },
-    ],
-  },
-  {
-    title: "Property Types",
-    links: [
-      { href: "/", label: "Flats" },
-      { href: "/", label: "Independent Houses" },
-      { href: "/", label: "Plots" },
-      { href: "/", label: "Commercial" },
+      { href: "/search", label: "Browse listings" },
+      { href: "/blog", label: "Guides" },
+      { href: "/tools", label: "Calculators" },
+      { href: "/tools/emi-calculator", label: "EMI calculator" },
     ],
   },
   {
     title: "Company",
     links: [
-      { href: "/blog", label: "Guides" },
-      { href: "/tools", label: "Calculators" },
+      { href: "/about-us", label: "About us" },
+      { href: "/contact-us", label: "Contact us" },
       { href: "/dealer/login", label: "List your property" },
-      { href: "/", label: "About" },
-      { href: "/", label: "Contact" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { href: "/privacy-policy", label: "Privacy Policy" },
+      { href: "/terms-and-conditions", label: "Terms & Conditions" },
+      { href: "/refund-policy", label: "Refund Policy" },
+      { href: "/disclaimer", label: "Disclaimer" },
     ],
   },
 ];
@@ -75,11 +73,14 @@ export function SiteFooter() {
         <div className="mt-12 flex flex-col gap-3 border-t border-border pt-6 text-meta text-subtle-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>© {year} NivaasBhoomi. All rights reserved.</p>
           <div className="flex gap-4">
-            <Link href="/" className="hover:text-foreground">
+            <Link href="/privacy-policy" className="hover:text-foreground">
               Privacy
             </Link>
-            <Link href="/" className="hover:text-foreground">
+            <Link href="/terms-and-conditions" className="hover:text-foreground">
               Terms
+            </Link>
+            <Link href="/disclaimer" className="hover:text-foreground">
+              Disclaimer
             </Link>
           </div>
         </div>
