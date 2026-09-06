@@ -13,6 +13,7 @@
 export interface MailResult {
   configured: boolean;
   delivered: boolean;
+  id?: string;
   error?: string;
 }
 
@@ -43,7 +44,10 @@ export async function sendEmail(msg: {
         text: msg.text,
       }),
     });
-    if (res.ok) return { configured: true, delivered: true };
+    if (res.ok) {
+      const data = (await res.json().catch(() => null)) as { id?: string } | null;
+      return { configured: true, delivered: true, id: data?.id };
+    }
     const body = await res.text().catch(() => "");
     return { configured: true, delivered: false, error: `Resend ${res.status}: ${body.slice(0, 200)}` };
   } catch (e) {
