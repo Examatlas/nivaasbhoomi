@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MapPin, Search, Link2 } from "lucide-react";
+import { MapPin, Search, Link2, LocateFixed, Loader2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,13 @@ export interface MapPickerProps {
   /** City centre to focus the map on before a pin is dropped. */
   center?: LatLng | null;
   disabled?: boolean;
+  /** Called with a reverse-geocoded address after the pin is set from the search
+   *  box or "Use my current location" — lets a parent fill an address field. */
+  onResolveAddress?: (address: string) => void;
+  /** Forward-geocode this text and move the pin when `geocodeNonce` changes.
+   *  Lets a parent's address field drive the pin (fires on blur, not per key). */
+  geocodeQuery?: string;
+  geocodeNonce?: number;
 }
 
 const INDIA_DEFAULT: LatLng = { lat: 22.9734, lng: 78.6569 };
@@ -36,7 +43,15 @@ const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
  * Fully controlled - the parent owns { lat, lng } via value/onChange. Used by
  * the admin listing form and, later, the dealer form.
  */
-export function MapPicker({ value, onChange, center, disabled }: MapPickerProps) {
+export function MapPicker({
+  value,
+  onChange,
+  center,
+  disabled,
+  onResolveAddress,
+  geocodeQuery,
+  geocodeNonce,
+}: MapPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapElRef = useRef<HTMLDivElement>(null);
   const searchElRef = useRef<HTMLInputElement>(null);
@@ -44,15 +59,19 @@ export function MapPicker({ value, onChange, center, disabled }: MapPickerProps)
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
   const onChangeRef = useRef(onChange);
-  // Keep the latest onChange without re-instantiating the map.
+  const onResolveAddressRef = useRef(onResolveAddress);
+  // Keep the latest callbacks without re-instantiating the map.
   useEffect(() => {
     onChangeRef.current = onChange;
+    onResolveAddressRef.current = onResolveAddress;
   });
 
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [linkInput, setLinkInput] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [geoBusy, setGeoBusy] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
   const place = (lat: number, lng: number, pan = true) => {
     const pos = { lat, lng };
@@ -130,13 +149,17 @@ export function MapPicker({ value, onChange, center, disabled }: MapPickerProps)
 
         if (searchElRef.current) {
           const ac = new google.maps.places.Autocomplete(searchElRef.current, {
-            fields: ["geometry"],
+            fields: ["geometry", "formatted_address"],
             componentRestrictions: { country: "in" },
           });
           ac.bindTo("bounds", map);
           ac.addListener("place_changed", () => {
-            const loc = ac.getPlace()?.geometry?.location;
-            if (loc) place(loc.lat(), loc.lng());
+            const p = ac.getPlace();
+            const loc = p?.geometry?.location;
+            if (loc) {
+              place(loc.lat(), loc.lng());
+              if (p.formatted_address) onResolveAddressRef.current?.(p.formatted_address);
+            }
           });
         }
 
@@ -178,6 +201,65 @@ export function MapPicker({ value, onChange, center, disabled }: MapPickerProps)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value?.lat, value?.lng, status]);
 
+  // Browser geolocation → drop the pin + reverse-geocode to an address. Errors
+  // are shown inline; never a blocking alert or a silent failure.
+  const useCurrentLocation = () => {
+    if (!("geolocation" in navigator)) {
+      setGeoError("Your browser doesn't support location.");
+      return;
+    }
+    setGeoBusy(true);
+    setGeoError(null);
+    if (status === "idle") setStatus("loading"); // wake the lazy map
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        place(lat, lng);
+        if (onResolveAddressRef.current && window.google?.maps) {
+          try {
+            const res = await new window.google.maps.Geocoder().geocode({
+              location: { lat, lng },
+            });
+            const addr = res.results?.[0]?.formatted_address;
+            if (addr) onResolveAddressRef.current(addr);
+          } catch {
+            /* geocoding optional — the pin is already set */
+          }
+        }
+        setGeoBusy(false);
+      },
+      (err) => {
+        setGeoBusy(false);
+        setGeoError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission denied. Enable it, or drop the pin manually."
+            : "Couldn't get your location. Drop the pin manually.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
+  // Forward-geocode: when the parent bumps `geocodeNonce` (e.g. the address field
+  // blurred), geocode the text and move the pin. Doesn't call onResolveAddress —
+  // the address is what the user typed, so we never overwrite it (no loop).
+  useEffect(() => {
+    if (!geocodeNonce || !geocodeQuery?.trim() || !window.google?.maps) return;
+    let cancelled = false;
+    new window.google.maps.Geocoder()
+      .geocode({ address: geocodeQuery, componentRestrictions: { country: "in" } })
+      .then((res) => {
+        if (cancelled) return;
+        const loc = res.results?.[0]?.geometry?.location;
+        if (loc) place(loc.lat(), loc.lng());
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geocodeNonce]);
+
   const applyLink = () => {
     const coords = extractCoords(linkInput);
     if (!coords) {
@@ -210,6 +292,19 @@ export function MapPicker({ value, onChange, center, disabled }: MapPickerProps)
           />
         </div>
       )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={useCurrentLocation}
+          disabled={disabled || geoBusy}
+          className="inline-flex h-9 items-center gap-1.5 rounded-control border border-border-strong bg-surface px-3 text-meta font-medium text-ink-800 transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {geoBusy ? <Loader2 className="size-4 animate-spin" /> : <LocateFixed className="size-4" />}
+          Use my current location
+        </button>
+        {geoError && <span className="text-meta text-danger-700">{geoError}</span>}
+      </div>
 
       {/* Map surface */}
       {API_KEY ? (

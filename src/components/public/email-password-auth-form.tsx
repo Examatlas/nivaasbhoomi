@@ -7,6 +7,7 @@ import { Mail, Lock, User, Phone, Loader2, LogIn, UserPlus } from "lucide-react"
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 /**
@@ -185,20 +186,32 @@ function Field({
       <Label htmlFor={id} required={required}>
         {label}
       </Label>
-      <div className="relative">
-        <Icon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
+      {type === "password" ? (
+        <PasswordInput
+          icon={Icon}
           id={id}
-          type={type}
-          inputMode={inputMode}
           autoComplete={autoComplete}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="pl-9"
           required={required}
         />
-      </div>
+      ) : (
+        <div className="relative">
+          <Icon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id={id}
+            type={type}
+            inputMode={inputMode}
+            autoComplete={autoComplete}
+            placeholder={placeholder}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="pl-9"
+            required={required}
+          />
+        </div>
+      )}
       {hint && <p className="text-meta text-muted-foreground">{hint}</p>}
     </div>
   );

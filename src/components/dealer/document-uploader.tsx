@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Clock, Upload, Loader2 } from "lucide-react";
+import { CheckCircle2, Clock, Upload, Loader2, Check } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,12 @@ import {
 } from "@/components/ui/select";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
+import {
+  validateRegId,
+  normalizeRegId,
+  RERA_HELP,
+  type RegIdKind,
+} from "@/lib/validation/registration-ids";
 import type { UploadedImage } from "@/types/media";
 import type { DocStatus } from "@/lib/dealers/account";
 
@@ -47,6 +53,8 @@ export function DocumentUploader({
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
 
+  const numberError = hasNumber && number ? validateRegId(doc.key as RegIdKind, number) : null;
+
   useEffect(() => {
     if (!isRera) return;
     apiFetch<Opt[]>("/api/locations/states")
@@ -63,6 +71,10 @@ export function DocumentUploader({
     }
     if (isRera && !stateId) {
       setError("Select the RERA state.");
+      return;
+    }
+    if (numberError) {
+      setError(numberError);
       return;
     }
     setBusy(true);
@@ -124,9 +136,21 @@ export function DocumentUploader({
                 <Label>{doc.label} number</Label>
                 <Input
                   value={number}
-                  onChange={(e) => setNumber(e.target.value)}
-                  placeholder="Registration number"
+                  onChange={(e) => {
+                    setNumber(normalizeRegId(e.target.value));
+                    setJustSaved(false);
+                  }}
+                  invalid={Boolean(numberError)}
+                  placeholder={
+                    doc.key === "gst"
+                      ? "22AAAAA0000A1Z5"
+                      : doc.key === "udyam"
+                        ? "UDYAM-XX-00-0000000"
+                        : "As issued by your state"
+                  }
                 />
+                {numberError && <p className="text-meta text-danger-700">{numberError}</p>}
+                {isRera && <p className="text-meta text-muted-foreground">{RERA_HELP}</p>}
               </div>
               {isRera && (
                 <div className="flex flex-col gap-1.5">
@@ -151,12 +175,20 @@ export function DocumentUploader({
           <ImageUploader
             folder="dealers"
             value={image}
-            onChange={setImage}
+            onChange={(imgs) => {
+              setImage(imgs);
+              setJustSaved(false);
+            }}
             maxCount={1}
             minCount={0}
           />
 
           {error && <p className="text-meta text-danger-700">{error}</p>}
+          {justSaved && (
+            <p className="inline-flex items-center gap-1.5 text-meta font-medium text-success-700">
+              <Check className="size-4" /> Saved. Sent for review.
+            </p>
+          )}
 
           <div>
             <Button size="sm" onClick={save} disabled={busy}>

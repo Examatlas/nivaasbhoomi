@@ -7,6 +7,7 @@ import { Lock, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 /**
@@ -93,37 +94,29 @@ export function ResetPasswordForm() {
         <Label htmlFor="rp-password" required>
           New password
         </Label>
-        <div className="relative">
-          <Lock className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="rp-password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="At least 8 characters"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="pl-9"
-            required
-          />
-        </div>
+        <PasswordInput
+          icon={Lock}
+          id="rp-password"
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="rp-confirm" required>
           Confirm password
         </Label>
-        <div className="relative">
-          <Lock className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="rp-confirm"
-            type="password"
-            autoComplete="new-password"
-            placeholder="Re-enter the password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            className="pl-9"
-            required
-          />
-        </div>
+        <PasswordInput
+          icon={Lock}
+          id="rp-confirm"
+          autoComplete="new-password"
+          placeholder="Re-enter the password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          required
+        />
       </div>
 
       {error && <p className="text-meta text-danger-700">{error}</p>}

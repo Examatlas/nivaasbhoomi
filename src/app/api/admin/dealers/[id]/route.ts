@@ -11,6 +11,7 @@ import { validateDealerSlug } from "@/lib/dealers/slug";
 import { isDealerSlugAvailable } from "@/lib/dealers/slug-server";
 import { sanitizeAbout } from "@/lib/security/sanitize";
 import { revalidateDealerPublicPages } from "@/lib/listings/revalidate";
+import { validateRegId, normalizeRegId } from "@/lib/validation/registration-ids";
 
 /**
  * PATCH /api/admin/dealers/[id]   [admin]   (Phase 5 — force-edit)
@@ -65,8 +66,20 @@ const bodySchema = z.object({
   languages: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
   priceRangeMin: z.number().min(0).nullable().optional(),
   priceRangeMax: z.number().min(0).nullable().optional(),
-  reraNumber: z.string().trim().max(40).optional(),
-  gstNumber: z.string().trim().max(40).optional(),
+  reraNumber: z
+    .string()
+    .trim()
+    .max(40)
+    .transform(normalizeRegId)
+    .refine((v) => validateRegId("rera", v) === null, "Enter a valid RERA number (8–30 chars).")
+    .optional(),
+  gstNumber: z
+    .string()
+    .trim()
+    .max(40)
+    .transform(normalizeRegId)
+    .refine((v) => validateRegId("gst", v) === null, "Enter a valid 15-character GSTIN.")
+    .optional(),
   officeAddress: z.string().trim().max(300).optional(),
   mapLat: z.number().min(-90).max(90).nullable().optional(),
   mapLng: z.number().min(-180).max(180).nullable().optional(),

@@ -122,3 +122,42 @@ const FURNISHING_LABELS: Record<string, string> = {
 export function formatFurnishing(furnishing: string): string {
   return FURNISHING_LABELS[furnishing] ?? furnishing;
 }
+
+const BELOW_20 = [
+  "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+  "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen",
+];
+const TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+function words2(n: number): string {
+  if (n < 20) return BELOW_20[n] ?? "";
+  const t = TENS[Math.floor(n / 10)] ?? "";
+  return n % 10 ? `${t} ${BELOW_20[n % 10] ?? ""}` : t;
+}
+function words3(n: number): string {
+  if (n < 100) return words2(n);
+  const h = BELOW_20[Math.floor(n / 100)] ?? "";
+  return n % 100 ? `${h} Hundred ${words2(n % 100)}` : `${h} Hundred`;
+}
+
+/**
+ * Indian-system amount in words: 500000 -> "Five Lakh",
+ * 12500000 -> "One Crore Twenty Five Lakh". Returns "" for empty/zero/negative
+ * so callers can hide the line; recurses on the crore group for very large values.
+ */
+export function inrWords(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  const n = Math.floor(value);
+  if (n <= 0) return "";
+  if (n < 1000) return words3(n);
+  if (n < 100000) {
+    const r = n % 1000;
+    return `${words2(Math.floor(n / 1000))} Thousand${r ? ` ${words3(r)}` : ""}`;
+  }
+  if (n < 10000000) {
+    const r = n % 100000;
+    return `${words2(Math.floor(n / 100000))} Lakh${r ? ` ${inrWords(r)}` : ""}`;
+  }
+  const r = n % 10000000;
+  return `${inrWords(Math.floor(n / 10000000))} Crore${r ? ` ${inrWords(r)}` : ""}`;
+}

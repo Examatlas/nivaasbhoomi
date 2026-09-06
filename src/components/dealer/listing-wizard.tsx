@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useForm, type UseFormRegisterReturn } from "react-hook-form";
+import { useForm, Controller, type Control, type UseFormRegisterReturn } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { Loader2, Check, ChevronLeft, ChevronRight, Plus, AlertCircle, ArrowRight } from "lucide-react";
 
@@ -18,6 +18,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { ImageUploader } from "@/components/shared/image-uploader";
+import { PriceInput } from "@/components/ui/price-input";
 import { MapPicker } from "@/components/shared/map-picker";
 import { CascadingLocation, type LocationValue } from "@/components/admin/cascading-location";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
@@ -127,7 +128,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
   const [step, setStep] = useState(0);
   const [draftId, setDraftId] = useState<string | null>(initial?.id ?? null);
 
-  const { register, watch, setValue, getValues } = useForm<FormValues>({
+  const { register, control, watch, setValue, getValues } = useForm<FormValues>({
     defaultValues: {
       purpose: initial?.purpose ?? "sale",
       propertyType: initial?.propertyType ?? "flat",
@@ -618,6 +619,9 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
                 value={coords}
                 onChange={(lat, lng) => setCoords({ lat, lng })}
                 center={mapCenter}
+                onResolveAddress={(addr) => {
+                  if (!getValues("fullAddress")) setValue("fullAddress", addr);
+                }}
               />
               {coords && (
                 <p className="mt-1 text-meta text-muted-foreground tabular">
@@ -695,17 +699,17 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
             {purpose === "sale" ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Expected price (₹)" required error={fieldErrors.expectedPrice}>
-                  <NumInput id="field-expectedPrice" reg={register("expectedPrice", { valueAsNumber: true })} />
+                  <PriceField id="field-expectedPrice" name="expectedPrice" control={control} />
                 </Field>
-                <Field label="Booking amount (₹)"><NumInput reg={register("bookingAmount", { valueAsNumber: true })} /></Field>
+                <Field label="Booking amount (₹)"><PriceField name="bookingAmount" control={control} /></Field>
                 <CheckOne label="Price negotiable" checked={Boolean(watch("priceNegotiable"))} onChange={(c) => setValue("priceNegotiable", c)} />
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Monthly rent (₹)" required error={fieldErrors.monthlyRent}>
-                  <NumInput id="field-monthlyRent" reg={register("monthlyRent", { valueAsNumber: true })} />
+                  <PriceField id="field-monthlyRent" name="monthlyRent" control={control} />
                 </Field>
-                <Field label="Security deposit (₹)"><NumInput reg={register("securityDeposit", { valueAsNumber: true })} /></Field>
+                <Field label="Security deposit (₹)"><PriceField name="securityDeposit" control={control} /></Field>
                 <Field label="Available from"><Input type="date" {...register("availableFrom")} /></Field>
                 <Field label="Minimum lease"><Input {...register("minLeasePeriod")} placeholder="e.g. 11 months" /></Field>
                 <CheckGroup label="Preferred tenants" options={TENANTS} value={preferredTenant} onChange={setPreferredTenant} inline />
@@ -713,7 +717,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
               </div>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Maintenance / month (₹)"><NumInput reg={register("maintenanceCharge", { valueAsNumber: true })} /></Field>
+              <Field label="Maintenance / month (₹)"><PriceField name="maintenanceCharge" control={control} /></Field>
               <Field label="Brokerage" hint="Shown publicly for transparency."><Input {...register("brokerage")} placeholder="e.g. No brokerage / 15 days rent" /></Field>
             </div>
           </div>
@@ -843,6 +847,35 @@ function Field({
       {hint && !error && <p className="text-meta text-muted-foreground">{hint}</p>}
       {error && <p className="text-meta text-danger-700">{error}</p>}
     </div>
+  );
+}
+
+/** RHF-bound price field: live INR grouping + words, stores a raw Number. */
+function PriceField({
+  name,
+  control,
+  id,
+}: {
+  name: "expectedPrice" | "bookingAmount" | "monthlyRent" | "securityDeposit" | "maintenanceCharge";
+  control: Control<FormValues>;
+  id?: string;
+}) {
+  return (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field }) => (
+        <PriceInput
+          id={id}
+          value={
+            field.value != null && !Number.isNaN(field.value as number)
+              ? String(field.value)
+              : ""
+          }
+          onChange={(raw) => field.onChange(raw === "" ? NaN : Number(raw))}
+        />
+      )}
+    />
   );
 }
 

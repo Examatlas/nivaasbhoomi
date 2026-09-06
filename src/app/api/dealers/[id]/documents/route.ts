@@ -7,6 +7,7 @@ import { requireDealer } from "@/lib/auth/middleware";
 import { connectDB } from "@/lib/db/connect";
 import { Dealer } from "@/lib/db/models/Dealer";
 import { State } from "@/lib/db/models/State";
+import { validateRegId, normalizeRegId } from "@/lib/validation/registration-ids";
 
 /**
  * POST /api/dealers/[id]/documents   [dealer auth, self]  (DEV-SPEC.txt S4, S13)
@@ -24,14 +25,23 @@ const objectId = z
   .string()
   .refine((v) => mongoose.Types.ObjectId.isValid(v), "Invalid id");
 
-const bodySchema = z.object({
-  type: z.enum(["pan", "aadhaar", "gst", "udyam", "rera", "officePhoto"]),
-  url: z.string().trim().url().max(500),
-  number: z.string().trim().max(60).optional(),
-  stateId: objectId.optional(),
-  lat: z.number().min(6).max(38).optional(),
-  lng: z.number().min(68).max(98).optional(),
-});
+const bodySchema = z
+  .object({
+    type: z.enum(["pan", "aadhaar", "gst", "udyam", "rera", "officePhoto"]),
+    url: z.string().trim().url().max(500),
+    number: z.string().trim().max(60).optional(),
+    stateId: objectId.optional(),
+    lat: z.number().min(6).max(38).optional(),
+    lng: z.number().min(68).max(98).optional(),
+  })
+  .superRefine((b, ctx) => {
+    // GST / Udyam / RERA numbers are format-validated server-side (source of
+    // truth). Optional: only a non-empty value is checked.
+    if ((b.type === "gst" || b.type === "udyam" || b.type === "rera") && b.number) {
+      const msg = validateRegId(b.type, b.number);
+      if (msg) ctx.addIssue({ code: "custom", path: ["number"], message: msg });
+    }
+  });
 
 export const POST = withErrorHandling(
   async (req: NextRequest, ctx: RouteContext<"/api/dealers/[id]/documents">) => {
@@ -73,7 +83,7 @@ export const POST = withErrorHandling(
       verified: false, // dealer upload is never self-verified
     };
     if (type === "gst" || type === "udyam" || type === "rera") {
-      if (number) entry.number = number;
+      if (number) entry.number = normalizeRegId(number);
     }
     if (type === "rera" && stateId) entry.stateId = new mongoose.Types.ObjectId(stateId);
     if (type === "officePhoto") {

@@ -9,8 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PriceInput } from "@/components/ui/price-input";
 import { ImageUploader } from "@/components/shared/image-uploader";
+import { MapPicker } from "@/components/shared/map-picker";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
+import { validateRegId, normalizeRegId, RERA_HELP } from "@/lib/validation/registration-ids";
 import type { UploadedImage } from "@/types/media";
 import type { MyDealer } from "@/lib/dealers/account";
 
@@ -78,6 +81,11 @@ export function DealerProfileEditor({ dealer }: { dealer: MyDealer }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // Bumped when the office-address field blurs, to forward-geocode + move the pin.
+  const [geoNonce, setGeoNonce] = useState(0);
+
+  const reraError = reraNumber ? validateRegId("rera", reraNumber) : null;
+  const gstError = gstNumber ? validateRegId("gst", gstNumber) : null;
 
   function toggleDeal(v: string, on: boolean) {
     setDealTypes((cur) => (on ? [...cur, v] : cur.filter((x) => x !== v)));
@@ -88,6 +96,10 @@ export function DealerProfileEditor({ dealer }: { dealer: MyDealer }) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (reraError || gstError) {
+      setError(reraError ?? gstError);
+      return;
+    }
     setBusy(true);
     setError(null);
     setSaved(false);
@@ -181,21 +193,52 @@ export function DealerProfileEditor({ dealer }: { dealer: MyDealer }) {
       {/* Details */}
       <Section title="Details">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Price range from (₹)"><NumInput value={priceMin} onChange={setPriceMin} /></Field>
-          <Field label="Price range to (₹)"><NumInput value={priceMax} onChange={setPriceMax} /></Field>
-          <Field label="RERA number"><Input value={reraNumber} onChange={(e) => setReraNumber(e.target.value)} maxLength={40} /></Field>
-          <Field label="GST number"><Input value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} maxLength={40} /></Field>
+          <Field label="Price range from"><PriceInput value={priceMin} onChange={setPriceMin} /></Field>
+          <Field label="Price range to"><PriceInput value={priceMax} onChange={setPriceMax} /></Field>
+          <Field label="RERA number" hint={RERA_HELP}>
+            <Input
+              value={reraNumber}
+              onChange={(e) => setReraNumber(normalizeRegId(e.target.value))}
+              invalid={Boolean(reraError)}
+              maxLength={40}
+            />
+            {reraError && <p className="text-meta text-danger-700">{reraError}</p>}
+          </Field>
+          <Field label="GST number">
+            <Input
+              value={gstNumber}
+              onChange={(e) => setGstNumber(normalizeRegId(e.target.value))}
+              invalid={Boolean(gstError)}
+              maxLength={40}
+            />
+            {gstError && <p className="text-meta text-danger-700">{gstError}</p>}
+          </Field>
           <Field label="Languages" hint="Comma-separated"><Input value={languages} onChange={(e) => setLanguages(e.target.value)} placeholder="Hindi, English" /></Field>
         </div>
       </Section>
 
       {/* Contact */}
       <Section title="Contact & hours">
-        <Field label="Office address"><Input value={officeAddress} onChange={(e) => setOfficeAddress(e.target.value)} maxLength={300} /></Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Map latitude"><NumInput value={mapLat} onChange={setMapLat} /></Field>
-          <Field label="Map longitude"><NumInput value={mapLng} onChange={setMapLng} /></Field>
-        </div>
+        <Field label="Office address" hint="Type to move the pin, drag it, or use your current location.">
+          <Input
+            value={officeAddress}
+            onChange={(e) => setOfficeAddress(e.target.value)}
+            onBlur={() => officeAddress.trim() && setGeoNonce((n) => n + 1)}
+            maxLength={300}
+          />
+        </Field>
+        <Field label="Pin your office on the map">
+          <MapPicker
+            value={mapLat && mapLng ? { lat: Number(mapLat), lng: Number(mapLng) } : null}
+            onChange={(lat, lng) => {
+              setMapLat(String(lat));
+              setMapLng(String(lng));
+            }}
+            onResolveAddress={(addr) => setOfficeAddress(addr)}
+            geocodeQuery={officeAddress}
+            geocodeNonce={geoNonce}
+          />
+        </Field>
 
         <div className="flex flex-col gap-1.5">
           <Label>Working hours</Label>

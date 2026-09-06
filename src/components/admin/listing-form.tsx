@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { MapPicker } from "@/components/shared/map-picker";
+import { PriceInput } from "@/components/ui/price-input";
 import {
   CascadingLocation,
   type LocationValue,
@@ -238,7 +239,12 @@ export function ListingForm() {
               {mapValue ? `${mapValue.lat}, ${mapValue.lng}` : "drop a pin"}
             </span>
           </Label>
-          <MapPicker value={mapValue} onChange={setCoords} center={mapCenter} />
+          <MapPicker
+            value={mapValue}
+            onChange={setCoords}
+            center={mapCenter}
+            onResolveAddress={(addr) => set("fullAddress")(addr)}
+          />
           {(errorText("lat") || errorText("lng")) && (
             <span className="text-meta text-danger-600">A map location is required.</span>
           )}
@@ -460,21 +466,16 @@ export function ListingForm() {
         {purpose === "sale" ? (
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <TextField
-                label="Expected price (₹)"
-                value={g("expectedPrice")}
-                onChange={set("expectedPrice")}
-                type="number"
-                required
-              />
+              <div className="flex flex-col gap-1.5">
+                <Label required>Expected price</Label>
+                <PriceInput value={g("expectedPrice")} onChange={set("expectedPrice")} />
+              </div>
               {errorText("expectedPrice")}
             </div>
-            <TextField
-              label="Booking amount (₹)"
-              value={g("bookingAmount")}
-              onChange={set("bookingAmount")}
-              type="number"
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label>Booking amount</Label>
+              <PriceInput value={g("bookingAmount")} onChange={set("bookingAmount")} />
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label>Negotiable</Label>
               <Select
@@ -494,21 +495,16 @@ export function ListingForm() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <TextField
-                label="Monthly rent (₹)"
-                value={g("monthlyRent")}
-                onChange={set("monthlyRent")}
-                type="number"
-                required
-              />
+              <div className="flex flex-col gap-1.5">
+                <Label required>Monthly rent</Label>
+                <PriceInput value={g("monthlyRent")} onChange={set("monthlyRent")} />
+              </div>
               {errorText("monthlyRent")}
             </div>
-            <TextField
-              label="Security deposit (₹)"
-              value={g("securityDeposit")}
-              onChange={set("securityDeposit")}
-              type="number"
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label>Security deposit</Label>
+              <PriceInput value={g("securityDeposit")} onChange={set("securityDeposit")} />
+            </div>
             <TextField
               label="Min lease period"
               value={g("minLeasePeriod")}
@@ -539,12 +535,10 @@ export function ListingForm() {
           </div>
         )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
-            label="Maintenance charge (₹/mo)"
-            value={g("maintenanceCharge")}
-            onChange={set("maintenanceCharge")}
-            type="number"
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label>Maintenance charge (₹/mo)</Label>
+            <PriceInput value={g("maintenanceCharge")} onChange={set("maintenanceCharge")} />
+          </div>
           <TextField
             label="Brokerage (shown publicly)"
             value={g("brokerage")}
