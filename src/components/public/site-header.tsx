@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/public/mobile-nav";
+import { HeaderAuth } from "@/components/auth/header-auth";
 
 const NAV_LINKS = [
   { href: "/", label: "Buy" },
@@ -37,12 +38,10 @@ export function SiteHeader() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link href="/login">Sign in</Link>
-          </Button>
           <Button asChild variant="primary" size="sm" className="hidden md:inline-flex">
             <Link href="/dealer/login">List your property</Link>
           </Button>
+          <HeaderAuth />
           <MobileNav links={NAV_LINKS} />
         </div>
       </div>

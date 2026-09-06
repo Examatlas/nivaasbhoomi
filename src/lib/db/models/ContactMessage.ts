@@ -13,6 +13,7 @@ const contactMessageSchema = new Schema(
     subject: { type: String, required: true, trim: true },
     message: { type: String, required: true, trim: true },
     ip: { type: String, index: true },
+    readAt: { type: Date, default: null }, // null = unread
   },
   { timestamps: true },
 );

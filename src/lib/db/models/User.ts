@@ -19,7 +19,7 @@ const userSchema = new Schema(
   {
     phone: { type: String, required: true, trim: true }, // canonical "91XXXXXXXXXX"
     phoneVerified: { type: Boolean, default: false }, // true once a login OTP is confirmed
-    email: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
+    email: { type: String, trim: true, lowercase: true }, // optional; partial-unique index below
     passwordHash: { type: String },
     emailVerified: { type: Boolean, default: false },
     name: { type: String, trim: true },
@@ -37,6 +37,12 @@ const userSchema = new Schema(
 userSchema.index(
   { phone: 1 },
   { unique: true, partialFilterExpression: { phone: { $type: "string" } } },
+);
+// Email is optional (most buyers have none). Partial-unique so it is enforced
+// only when present — no null collisions.
+userSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { email: { $type: "string" } } },
 );
 
 export type UserDoc = InferSchemaType<typeof userSchema>;
