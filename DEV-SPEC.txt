@@ -1112,6 +1112,16 @@ QUOTA RESET (cron, daily 00:05 IST)
       quotaResetAt = now + 30 days
 
 
+CRON SCHEDULING NOTE (Vercel Hobby)
+-----------------------------------
+  Vercel Hobby = max 1 cron/day. Only DAILY crons go in vercel.json
+  (quota-reset, expiry). Sub-daily crons (e.g. /api/cron/lead-sla, the
+  lead-SLA auto-reassign that must run every ~5 min) are NOT in vercel.json;
+  they are triggered by an external scheduler (cron-job.org) with a GET
+  request carrying the header:
+      Authorization: Bearer <CRON_SECRET>
+
+
 ================================================================
 SECTION 13: BUSINESS RULES (AUTHORITATIVE)
 ================================================================
