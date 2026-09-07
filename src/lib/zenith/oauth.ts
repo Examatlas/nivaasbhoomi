@@ -62,8 +62,18 @@ function tokenUrl(): string {
   return base ? `${base.replace(/\/+$/, "")}/api/oauth/token` : "";
 }
 
+/**
+ * The one source of truth for redirect_uri — used identically by the authorize
+ * redirect AND the server-to-server token exchange, and by popup + full-page
+ * (popup only changes the signed `state`, never this). Value comes ONLY from
+ * ZENITH_REDIRECT_URI; if unset, it's derived from NEXT_PUBLIC_SITE_URL (via
+ * SITE_URL) + the fixed callback path. Never hardcoded. Any trailing slash is
+ * stripped so it matches Zenith's registered URI byte-for-byte, and passing it
+ * through URLSearchParams.set() / JSON body means it is encoded exactly once.
+ */
 export function zenithRedirectUri(): string {
-  return env("ZENITH_REDIRECT_URI") || `${SITE_URL}/oauth/zenithcode/callback`;
+  const base = env("ZENITH_REDIRECT_URI") || `${SITE_URL}/oauth/zenithcode/callback`;
+  return base.replace(/\/+$/, "");
 }
 
 // ---- CSRF state (a short-lived signed JWT tying the flow to one dealer) ----
