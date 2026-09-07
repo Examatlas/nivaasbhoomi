@@ -34,6 +34,7 @@ import { Lead } from "@/lib/db/models/Lead";
 import { User } from "@/lib/db/models/User";
 import { Otp } from "@/lib/db/models/Otp";
 import { OtpRequestLog } from "@/lib/db/models/OtpRequestLog";
+import { DealerSignupLog } from "@/lib/db/models/DealerSignupLog";
 import { ContactMessage } from "@/lib/db/models/ContactMessage";
 
 function mask(uri: string): string {
@@ -51,6 +52,7 @@ const MODELS: [string, Model<any>][] = [
   ["User", User],
   ["Otp", Otp],
   ["OtpRequestLog", OtpRequestLog],
+  ["DealerSignupLog", DealerSignupLog],
   ["ContactMessage", ContactMessage],
 ];
 

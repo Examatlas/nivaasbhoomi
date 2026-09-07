@@ -98,15 +98,22 @@ const dealerSchema = new Schema(
     planExpiresAt: { type: Date },
 
     // status
-    // "pending" = created via a buyer upgrade, awaiting admin approval. A pending
-    // dealer is NOT "active", so it is excluded from ALL lead routing (rotation,
+    // "pending"  = created via self-signup / buyer upgrade, awaiting admin approval.
+    // "rejected" = admin declined the signup (reason emailed to the dealer).
+    // Neither is "active", so both are excluded from ALL lead routing (rotation,
     // listing-owner and agent-profile paths all gate on status === "active") and
-    // is blocked from creating listings — until an admin sets it "active".
+    // are blocked from creating listings — until an admin sets it "active".
     status: {
       type: String,
-      enum: ["active", "paused", "banned", "pending"],
+      enum: ["active", "paused", "banned", "pending", "rejected"],
       default: "active",
     },
+    // Admin's reason when status is "rejected" — surfaced to the dealer by email.
+    rejectionReason: { type: String, default: null },
+    // Anti-spam: FLAGGED (never blocked) when another dealer already uses this
+    // exact business name in an overlapping coverage city. Admin reviews it.
+    duplicateFlagged: { type: Boolean, default: false },
+    duplicateReason: { type: String, default: null },
     listingCount: { type: Number, default: 0 },
 
     /**

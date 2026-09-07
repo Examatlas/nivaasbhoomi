@@ -68,9 +68,9 @@ test("isExpired: true only past the TTL", () => {
 });
 
 // ---- verify outcomes ----
-test("decideVerify: dealer must exist; buyer auto-creates", () => {
-  assert.equal(decideVerify("dealer", true), "ok-dealer");
-  assert.equal(decideVerify("dealer", false), "dealer-not-found");
+test("decideVerify: existing dealer signs in; a new number registers; buyer auto-creates", () => {
+  assert.equal(decideVerify("dealer", true), "ok-dealer"); // existing dealer → dashboard
+  assert.equal(decideVerify("dealer", false), "register-dealer"); // no dealer → self-registration
   assert.equal(decideVerify("buyer", true), "ok-user");
   assert.equal(decideVerify("buyer", false), "create-user"); // buyer auto-create
 });

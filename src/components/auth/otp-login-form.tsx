@@ -14,7 +14,8 @@ const RESEND_SECONDS = 30;
 /**
  * WhatsApp login OTP — single entry point for both buyers and dealers. Enter a
  * number, get a 6-digit code on WhatsApp, verify. First-time buyer numbers are
- * created on verify; dealers must already exist (manual signup). No passwords.
+ * created on verify; a dealer number with no dealer yet is sent to self-
+ * registration (/dealer/register). No passwords.
  */
 export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
   const router = useRouter();
@@ -26,7 +27,6 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dealerMissing, setDealerMissing] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const boxes = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -41,7 +41,6 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
   async function sendOtp(e?: React.FormEvent) {
     e?.preventDefault();
     setError(null);
-    setDealerMissing(false);
     setBusy(true);
     try {
       await apiFetch("/api/auth/otp/send", {
@@ -61,24 +60,25 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
 
   async function verify(fullCode: string) {
     setError(null);
-    setDealerMissing(false);
     setBusy(true);
     try {
-      const res = await apiFetch<{ redirect?: string }>("/api/auth/otp/verify", {
-        method: "POST",
-        body: JSON.stringify({ phone: phone.trim(), code: fullCode, role }),
-      });
-      router.replace(next || res.redirect || (role === "dealer" ? "/dealer/dashboard" : "/"));
+      const res = await apiFetch<{ redirect?: string; needsRegistration?: boolean }>(
+        "/api/auth/otp/verify",
+        {
+          method: "POST",
+          body: JSON.stringify({ phone: phone.trim(), code: fullCode, role }),
+        },
+      );
+      // A verified dealer number with no dealer yet → self-registration. That
+      // redirect always wins over any `next` (they must register first).
+      if (res.needsRegistration && res.redirect) {
+        router.replace(res.redirect);
+      } else {
+        router.replace(next || res.redirect || (role === "dealer" ? "/dealer/dashboard" : "/"));
+      }
       router.refresh();
     } catch (err) {
-      if (
-        err instanceof ApiClientError &&
-        (err.details as { reason?: string } | undefined)?.reason === "dealer_not_found"
-      ) {
-        setDealerMissing(true);
-      } else {
-        setError(err instanceof ApiClientError ? err.message : "Could not verify the code.");
-      }
+      setError(err instanceof ApiClientError ? err.message : "Could not verify the code.");
       setDigits(Array(6).fill(""));
       boxes.current[0]?.focus();
     } finally {
@@ -159,7 +159,6 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
         onClick={() => {
           setStep("phone");
           setError(null);
-          setDealerMissing(false);
         }}
         className="inline-flex items-center gap-1 self-start text-meta font-medium text-clay-700 hover:underline"
       >
@@ -190,14 +189,7 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
         </div>
       </div>
 
-      {dealerMissing ? (
-        <p className="rounded-control border border-warning-100 bg-warning-50 px-3 py-2 text-meta text-warning-700">
-          No dealer account is registered for this number. Dealer onboarding is manual right now —
-          please contact us to get set up.
-        </p>
-      ) : error ? (
-        <p className="text-meta text-danger-700">{error}</p>
-      ) : null}
+      {error && <p className="text-meta text-danger-700">{error}</p>}
 
       <Button onClick={() => verify(code)} disabled={busy || code.length !== 6} block>
         {busy ? <Loader2 className="size-4 animate-spin" /> : null}

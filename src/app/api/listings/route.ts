@@ -42,13 +42,15 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   await connectDB();
 
-  // A pending (upgrade-created, unapproved) dealer cannot create listings.
+  // A pending (unapproved) or rejected dealer cannot create listings.
   // Server-side block — not just UI (Section 13).
   const me = await Dealer.findById(auth.identity.dealerId, { status: 1 }).lean();
-  if (me?.status === "pending") {
+  if (me?.status === "pending" || me?.status === "rejected") {
     return fail(
       "FORBIDDEN",
-      "Your dealer account is awaiting admin approval. You can add listings once it is approved.",
+      me?.status === "rejected"
+        ? "Your dealer account was not approved. Please contact support."
+        : "Your dealer account is awaiting admin approval. You can add listings once it is approved.",
     );
   }
 

@@ -23,7 +23,8 @@ import {
  *
  * Verifies the login OTP and signs the matching session (existing JWT cookie
  * pattern). Max 5 attempts, then the code is burned. On success:
- *   dealer -> must already exist (manual signup); else 404 dealer_not_found.
+ *   dealer -> existing dealer signs in; a number with no dealer gets a verified
+ *             User + buyer session and is sent to /dealer/register (self-signup).
  *   buyer  -> found, else auto-created with phoneVerified = true.
  */
 export const runtime = "nodejs";
@@ -76,11 +77,45 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   if (role === "dealer") {
     const dealer = await Dealer.findOne({ phone });
-    if (decideVerify("dealer", Boolean(dealer)) === "dealer-not-found" || !dealer) {
-      return fail("NOT_FOUND", "No dealer account is registered for this number.", {
-        reason: "dealer_not_found",
+
+    // No dealer on this number → self-registration (no dead end). Find or create
+    // the underlying User (phoneVerified), set the BUYER session so the dealer
+    // registration form can submit to /api/users/me/upgrade (requireUser), then
+    // point the client at /dealer/register. The upgrade route creates the Dealer
+    // as "pending", links both sides, and emails an admin.
+    if (decideVerify("dealer", Boolean(dealer)) === "register-dealer" || !dealer) {
+      let user = await User.findOne({ phone });
+      if (!user) {
+        user = await User.create({ phone, phoneVerified: true, lastLoginAt: new Date() });
+      } else {
+        user.phoneVerified = true;
+        user.lastLoginAt = new Date();
+        await user.save();
+      }
+      // Already linked to a dealer (edge: linked User, dealer lookup raced) →
+      // straight to the dashboard with both sessions.
+      const store = await cookies();
+      const linkedDealerId = user.dealerId ? String(user.dealerId) : undefined;
+      const userToken = await signSession({
+        role: "user",
+        userId: String(user._id),
+        ...(linkedDealerId ? { dealerId: linkedDealerId } : {}),
+      });
+      store.set(USER_COOKIE, userToken, sessionCookieOptions());
+      if (linkedDealerId) {
+        const dealerToken = await signSession({ role: "dealer", dealerId: linkedDealerId });
+        store.set(DEALER_COOKIE, dealerToken, sessionCookieOptions());
+        return ok({ role: "dealer", dealerId: linkedDealerId, redirect: "/dealer/dashboard" });
+      }
+      return ok({
+        role: "user",
+        userId: String(user._id),
+        needsRegistration: true,
+        name: user.name ?? null,
+        redirect: "/dealer/register",
       });
     }
+
     if (dealer.status === "banned") {
       return fail("FORBIDDEN", "This account has been suspended.");
     }

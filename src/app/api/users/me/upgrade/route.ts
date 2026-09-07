@@ -10,8 +10,14 @@ import { DEALER_COOKIE, USER_COOKIE, sessionCookieOptions } from "@/lib/auth/coo
 import { connectDB } from "@/lib/db/connect";
 import { User } from "@/lib/db/models/User";
 import { Dealer } from "@/lib/db/models/Dealer";
+import { DealerSignupLog } from "@/lib/db/models/DealerSignupLog";
 import { City } from "@/lib/db/models/City";
 import { validateRegId, normalizeRegId } from "@/lib/validation/registration-ids";
+import {
+  signupRateLimitDecision,
+  isDuplicateSignup,
+  SIGNUP_RATE_WINDOW_SECONDS,
+} from "@/lib/dealers/signup";
 import { sendEmail } from "@/lib/email/mailer";
 import { COMPANY } from "@/lib/legal/company";
 import { BRAND } from "@/lib/seo/site";
@@ -109,6 +115,36 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     return fail("VALIDATION_ERROR", "One or more coverage cities are invalid.");
   }
 
+  // Anti-spam: cap dealer creations at 3/hour/IP (a TTL log windows the count).
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
+  const ipCount = await DealerSignupLog.countDocuments({
+    ip,
+    createdAt: { $gte: new Date(Date.now() - SIGNUP_RATE_WINDOW_SECONDS * 1000) },
+  });
+  const rate = signupRateLimitDecision(ipCount);
+  if (!rate.allowed) {
+    return fail("RATE_LIMITED", "Too many signups from this network. Please try again later.", {
+      retryAfter: rate.retryAfter,
+    });
+  }
+
+  // Flag (never block) an exact business-name duplicate in an overlapping city.
+  const cityOids = b.coverageCities.map((c) => new mongoose.Types.ObjectId(c));
+  const dupCandidates = await Dealer.find(
+    { coverageCities: { $in: cityOids } },
+    { businessName: 1, coverageCities: 1 },
+  ).lean();
+  const isDuplicate = isDuplicateSignup(
+    { businessName: b.businessName, cities: b.coverageCities },
+    dupCandidates.map((d) => ({
+      businessName: d.businessName,
+      cities: (d.coverageCities ?? []).map(String),
+    })),
+  );
+
   const documents: Record<string, unknown> = {};
   if (b.gstNumber) documents.gst = { number: normalizeRegId(b.gstNumber), verified: false };
   if (b.udyamNumber) documents.udyam = { number: normalizeRegId(b.udyamNumber), verified: false };
@@ -122,26 +158,38 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     userId: new mongoose.Types.ObjectId(userId),
     status: "pending",
     dealTypes: b.dealTypes,
-    coverageCities: b.coverageCities.map((c) => new mongoose.Types.ObjectId(c)),
+    coverageCities: cityOids,
     coverageLocalities: b.coverageLocalities.map((l) => new mongoose.Types.ObjectId(l)),
+    ...(isDuplicate
+      ? {
+          duplicateFlagged: true,
+          duplicateReason: "Same business name in an overlapping coverage city.",
+        }
+      : {}),
     ...(Object.keys(documents).length ? { documents } : {}),
   });
+  await DealerSignupLog.create({ ip });
   user.dealerId = dealer._id;
   await user.save();
   await setDealerCookie(userId, String(dealer._id));
 
   // Notify an admin (best-effort).
   const adminTo = process.env.ADMIN_EMAIL || COMPANY.email;
+  const dupNote = isDuplicate
+    ? " ⚠ Flagged: same business name in an overlapping coverage city — review for a possible duplicate."
+    : "";
   await sendEmail({
     to: adminTo,
     subject: `[${BRAND}] New dealer pending approval: ${b.businessName}`,
     text:
-      `A buyer upgraded to a dealer account and is awaiting approval.\n\n` +
+      `A new dealer signed up and is awaiting approval.\n\n` +
       `Business: ${b.businessName}\nName: ${user.name || "—"}\nPhone: +${user.phone}\n` +
-      `Dealer id: ${String(dealer._id)}\n\nApprove in the admin panel → Dealers.`,
+      `Dealer id: ${String(dealer._id)}\n${dupNote ? `\n${dupNote}\n` : ""}\n` +
+      `Approve in the admin panel → Dealers.`,
     html:
-      `<p>A buyer upgraded to a dealer account and is awaiting approval.</p>` +
+      `<p>A new dealer signed up and is awaiting approval.</p>` +
       `<p>Business: <strong>${b.businessName}</strong><br/>Name: ${user.name || "—"}<br/>Phone: +${user.phone}<br/>Dealer id: ${String(dealer._id)}</p>` +
+      (dupNote ? `<p style="color:#b45309">${dupNote}</p>` : "") +
       `<p>Approve in the admin panel → Dealers.</p>`,
   }).catch(() => {});
 

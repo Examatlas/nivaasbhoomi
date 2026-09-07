@@ -24,6 +24,8 @@ export interface AdminDealerRow {
   ratingCount: number;
   uploadedDocs: number;
   verifiedDocs: number;
+  duplicateFlagged: boolean;
+  duplicateReason?: string;
 }
 
 const DOC_KEYS = ["pan", "aadhaar", "gst", "udyam", "rera", "officePhoto"] as const;
@@ -60,6 +62,8 @@ export async function getDealersForAdmin(opts: {
       ratingCount: d.ratingCount ?? 0,
       uploadedDocs: uploaded,
       verifiedDocs: verified,
+      duplicateFlagged: Boolean(d.duplicateFlagged),
+      duplicateReason: d.duplicateReason ?? undefined,
     };
   });
 }

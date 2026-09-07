@@ -60,11 +60,13 @@ export function isExpired(createdAt: Date, now: Date, ttlSeconds = OTP_TTL_SECON
   return now.getTime() - createdAt.getTime() > ttlSeconds * 1000;
 }
 
-export type VerifyOutcome = "ok-dealer" | "ok-user" | "create-user" | "dealer-not-found";
+export type VerifyOutcome = "ok-dealer" | "ok-user" | "create-user" | "register-dealer";
 
-/** What to do once the code matches: dealers must already exist (manual signup);
- *  buyers are auto-created on first login. */
+/** What to do once the code matches: an existing dealer signs straight in; a
+ *  verified number with NO dealer is sent to self-registration (a User is
+ *  found/created first, then the dealer registration form). Buyers are
+ *  auto-created on first login. */
 export function decideVerify(role: OtpRole, accountFound: boolean): VerifyOutcome {
-  if (role === "dealer") return accountFound ? "ok-dealer" : "dealer-not-found";
+  if (role === "dealer") return accountFound ? "ok-dealer" : "register-dealer";
   return accountFound ? "ok-user" : "create-user";
 }

@@ -24,9 +24,9 @@ export default function DealerLoginPage() {
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <Logo href="/" />
           <div>
-            <h1 className="text-display-sm">Dealer sign in</h1>
+            <h1 className="text-display-sm">Dealer sign in or sign up</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              List and manage your property on NivaasBhoomi.
+              Verify your WhatsApp number to sign in — or register as a new dealer.
             </p>
           </div>
         </div>
