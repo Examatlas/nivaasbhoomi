@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { User as UserIcon, LogOut, ChevronDown, LayoutDashboard, Store } from "lucide-react";
+import { User as UserIcon, LogOut, ChevronDown, LayoutDashboard, Store, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/components/auth/session-provider";
 import { avatarInitial, formatSessionPhone } from "@/lib/auth/session-ui";
+import { hardNavigate, fetchWithTimeout } from "@/lib/auth/auth-nav";
 
 /**
  * Header auth control. Logged out → "Sign in". Logged in (buyer) → an orange
@@ -16,9 +16,9 @@ import { avatarInitial, formatSessionPhone } from "@/lib/auth/session-ui";
  * without a manual refresh. Works on mobile too.
  */
 export function HeaderAuth() {
-  const { me, loading, refresh } = useSession();
-  const router = useRouter();
+  const { me, loading } = useSession();
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,14 +32,16 @@ export function HeaderAuth() {
 
   async function logout() {
     setOpen(false);
+    setSigningOut(true);
     try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+      await fetchWithTimeout("/api/auth/logout", { method: "POST", credentials: "same-origin" });
     } catch {
-      /* clearing is best-effort */
+      /* clearing is best-effort — navigate regardless so the UI never sticks */
     }
-    await refresh();
-    router.replace("/");
-    router.refresh();
+    // HARD navigation home: the logout route cleared the cookies + set the hint
+    // to logged-out, so the reloaded header shows "Sign in" immediately — no
+    // manual refresh, no stale state.
+    hardNavigate("/");
   }
 
   // Keep a stable-width slot during the initial load to avoid a flash/shift.
@@ -116,10 +118,12 @@ export function HeaderAuth() {
             <button
               type="button"
               onClick={logout}
-              className="flex items-center gap-2 px-4 py-2 text-left text-sm text-danger-700 hover:bg-surface-muted"
+              disabled={signingOut}
+              className="flex items-center gap-2 px-4 py-2 text-left text-sm text-danger-700 hover:bg-surface-muted disabled:opacity-60"
               role="menuitem"
             >
-              <LogOut className="size-4" /> Logout
+              {signingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+              {signingOut ? "Signing out…" : "Logout"}
             </button>
           </div>
         </div>

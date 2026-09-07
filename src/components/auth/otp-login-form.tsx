@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Phone, Loader2, MessageCircle, ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import { formatRetryAfter } from "@/lib/auth/otp-retry";
 import { verifyNavigation, canSubmitOtp, type VerifyResponse } from "@/lib/auth/otp-verify-nav";
+import { hardNavigate } from "@/lib/auth/auth-nav";
 
 const RESEND_SECONDS = 30;
 
@@ -31,7 +32,6 @@ function rateLimit(err: unknown): { message: string; retryAfter: number } | null
  * registration (/dealer/register). No passwords.
  */
 export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
-  const router = useRouter();
   const search = useSearchParams();
   const next = search.get("next");
 
@@ -112,11 +112,11 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
           setBusy(false);
           return;
         }
-        // Success: lock the screen and keep the spinner while we navigate away
-        // (busy stays true, verified stays true — no further submit possible).
+        // Success: lock the screen (verified stays true, busy stays true) and do
+        // a HARD navigation so the destination renders with the new session — no
+        // stale header, and the spinner ends when the page unloads.
         verified.current = true;
-        router.replace(nav.to);
-        router.refresh();
+        hardNavigate(nav.to);
       } catch (err) {
         inFlight.current = false; // allow another attempt with a new code
         const limited = rateLimit(err);
@@ -126,7 +126,7 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
         setBusy(false);
       }
     },
-    [phone, role, next, router],
+    [phone, role, next],
   );
 
   // Auto-submit once all six digits are present — as an EFFECT, not a side

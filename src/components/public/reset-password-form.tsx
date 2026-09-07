@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Lock, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { hardNavigate, fetchWithTimeout, isTimeout } from "@/lib/auth/auth-nav";
 
 /**
  * Reset-password: reads the single-use token + role from the URL, takes a new
@@ -16,7 +17,6 @@ import { Label } from "@/components/ui/label";
  * server signs the user in and tells us where to go.
  */
 export function ResetPasswordForm() {
-  const router = useRouter();
   const search = useSearchParams();
   const token = search.get("token") ?? "";
   const role = search.get("role") === "dealer" ? "dealer" : "user";
@@ -55,7 +55,7 @@ export function ResetPasswordForm() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/password/reset", {
+      const res = await fetchWithTimeout("/api/auth/password/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, role, password }),
@@ -67,12 +67,11 @@ export function ResetPasswordForm() {
       }
       setDone(true);
       const redirect = typeof body.data?.redirect === "string" ? body.data.redirect : backHref;
-      setTimeout(() => {
-        router.replace(redirect);
-        router.refresh();
-      }, 900);
-    } catch {
-      setError("Network error. Please try again.");
+      // HARD navigation — a password reset signs a fresh session; reload the
+      // destination so it renders logged-in with no stale header.
+      setTimeout(() => hardNavigate(redirect), 900);
+    } catch (err) {
+      setError(isTimeout(err) ? "The request timed out. Please try again." : "Network error. Please try again.");
     } finally {
       setBusy(false);
     }

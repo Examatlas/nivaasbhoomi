@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, Store } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CoverageEditor, type CoverageEntry } from "@/components/dealer/coverage-editor";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
+import { hardNavigate } from "@/lib/auth/auth-nav";
 import { validateRegId, normalizeRegId, RERA_HELP } from "@/lib/validation/registration-ids";
 
 const DEAL_TYPES = [
@@ -29,7 +29,6 @@ const DEAL_TYPES = [
  * emails an admin. On success → the dealer dashboard (with its pending banner).
  */
 export function DealerRegistrationForm({ name, phone }: { name: string; phone: string }) {
-  const router = useRouter();
   const [businessName, setBusinessName] = useState("");
   const [dealTypes, setDealTypes] = useState<string[]>([]);
   const [entries, setEntries] = useState<CoverageEntry[]>([]);
@@ -66,11 +65,11 @@ export function DealerRegistrationForm({ name, phone }: { name: string; phone: s
           reraNumber: rera.trim() || undefined,
         }),
       });
-      router.replace("/dealer/dashboard");
-      router.refresh();
+      // HARD navigation so the dashboard renders with the freshly-set dealer
+      // session (pending banner, etc.). Keep the button spinning until unload.
+      hardNavigate("/dealer/dashboard");
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : "Could not create your dealer account.");
-    } finally {
       setBusy(false);
     }
   }

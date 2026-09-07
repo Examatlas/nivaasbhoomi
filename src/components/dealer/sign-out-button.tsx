@@ -1,21 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut, Loader2 } from "lucide-react";
 
+import { hardNavigate, fetchWithTimeout } from "@/lib/auth/auth-nav";
+
 export function SignOutButton() {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
 
   async function signOut() {
     setBusy(true);
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetchWithTimeout("/api/auth/logout", { method: "POST" });
     } catch {
       /* clearing the cookie is best-effort; navigate regardless */
     }
-    router.replace("/dealer/login");
+    // HARD navigation so the dealer login page loads fresh (cookies cleared);
+    // the spinner ends when the page unloads.
+    hardNavigate("/dealer/login");
   }
 
   return (

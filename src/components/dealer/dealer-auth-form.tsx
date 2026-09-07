@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Mail, Lock, Building2, Phone, Loader2, LogIn, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { hardNavigate, fetchWithTimeout, isTimeout } from "@/lib/auth/auth-nav";
 
 /**
  * Dealer email + password sign-in / sign-up (LAUNCH auth). Signup collects the
@@ -19,7 +20,6 @@ import { Label } from "@/components/ui/label";
 type Mode = "login" | "signup";
 
 export function DealerAuthForm() {
-  const router = useRouter();
   const search = useSearchParams();
   const next = search.get("next") || "/dealer/dashboard";
 
@@ -46,7 +46,7 @@ export function DealerAuthForm() {
               password,
             }
           : { email: email.trim(), password };
-      const res = await fetch(endpoint, {
+      const res = await fetchWithTimeout(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -54,13 +54,15 @@ export function DealerAuthForm() {
       const body = await res.json();
       if (!res.ok || !body.success) {
         setError(body?.error?.message ?? "Something went wrong. Please try again.");
+        setBusy(false);
         return;
       }
-      router.replace(next);
-      router.refresh();
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
+      // HARD navigation — guarantees the dashboard renders with the new dealer
+      // session; the button spinner ends when the page unloads. (No finally
+      // reset on success: we intentionally keep it spinning until we leave.)
+      hardNavigate(next);
+    } catch (err) {
+      setError(isTimeout(err) ? "The request timed out. Please try again." : "Network error. Please try again.");
       setBusy(false);
     }
   }

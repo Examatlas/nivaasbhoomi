@@ -16,18 +16,27 @@ export class ApiClientError extends Error {
   }
 }
 
+/** Every client API call is bounded so a hung request surfaces an error instead
+ *  of spinning a button forever. Callers may pass their own signal to override. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 export async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(input, {
       ...init,
+      signal: init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         ...(init?.body ? { "Content-Type": "application/json" } : {}),
         ...init?.headers,
       },
     });
-  } catch {
-    throw new ApiClientError("NETWORK", "Network error. Check your connection.");
+  } catch (err) {
+    const timedOut = (err as Error | undefined)?.name === "TimeoutError";
+    throw new ApiClientError(
+      "NETWORK",
+      timedOut ? "The request timed out. Please try again." : "Network error. Check your connection.",
+    );
   }
 
   let json: unknown;
