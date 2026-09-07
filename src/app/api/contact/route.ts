@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth/middleware";
 import { connectDB } from "@/lib/db/connect";
 import { User } from "@/lib/db/models/User";
 import { createEnquiry, createAgentProfileEnquiry } from "@/lib/leads/enquiry";
+import { isFromAlert } from "@/lib/alerts/from-alert";
 
 /**
  * POST /api/contact   (buyer auth required — the gated "Contact Us" action)
@@ -60,18 +61,21 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   }
 
   const name = user.name || user.waProfileName || "NivaasBhoomi buyer";
+  const fromAlert = await isFromAlert();
   const result = parsed.data.dealerId
     ? await createAgentProfileEnquiry({
         dealerId: parsed.data.dealerId,
         name,
         phone: user.phone,
         message: parsed.data.message,
+        fromAlert,
       })
     : await createEnquiry({
         name,
         phone: user.phone,
         listingId: parsed.data.listingId,
         message: parsed.data.message,
+        fromAlert,
       });
 
   return ok({ received: true, leadId: result.leadId });

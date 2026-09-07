@@ -35,6 +35,11 @@ import { User } from "@/lib/db/models/User";
 import { Otp } from "@/lib/db/models/Otp";
 import { OtpRequestLog } from "@/lib/db/models/OtpRequestLog";
 import { DealerSignupLog } from "@/lib/db/models/DealerSignupLog";
+import { ToolSubmitLog } from "@/lib/db/models/ToolSubmitLog";
+import { SavedSearch } from "@/lib/db/models/SavedSearch";
+import { AlertLog } from "@/lib/db/models/AlertLog";
+import { LocalityRate } from "@/lib/db/models/LocalityRate";
+import { CityRate } from "@/lib/db/models/CityRate";
 import { ContactMessage } from "@/lib/db/models/ContactMessage";
 
 function mask(uri: string): string {
@@ -53,6 +58,11 @@ const MODELS: [string, Model<any>][] = [
   ["Otp", Otp],
   ["OtpRequestLog", OtpRequestLog],
   ["DealerSignupLog", DealerSignupLog],
+  ["ToolSubmitLog", ToolSubmitLog],
+  ["SavedSearch", SavedSearch],
+  ["AlertLog", AlertLog],
+  ["LocalityRate", LocalityRate],
+  ["CityRate", CityRate],
   ["ContactMessage", ContactMessage],
 ];
 

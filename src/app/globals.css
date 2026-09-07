@@ -401,3 +401,39 @@
   animation: nb-flash 1.8s ease-out 1;
   border-radius: 0.5rem;
 }
+
+/* ---- Print (used by the property legal checklist "Save as PDF") ---- */
+.print-only {
+  display: none;
+}
+@media print {
+  /* Hide the whole app chrome; show only the marked print area. */
+  body * {
+    visibility: hidden;
+  }
+  .nb-print-area,
+  .nb-print-area * {
+    visibility: visible;
+  }
+  .nb-print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 0;
+    background: #ffffff;
+    color: #111111;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block;
+  }
+  /* Keep each checklist section together on a page where possible. */
+  .print-section {
+    break-inside: avoid;
+  }
+  @page {
+    margin: 16mm 14mm;
+  }
+}

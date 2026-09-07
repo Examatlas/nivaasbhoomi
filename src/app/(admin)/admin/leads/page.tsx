@@ -25,17 +25,32 @@ const STATUS_TONE: Record<string, "neutral" | "warning" | "success" | "danger" |
   lost: "danger",
   unmatched: "danger",
   "quota-exceeded": "warning",
+  unclaimed: "warning",
+  delivered: "ink",
+  unassigned: "warning",
 };
 
 const ALL_STATUSES = [
   "new", "assigned", "delivered", "contacted", "site-visit-scheduled", "site-visit-done",
-  "converted", "lost", "unmatched", "quota-exceeded", "unclaimed",
+  "converted", "lost", "unmatched", "quota-exceeded", "unclaimed", "unassigned",
 ];
-const SOURCES = ["listing", "agent_profile", "whatsapp_click", "generic", "ad"];
+const SOURCES = ["listing", "agent_profile", "whatsapp_click", "generic", "ad", "tool_stamp_duty", "tool_legal_checklist"];
+
+/** Friendly labels for sources (lead-magnet tools read nicely). */
+const SOURCE_LABELS: Record<string, string> = {
+  tool_stamp_duty: "Stamp duty tool",
+  tool_legal_checklist: "Legal checklist",
+};
+function sourceLabel(source: string): string {
+  return SOURCE_LABELS[source] ?? source;
+}
 
 export default async function AdminLeadsPage({ searchParams }: PageProps<"/admin/leads">) {
   const sp = await searchParams;
   const view = sp.view === "all" ? "all" : sp.view === "dealers" ? "dealers" : "queue";
+  // Tool leads are the only leads with status "unassigned" — so that filter
+  // surfaces every lead-magnet tool (stamp duty, legal checklist, …) at once.
+  const toolView = view === "all" && sp.status === "unassigned";
 
   return (
     <div className="mx-auto max-w-page px-4 py-8 sm:px-6">
@@ -47,9 +62,14 @@ export default async function AdminLeadsPage({ searchParams }: PageProps<"/admin
         </p>
       </div>
 
-      <div className="mb-6 flex gap-1.5">
+      <div className="mb-6 flex flex-wrap gap-1.5">
         <Tab label="Unmatched queue" href="/admin/leads" active={view === "queue"} />
-        <Tab label="All leads" href="/admin/leads?view=all" active={view === "all"} />
+        <Tab label="All leads" href="/admin/leads?view=all" active={view === "all" && !toolView} />
+        <Tab
+          label="Tool leads (unassigned)"
+          href="/admin/leads?view=all&status=unassigned"
+          active={toolView}
+        />
         <Tab label="Dealer summary" href="/admin/leads?view=dealers" active={view === "dealers"} />
       </div>
 
@@ -209,7 +229,7 @@ async function AllLeads({ sp }: { sp: Record<string, string | string[] | undefin
           <select name="source" defaultValue={source ?? ""} className="h-9 rounded-control border border-border bg-background px-2 text-sm">
             <option value="">Any</option>
             {SOURCES.map((sc) => (
-              <option key={sc} value={sc}>{sc}</option>
+              <option key={sc} value={sc}>{sourceLabel(sc)}</option>
             ))}
           </select>
         </label>
@@ -256,7 +276,7 @@ async function AllLeads({ sp }: { sp: Record<string, string | string[] | undefin
                   <div className="font-medium text-ink-950">{l.buyerName}</div>
                   <div className="text-meta text-muted-foreground">+{l.phone}</div>
                 </td>
-                <td className="px-3 py-2 text-meta text-muted-foreground">{l.source}</td>
+                <td className="px-3 py-2 text-meta text-muted-foreground">{sourceLabel(l.source)}</td>
                 <td className="px-3 py-2 text-meta text-muted-foreground">{l.listing?.title ?? "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground">{l.assignedDealer?.businessName ?? "—"}</td>
                 <td className="px-3 py-2">

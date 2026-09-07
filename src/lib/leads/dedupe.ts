@@ -21,6 +21,9 @@ export interface DedupeOpts {
   phone: string;
   dealerId?: string | null;
   listingId?: string | null;
+  /** Lead-magnet tools: dedup by phone + this source (e.g. "tool_stamp_duty")
+   *  within the window — one lead per buyer per tool per 24h. */
+  source?: string | null;
   windowMs?: number;
 }
 
@@ -41,6 +44,11 @@ export function buildDedupeFilter(
   }
   if (opts.dealerId && mongoose.Types.ObjectId.isValid(opts.dealerId)) {
     base.assignedDealerId = new mongoose.Types.ObjectId(opts.dealerId);
+    return base;
+  }
+  // Tool leads have neither a listing nor a dealer — key on the tool source.
+  if (opts.source) {
+    base.source = opts.source;
     return base;
   }
   return null;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Home, Calculator, Landmark, ArrowRight } from "lucide-react";
+import { Home, Calculator, Landmark, ClipboardCheck, ArrowRight } from "lucide-react";
 
 import { BRAND, absoluteUrl } from "@/lib/seo/site";
 
@@ -21,10 +21,16 @@ const TOOLS = [
     body: "Estimate your monthly home-loan EMI, total interest and total payable — with a principal-vs-interest breakdown.",
   },
   {
-    href: "/tools/stamp-duty-calculator",
+    href: "/tools/stamp-duty",
     icon: Landmark,
     title: "Stamp duty calculator",
     body: "See stamp duty + registration charges by state and buyer category, including the concession many states give women.",
+  },
+  {
+    href: "/tools/property-checklist",
+    icon: ClipboardCheck,
+    title: "Property legal checklist",
+    body: "A printable, state-specific due-diligence checklist — documents to verify and red flags to watch before you buy. Includes rules like Jharkhand's CNT/SPT tribal land.",
   },
 ];
 

@@ -21,6 +21,7 @@ import { formatPrice, formatRent } from "@/lib/utils/price";
 import { JsonLd } from "@/components/shared/json-ld";
 import { ListingGrid } from "@/components/public/listing-grid";
 import { LocalityFilters } from "@/components/public/locality-filters";
+import { SaveAlertButton } from "@/components/alerts/save-alert-button";
 import { FaqAccordion } from "@/components/public/faq-accordion";
 import type { ListingCardData } from "@/types/listing";
 
@@ -130,15 +131,25 @@ export default async function LocalityPage({ params }: PageProps<"/[city]/[local
           <span className="text-foreground">{data.locality.name}</span>
         </nav>
 
-        <header className="mb-5">
-          <h1 className="text-display-sm">
-            Property in {data.locality.name}, {data.city.name}
-          </h1>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="size-4 text-clay-500" />
-            {data.count} verified {data.count === 1 ? "listing" : "listings"} · direct
-            WhatsApp contact
-          </p>
+        <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-display-sm">
+              Property in {data.locality.name}, {data.city.name}
+            </h1>
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <MapPin className="size-4 text-clay-500" />
+              {data.count} verified {data.count === 1 ? "listing" : "listings"} · direct
+              WhatsApp contact
+            </p>
+          </div>
+          <SaveAlertButton
+            criteria={{
+              cityId: data.city.id,
+              localityIds: [data.locality.id],
+              purpose: "buy",
+            }}
+            label="Alert me about new listings"
+          />
         </header>
 
         {/* Rate range */}

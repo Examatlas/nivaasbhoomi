@@ -6,6 +6,9 @@ import {
   Clock,
   Search,
   Handshake,
+  Landmark,
+  Calculator,
+  ArrowRight,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -129,6 +132,52 @@ export default async function HomePage() {
               title="Talk directly"
               body="Chat with the verified dealer directly, schedule a visit, and close - on your terms."
             />
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- Free tools ---------- */}
+      <section className="border-t border-border">
+        <div className="mx-auto max-w-page px-4 py-14 sm:px-6">
+          <h2 className="text-display-sm">Free tools to plan your purchase</h2>
+          <p className="mt-2 max-w-2xl text-muted-foreground">
+            Know the real cost before you buy — no login needed to start.
+          </p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <Link
+              href="/tools/stamp-duty"
+              className="group flex items-start gap-3 rounded-card border border-border bg-surface p-5 shadow-card transition-[box-shadow,transform] hover:-translate-y-0.5 hover:shadow-lift"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink-50 text-ink-700">
+                <Landmark className="size-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-1 font-semibold text-ink-950">
+                  Stamp duty calculator
+                  <ArrowRight className="size-4 text-clay-700 transition-transform group-hover:translate-x-0.5" />
+                </span>
+                <span className="mt-0.5 block text-sm text-muted-foreground">
+                  State-wise stamp duty + registration, with the women&apos;s concession.
+                </span>
+              </span>
+            </Link>
+            <Link
+              href="/tools/emi-calculator"
+              className="group flex items-start gap-3 rounded-card border border-border bg-surface p-5 shadow-card transition-[box-shadow,transform] hover:-translate-y-0.5 hover:shadow-lift"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink-50 text-ink-700">
+                <Calculator className="size-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-1 font-semibold text-ink-950">
+                  EMI calculator
+                  <ArrowRight className="size-4 text-clay-700 transition-transform group-hover:translate-x-0.5" />
+                </span>
+                <span className="mt-0.5 block text-sm text-muted-foreground">
+                  Monthly home-loan EMI, total interest and payable.
+                </span>
+              </span>
+            </Link>
           </div>
         </div>
       </section>

@@ -264,11 +264,22 @@ export interface AssignmentHistoryEntry {
   reason?: string;
 }
 
+export interface ToolDataView {
+  tool?: string;
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  capturedAt?: string;
+}
+
 export interface AdminLeadDetail extends AdminLeadRow {
   loanRequired?: boolean;
   dealerNotes?: string;
   slaDeadline?: string;
   deliveredAt?: string;
+  /** Buyer arrived via a property-alert link — high intent (Phase 3). */
+  fromAlert?: boolean;
+  /** Lead-magnet tool payload (source "tool_*"), so the admin can judge intent. */
+  toolData?: ToolDataView;
   assignmentHistory: AssignmentHistoryEntry[];
   conversation: ConversationMessage[];
   audit: AuditEntry[];
@@ -332,12 +343,27 @@ export async function getLeadDetail(id: string): Promise<AdminLeadDetail | null>
     reason: h.reason,
   }));
 
+  const td = doc.toolData as
+    | { tool?: string; input?: Record<string, unknown>; output?: Record<string, unknown>; capturedAt?: Date }
+    | null
+    | undefined;
+  const toolData: ToolDataView | undefined = td
+    ? {
+        tool: td.tool,
+        input: td.input ?? undefined,
+        output: td.output ?? undefined,
+        capturedAt: td.capturedAt ? new Date(td.capturedAt).toISOString() : undefined,
+      }
+    : undefined;
+
   return {
     ...row!,
     loanRequired: doc.loanRequired ?? undefined,
     dealerNotes: doc.dealerNotes ?? undefined,
     slaDeadline: doc.slaDeadline ? new Date(doc.slaDeadline).toISOString() : undefined,
     deliveredAt: doc.deliveredAt ? new Date(doc.deliveredAt).toISOString() : undefined,
+    fromAlert: Boolean((doc as { fromAlert?: boolean }).fromAlert),
+    toolData,
     assignmentHistory,
     conversation,
     audit,

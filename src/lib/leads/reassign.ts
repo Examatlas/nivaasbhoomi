@@ -20,7 +20,10 @@ export function hasExhaustedAutoReassign(autoReassignCount: number, max = MAX_RE
 }
 
 /** Pure: which leads the SLA cron may touch — assigned, unviewed, past deadline,
- *  and NOT a whatsapp_click lead (those are exempt). */
+ *  and NOT a whatsapp_click lead (exempt) or a lead-magnet tool lead (never
+ *  auto-assigned, so never auto-reassigned; they wait for a manual admin assign).
+ *  Tool leads are also "unassigned", so the status gate already excludes them —
+ *  the explicit source check is defence in depth. */
 export function isReassignEligible(
   lead: { status: string; viewedAt?: Date | null; slaDeadline?: Date | null; source: string },
   now: Date = new Date(),
@@ -30,7 +33,8 @@ export function isReassignEligible(
     !lead.viewedAt &&
     !!lead.slaDeadline &&
     lead.slaDeadline.getTime() <= now.getTime() &&
-    lead.source !== "whatsapp_click"
+    lead.source !== "whatsapp_click" &&
+    !lead.source.startsWith("tool_")
   );
 }
 

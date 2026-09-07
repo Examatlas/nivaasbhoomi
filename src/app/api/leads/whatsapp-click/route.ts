@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import mongoose from "mongoose";
+import { isFromAlert } from "@/lib/alerts/from-alert";
 import { z } from "zod";
 
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
@@ -103,6 +104,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     source: "whatsapp_click",
     status: "new",
     ...(listingId ? { listingId: new mongoose.Types.ObjectId(listingId) } : {}),
+    ...((await isFromAlert()) ? { fromAlert: true } : {}),
   });
 
   // Exclusive claim → status "delivered": already viewed (buyer reached out on

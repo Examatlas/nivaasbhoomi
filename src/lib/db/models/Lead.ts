@@ -17,13 +17,20 @@ const leadSchema = new Schema(
     name: { type: String, trim: true },
     waProfileName: { type: String },
 
-    // source
+    // source. The fixed buyer-contact sources PLUS a generic "tool_<name>" family
+    // for lead-magnet tools (stamp-duty calculator, etc.) — validated by shape so
+    // new tools never need a schema change.
     source: {
       type: String,
-      enum: ["listing", "generic", "ad", "agent_profile", "whatsapp_click"],
       required: true,
+      validate: {
+        validator: (v: string) =>
+          ["listing", "generic", "ad", "agent_profile", "whatsapp_click"].includes(v) ||
+          /^tool_[a-z0-9_]+$/.test(v),
+        message: (props: { value: string }) => `${props.value} is not a valid lead source`,
+      },
     },
-    listingId: { type: Types.ObjectId, ref: "Listing" }, // null if generic
+    listingId: { type: Types.ObjectId, ref: "Listing" }, // null if generic / tool
     // Other listings the SAME buyer enquired on after this lead was created.
     // Secondary context only — the primary listingId and the assignment never
     // move. Views only surface entries owned by the assigned dealer.
@@ -104,10 +111,34 @@ const leadSchema = new Schema(
         "unclaimed",
         // WhatsApp-click lead: delivered straight to the dealer's WhatsApp.
         "delivered",
+        // Lead-magnet TOOL lead: captured from a calculator, NEVER auto-assigned.
+        // Sits in the admin queue until an admin manually assigns a dealer.
+        "unassigned",
       ],
       default: "new",
     },
     dealerNotes: { type: String },
+
+    // True when this buyer arrived via a property-alert link (Phase 3) — a
+    // high-intent signal surfaced to the admin. Set from a short-lived cookie
+    // stamped when the buyer opens an alert; never changes the lead's routing.
+    fromAlert: { type: Boolean, default: false },
+
+    // Lead-magnet tool payload (source "tool_*"): the tool's own input + output,
+    // shown to the admin so they can judge how serious the lead is. Generic Mixed
+    // so any future tool stores its shape without a schema change.
+    toolData: {
+      type: new Schema(
+        {
+          tool: { type: String }, // e.g. "stamp_duty"
+          input: { type: Schema.Types.Mixed },
+          output: { type: Schema.Types.Mixed },
+          capturedAt: { type: Date, default: Date.now },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
 
     // review
     reviewRating: { type: Number, min: 1, max: 5 },
@@ -129,6 +160,8 @@ leadSchema.index({ status: 1, createdAt: -1 });
 leadSchema.index({ listingId: 1 });
 // SLA cron: unviewed + past-deadline leads.
 leadSchema.index({ status: 1, viewedAt: 1, slaDeadline: 1 });
+// Admin filter: leads by source + status (e.g. unassigned tool leads), newest first.
+leadSchema.index({ source: 1, status: 1, createdAt: -1 });
 
 export type LeadDoc = InferSchemaType<typeof leadSchema>;
 

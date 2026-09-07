@@ -74,6 +74,57 @@ export function computeStampDuty(input: StampDutyInput): StampDutyResult {
   };
 }
 
+// ---- Lead-magnet breakdown (Phase 1 tool) ----
+
+export type PropertyType = "residential" | "commercial" | "plot";
+export type AreaType = "urban" | "rural";
+
+export interface StampDutyBreakdownInput {
+  propertyValue: number;
+  stampDutyPct: number;
+  registrationPct: number;
+  /** The general/male rate, so a female/joint concession can be shown explicitly. */
+  baseStampDutyPct?: number;
+}
+
+export interface StampDutyBreakdown {
+  propertyValue: number;
+  stampDutyPct: number;
+  stampDuty: number;
+  registrationPct: number;
+  registration: number;
+  /** stampDuty + registration — the extra a buyer pays on top of the price. */
+  totalAdditional: number;
+  /** propertyValue + totalAdditional. */
+  grandTotal: number;
+  /** Rupees saved vs the general/male rate (0 when there's no concession). */
+  rebate: number;
+}
+
+/** Full cost breakdown for the calculator + the captured lead. Pure + rounded. */
+export function computeStampDutyBreakdown(input: StampDutyBreakdownInput): StampDutyBreakdown {
+  const value = Math.max(0, Math.round(input.propertyValue));
+  const stampDutyPct = Math.max(0, input.stampDutyPct);
+  const registrationPct = Math.max(0, input.registrationPct);
+  const basePct = Math.max(stampDutyPct, input.baseStampDutyPct ?? stampDutyPct);
+
+  const stampDuty = Math.round((value * stampDutyPct) / 100);
+  const registration = Math.round((value * registrationPct) / 100);
+  const totalAdditional = stampDuty + registration;
+  const rebate = Math.round((value * (basePct - stampDutyPct)) / 100);
+
+  return {
+    propertyValue: value,
+    stampDutyPct,
+    stampDuty,
+    registrationPct,
+    registration,
+    totalAdditional,
+    grandTotal: value + totalAdditional,
+    rebate,
+  };
+}
+
 /** Resolve the rate for a state code + buyer category, DB value winning. */
 export function resolveRate(
   stateCode: string | undefined,

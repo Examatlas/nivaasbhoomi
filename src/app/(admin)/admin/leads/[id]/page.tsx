@@ -37,6 +37,7 @@ export default async function AdminLeadDetailPage({ params }: PageProps<"/admin/
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-display-sm">{lead.buyerName}</h1>
               <Badge tone={isAssigned ? "clay" : "danger"} size="sm">{lead.status}</Badge>
+              {lead.fromAlert && <Badge tone="success" size="sm">From alert · high intent</Badge>}
             </div>
             <a href={`tel:+${lead.phone}`} className="mt-1 inline-block text-sm font-medium text-wa-700 hover:underline">
               +{lead.phone}
@@ -68,6 +69,30 @@ export default async function AdminLeadDetailPage({ params }: PageProps<"/admin/
               <div className="mt-4 rounded-control border border-border bg-surface-muted p-3 text-sm">
                 <p className="text-meta text-muted-foreground">Dealer notes</p>
                 <p className="mt-1 whitespace-pre-wrap text-foreground">{lead.dealerNotes}</p>
+              </div>
+            )}
+
+            {lead.toolData && (
+              <div className="mt-4 rounded-control border border-clay-100 bg-clay-50 p-3 text-sm">
+                <p className="font-medium text-clay-800">
+                  Tool submission{lead.toolData.tool ? ` · ${lead.toolData.tool.replace(/_/g, " ")}` : ""}
+                </p>
+                <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-meta">
+                  {Object.entries(lead.toolData.input ?? {}).map(([k, v]) => (
+                    <ToolRow key={`in-${k}`} k={k} v={v} />
+                  ))}
+                  {Object.entries(lead.toolData.output ?? {})
+                    // Skip long text + nested arrays/objects (e.g. checklist
+                    // sections) — show only the scalar intent fields.
+                    .filter(
+                      ([k, v]) =>
+                        !["note", "source", "stateSlug", "disclaimer"].includes(k) &&
+                        (typeof v !== "object" || v === null),
+                    )
+                    .map(([k, v]) => (
+                      <ToolRow key={`out-${k}`} k={k} v={v} />
+                    ))}
+                </dl>
               </div>
             )}
           </section>
@@ -188,6 +213,22 @@ function Row({ k, v }: { k: string; v?: string }) {
     <>
       <dt className="text-muted-foreground">{k}</dt>
       <dd className="text-right font-medium text-ink-950">{v}</dd>
+    </>
+  );
+}
+
+function ToolRow({ k, v }: { k: string; v: unknown }) {
+  const label = k.replace(/([A-Z])/g, " $1").replace(/_/g, " ");
+  const display =
+    typeof v === "number"
+      ? v.toLocaleString("en-IN")
+      : typeof v === "boolean"
+        ? v ? "Yes" : "No"
+        : String(v ?? "—");
+  return (
+    <>
+      <dt className="capitalize text-muted-foreground">{label}</dt>
+      <dd className="text-right font-medium text-ink-900">{display}</dd>
     </>
   );
 }

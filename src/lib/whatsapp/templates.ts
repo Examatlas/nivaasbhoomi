@@ -117,6 +117,28 @@ export const followupNudge: TemplateDef<FollowupNudgeParams> = {
   build: ({ requirement, area }) => body(requirement, area),
 };
 
+// ---- property_alert (marketing) — to the buyer, from a saved search ----
+// "Hi {{1}}, {{2}} new propert(y/ies) in {{3}} within {{4}} just listed on
+//  NivaasBhoomi. Tap to view." + a URL button → /alerts?t=<token>
+// The template NAME is env-configurable (WHATSAPP_TEMPLATE_PROPERTY_ALERT).
+export interface PropertyAlertParams {
+  buyerName: string;
+  count: string;
+  area: string;
+  budget: string;
+  /** Signed token for the URL button (opens /alerts, records a visit). */
+  token: string;
+}
+export const propertyAlert: TemplateDef<PropertyAlertParams> = {
+  name: (process.env.WHATSAPP_TEMPLATE_PROPERTY_ALERT ?? "property_alert").trim() || "property_alert",
+  category: "marketing",
+  language: "en",
+  build: ({ buyerName, count, area, budget, token }) => [
+    ...body(buyerName, count, area, budget),
+    { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: token }] },
+  ],
+};
+
 /** All templates keyed by name, for the client + admin tooling. */
 export const TEMPLATES = {
   lead_assigned: leadAssigned,
@@ -124,6 +146,7 @@ export const TEMPLATES = {
   site_visit_reminder: siteVisitReminder,
   review_request: reviewRequest,
   followup_nudge: followupNudge,
+  property_alert: propertyAlert,
 } as const;
 
 export type TemplateName = keyof typeof TEMPLATES;

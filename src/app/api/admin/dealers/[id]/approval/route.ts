@@ -71,7 +71,11 @@ export const POST = withErrorHandling(
           html:
             `<p>Good news — your <strong>${BRAND}</strong> dealer account has been approved.</p>` +
             `<p>You can now add listings and start receiving buyer leads from your dashboard.</p>`,
-        }).catch(() => {});
+        }).catch((e: unknown) => {
+          // Notification is best-effort — the approval already succeeded. Log the
+          // skip so it's traceable, never fail the action.
+          console.warn(`[dealer-approval] approve email skipped for ${String(dealer._id)}: ${e instanceof Error ? e.message : e}`);
+        });
       }
       return ok({ id: String(dealer._id), status: dealer.status });
     }
@@ -94,7 +98,9 @@ export const POST = withErrorHandling(
           `<p>Unfortunately we could not approve your dealer account at this time.</p>` +
           `<p><strong>Reason:</strong> ${dealer.rejectionReason}</p>` +
           `<p>If you believe this is a mistake, please contact our support team.</p>`,
-      }).catch(() => {});
+      }).catch((e: unknown) => {
+        console.warn(`[dealer-approval] reject email skipped for ${String(dealer._id)}: ${e instanceof Error ? e.message : e}`);
+      });
     }
     return ok({ id: String(dealer._id), status: dealer.status });
   },

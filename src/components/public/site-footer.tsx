@@ -14,6 +14,8 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/search", label: "Browse listings" },
       { href: "/blog", label: "Guides" },
       { href: "/tools", label: "Calculators" },
+      { href: "/tools/stamp-duty", label: "Stamp duty calculator" },
+      { href: "/tools/property-checklist", label: "Property legal checklist" },
       { href: "/tools/emi-calculator", label: "EMI calculator" },
     ],
   },

@@ -11,6 +11,7 @@ import { Blog } from "@/lib/db/models/Blog";
 import type { FilterQuery } from "@/lib/filters/parse";
 import { filterToSegment } from "@/lib/filters/segment";
 import { absoluteUrl } from "@/lib/seo/site";
+import { allStampDutyStates } from "@/data/stamp-duty-rates";
 
 /**
  * Sitemap data layer (DEV-SPEC.txt Section 10).
@@ -354,7 +355,21 @@ export function getStaticSitemapEntries(): SitemapEntry[] {
     { url: absoluteUrl("/"), lastModified: now, changeFrequency: "daily" },
     { url: absoluteUrl("/tools"), lastModified: now, changeFrequency: "monthly" },
     { url: absoluteUrl("/tools/emi-calculator"), lastModified: now, changeFrequency: "monthly" },
-    { url: absoluteUrl("/tools/stamp-duty-calculator"), lastModified: now, changeFrequency: "monthly" },
+    { url: absoluteUrl("/tools/stamp-duty"), lastModified: now, changeFrequency: "monthly" },
+    { url: absoluteUrl("/tools/property-checklist"), lastModified: now, changeFrequency: "monthly" },
+    // One page per state for the stamp-duty and legal-checklist tools.
+    ...allStampDutyStates().flatMap((s) => [
+      {
+        url: absoluteUrl(`/tools/stamp-duty/${s.slug}`),
+        lastModified: now,
+        changeFrequency: "monthly" as const,
+      },
+      {
+        url: absoluteUrl(`/tools/property-checklist/${s.slug}`),
+        lastModified: now,
+        changeFrequency: "monthly" as const,
+      },
+    ]),
     { url: absoluteUrl("/about-us"), lastModified: now, changeFrequency: "monthly" },
     { url: absoluteUrl("/contact-us"), lastModified: now, changeFrequency: "monthly" },
     { url: absoluteUrl("/privacy-policy"), lastModified: now, changeFrequency: "yearly" },

@@ -19,6 +19,8 @@ export interface EnquiryInput {
   phone: string; // already normalised (91XXXXXXXXXX)
   listingId?: string | null;
   message?: string;
+  /** True when the buyer arrived via a property-alert link (Phase 3). */
+  fromAlert?: boolean;
 }
 
 export interface EnquiryResult {
@@ -69,6 +71,7 @@ export async function createEnquiry(input: EnquiryInput): Promise<EnquiryResult>
     source: "listing",
     listingId: new mongoose.Types.ObjectId(validListingId),
     status: "new",
+    ...(input.fromAlert ? { fromAlert: true } : {}),
   });
   const leadId = String(lead._id);
   await Conversation.updateOne({ phone: input.phone }, { $set: { leadId } });
@@ -82,6 +85,7 @@ export interface AgentProfileEnquiryInput {
   name: string;
   phone: string; // normalised (91XXXXXXXXXX)
   message?: string;
+  fromAlert?: boolean;
 }
 
 /** Buyer contacts a dealer directly from their public /agent profile. */
@@ -114,6 +118,7 @@ export async function createAgentProfileEnquiry(
     name: input.name,
     source: "agent_profile",
     status: "new",
+    ...(input.fromAlert ? { fromAlert: true } : {}),
   });
   const leadId = String(lead._id);
   await Conversation.updateOne({ phone: input.phone }, { $set: { leadId } });
