@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Phone, Loader2, MessageCircle, ArrowLeft } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import { formatRetryAfter } from "@/lib/auth/otp-retry";
+import { verifyNavigation, canSubmitOtp, type VerifyResponse } from "@/lib/auth/otp-verify-nav";
 
 const RESEND_SECONDS = 30;
 
@@ -41,6 +42,12 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const boxes = useRef<(HTMLInputElement | null)[]>([]);
+  // Synchronous guards (refs, not state, so they take effect immediately within
+  // a single tick): inFlight blocks a second concurrent submit; verified locks
+  // the screen for good once a code has been accepted, so the one-time OTP is
+  // never burned by a stray retry. Both auto-submit and the button honour them.
+  const inFlight = useRef(false);
+  const verified = useRef(false);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -59,6 +66,9 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
         method: "POST",
         body: JSON.stringify({ phone: phone.trim() }),
       });
+      // Fresh code → unlock the verify screen and clear any prior lock.
+      inFlight.current = false;
+      verified.current = false;
       setStep("otp");
       setDigits(Array(6).fill(""));
       setCooldown(RESEND_SECONDS);
@@ -77,33 +87,55 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
     }
   }
 
-  async function verify(fullCode: string) {
-    setError(null);
-    setBusy(true);
-    try {
-      const res = await apiFetch<{ redirect?: string; needsRegistration?: boolean }>(
-        "/api/auth/otp/verify",
-        {
+  const verify = useCallback(
+    async (fullCode: string) => {
+      // ONE submit at a time, and never after a successful verify. This is the
+      // fix for the double-submit race: without it, the auto-submit (6th digit)
+      // and a manual click could both POST, the first burns the OTP server-side,
+      // and the second fails with "wrong OTP" while the screen appears stuck.
+      if (!canSubmitOtp({ inFlight: inFlight.current, verified: verified.current, codeLength: fullCode.length })) {
+        return;
+      }
+      inFlight.current = true;
+      setError(null);
+      setBusy(true);
+      try {
+        const res = await apiFetch<VerifyResponse>("/api/auth/otp/verify", {
           method: "POST",
           body: JSON.stringify({ phone: phone.trim(), code: fullCode, role }),
-        },
-      );
-      // A verified dealer number with no dealer yet → self-registration. That
-      // redirect always wins over any `next` (they must register first).
-      if (res.needsRegistration && res.redirect) {
-        router.replace(res.redirect);
-      } else {
-        router.replace(next || res.redirect || (role === "dealer" ? "/dealer/dashboard" : "/"));
+        });
+        const nav = verifyNavigation(res, { next });
+        if (nav.kind === "error") {
+          // Unknown/malformed success — surface it, never silently hang.
+          inFlight.current = false;
+          setError("Something went wrong. Please try again.");
+          setBusy(false);
+          return;
+        }
+        // Success: lock the screen and keep the spinner while we navigate away
+        // (busy stays true, verified stays true — no further submit possible).
+        verified.current = true;
+        router.replace(nav.to);
+        router.refresh();
+      } catch (err) {
+        inFlight.current = false; // allow another attempt with a new code
+        const limited = rateLimit(err);
+        setError(limited ? limited.message : err instanceof ApiClientError ? err.message : "Could not verify the code.");
+        setDigits(Array(6).fill(""));
+        boxes.current[0]?.focus();
+        setBusy(false);
       }
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Could not verify the code.");
-      setDigits(Array(6).fill(""));
-      boxes.current[0]?.focus();
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+    [phone, role, next, router],
+  );
+
+  // Auto-submit once all six digits are present — as an EFFECT, not a side
+  // effect inside a state updater (updaters must be pure; React may run them
+  // twice, which previously fired verify() twice). The guards in verify() make
+  // this idempotent.
+  useEffect(() => {
+    if (step === "otp" && code.length === 6) void verify(code);
+  }, [code, step, verify]);
 
   function setDigit(i: number, v: string) {
     const clean = v.replace(/\D/g, "");
@@ -111,21 +143,20 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
       setDigits((d) => d.map((x, idx) => (idx === i ? "" : x)));
       return;
     }
+    // Support pasting the whole code into any box. Focus/side effects live in
+    // the handler, never in the setState updater.
+    if (clean.length > 1) {
+      const filled = Array.from({ length: 6 }, (_, k) => clean[k] ?? "");
+      setDigits(filled);
+      boxes.current[Math.min(clean.length, 6) - 1]?.focus();
+      return; // the effect auto-submits when all six are present
+    }
     setDigits((d) => {
       const nextDigits = [...d];
-      // Support pasting the whole code into any box.
-      if (clean.length > 1) {
-        for (let k = 0; k < 6; k++) nextDigits[k] = clean[k] ?? "";
-        const full = nextDigits.join("");
-        if (full.length === 6) setTimeout(() => verify(full), 0);
-        return nextDigits;
-      }
       nextDigits[i] = clean;
-      if (i < 5) boxes.current[i + 1]?.focus();
-      const full = nextDigits.join("");
-      if (full.length === 6 && !nextDigits.includes("")) setTimeout(() => verify(full), 0);
       return nextDigits;
     });
+    if (i < 5) boxes.current[i + 1]?.focus();
   }
 
   function onKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
@@ -176,8 +207,11 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
       <button
         type="button"
         onClick={() => {
+          inFlight.current = false;
+          verified.current = false;
           setStep("phone");
           setError(null);
+          setDigits(Array(6).fill(""));
         }}
         className="inline-flex items-center gap-1 self-start text-meta font-medium text-clay-700 hover:underline"
       >
