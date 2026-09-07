@@ -10,6 +10,7 @@ import { User } from "@/lib/db/models/User";
 import { verifyPassword } from "@/lib/auth/password";
 import { signSession } from "@/lib/auth/jwt";
 import { DEALER_COOKIE, USER_COOKIE, sessionCookieOptions } from "@/lib/auth/cookie";
+import { setSessionHint } from "@/lib/auth/session-hint-server";
 import {
   normalizeIndianMobile,
   isExpired,
@@ -102,6 +103,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
         ...(linkedDealerId ? { dealerId: linkedDealerId } : {}),
       });
       store.set(USER_COOKIE, userToken, sessionCookieOptions());
+      await setSessionHint({ name: user.name, phone: user.phone, dealerId: user.dealerId });
       if (linkedDealerId) {
         const dealerToken = await signSession({ role: "dealer", dealerId: linkedDealerId });
         store.set(DEALER_COOKIE, dealerToken, sessionCookieOptions());
@@ -145,6 +147,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     ...(linkedDealerId ? { dealerId: linkedDealerId } : {}),
   });
   store.set(USER_COOKIE, token, sessionCookieOptions());
+  await setSessionHint({ name: user.name, phone: user.phone, dealerId: user.dealerId });
   // A linked buyer→dealer gets the dealer session too, so one login serves both
   // panels (no second sign-in). Dealer Dashboard then shows in the header.
   if (linkedDealerId) {

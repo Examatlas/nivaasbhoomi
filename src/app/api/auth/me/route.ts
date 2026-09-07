@@ -2,6 +2,7 @@ import { ok, withErrorHandling } from "@/lib/api/response";
 import { getUserSession } from "@/lib/auth/middleware";
 import { connectDB } from "@/lib/db/connect";
 import { User } from "@/lib/db/models/User";
+import { setSessionHint, clearSessionHint } from "@/lib/auth/session-hint-server";
 
 /**
  * GET /api/auth/me   (buyer session)
@@ -17,7 +18,10 @@ export const dynamic = "force-dynamic";
 
 export const GET = withErrorHandling(async () => {
   const session = await getUserSession();
-  if (!session) return ok({ authed: false as const });
+  if (!session) {
+    await clearSessionHint(); // heal a missing/legacy hint → definite logged-out
+    return ok({ authed: false as const });
+  }
 
   await connectDB();
   const user = await User.findById(session.userId, {
@@ -26,7 +30,13 @@ export const GET = withErrorHandling(async () => {
     phone: 1,
     dealerId: 1,
   }).lean();
-  if (!user) return ok({ authed: false as const });
+  if (!user) {
+    await clearSessionHint();
+    return ok({ authed: false as const });
+  }
+
+  // Heal the companion hint so subsequent loads paint from the cookie (no fetch).
+  await setSessionHint({ name: user.name, phone: user.phone, dealerId: user.dealerId });
 
   return ok({
     authed: true as const,

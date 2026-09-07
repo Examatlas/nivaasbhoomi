@@ -16,6 +16,7 @@
     "seed:locations": "tsx src/scripts/seed-locations.ts",
     "db:test": "tsx src/scripts/test-db.ts",
     "db:sync-indexes": "tsx src/scripts/sync-indexes.ts",
+    "db:cleanup-trial": "tsx src/scripts/cleanup-trial-data.ts",
     "admin:hash": "tsx src/scripts/hash-password.ts",
     "dealer:set-password": "tsx src/scripts/set-dealer-password.ts",
     "dedupe:localities": "tsx src/scripts/dedupe-localities.ts",

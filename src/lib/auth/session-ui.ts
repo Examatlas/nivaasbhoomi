@@ -14,6 +14,63 @@ export interface Me {
   profileComplete?: boolean;
 }
 
+/**
+ * Companion "session hint" cookie — a small, NON-httpOnly cookie set alongside
+ * the httpOnly JWT so the client can render the correct header on the FIRST
+ * paint with no /api/auth/me fetch (that fetch is what caused the "Sign in →
+ * name" flicker). It carries only the buyer's OWN display data; the httpOnly JWT
+ * remains the security source of truth, so tampering only changes what the user
+ * sees in their own header, never what the server authorizes.
+ */
+export const SESSION_HINT_COOKIE = "nb_session_hint";
+
+export interface SessionHint {
+  /** authed: 1 = logged-in buyer, 0 = explicitly logged out. */
+  a: 0 | 1;
+  n?: string | null; // name
+  p?: string | null; // phone
+  d?: string | null; // dealerId
+}
+
+/** Serialize a hint for the companion cookie (URL-encoded JSON). */
+export function encodeSessionHint(h: SessionHint): string {
+  return encodeURIComponent(JSON.stringify(h));
+}
+
+/**
+ * Parse the companion cookie value → Me. Returns null when the cookie is absent
+ * or malformed ("unknown" — the caller then falls back to /api/auth/me once).
+ * A present-but-logged-out hint (a:0) resolves to a definite { authed: false }.
+ */
+export function decodeSessionHint(raw: string | undefined | null): Me | null {
+  if (!raw) return null;
+  try {
+    const h = JSON.parse(decodeURIComponent(raw)) as SessionHint;
+    if (!h || (h.a !== 0 && h.a !== 1)) return null;
+    if (h.a === 0) return { authed: false };
+    return {
+      authed: true,
+      role: "buyer",
+      name: h.n ?? null,
+      phone: h.p ?? null,
+      dealerId: h.d ?? null,
+      profileComplete: Boolean(h.n),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Read one cookie value out of a `document.cookie` string (pure, testable). */
+export function readCookie(cookieString: string, name: string): string | null {
+  for (const part of (cookieString ?? "").split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
+  }
+  return null;
+}
+
 /** The profile-completion popup shows only for a logged-in buyer who has no
  *  name yet AND has not dismissed it this session. */
 export function shouldPromptProfileCompletion(me: Me | null, dismissed: boolean): boolean {

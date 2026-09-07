@@ -7,6 +7,7 @@ import { ok, fail, withErrorHandling } from "@/lib/api/response";
 import { requireUser } from "@/lib/auth/middleware";
 import { signSession } from "@/lib/auth/jwt";
 import { DEALER_COOKIE, USER_COOKIE, sessionCookieOptions } from "@/lib/auth/cookie";
+import { setSessionHint } from "@/lib/auth/session-hint-server";
 import { connectDB } from "@/lib/db/connect";
 import { User } from "@/lib/db/models/User";
 import { Dealer } from "@/lib/db/models/Dealer";
@@ -51,13 +52,18 @@ const bodySchema = z.object({
   reraNumber: z.string().trim().max(40).optional(),
 });
 
-async function setDealerCookie(userId: string, dealerId: string): Promise<void> {
+async function setDealerCookie(
+  user: { _id: unknown; name?: string | null; phone?: string | null },
+  dealerId: string,
+): Promise<void> {
   const store = await cookies();
   // Refresh the buyer session to carry dealerId, and set the dealer session too.
-  const userToken = await signSession({ role: "user", userId, dealerId });
+  const userToken = await signSession({ role: "user", userId: String(user._id), dealerId });
   store.set(USER_COOKIE, userToken, sessionCookieOptions());
   const dealerToken = await signSession({ role: "dealer", dealerId });
   store.set(DEALER_COOKIE, dealerToken, sessionCookieOptions());
+  // Refresh the header hint so it now shows the Dealer Dashboard entry.
+  await setSessionHint({ name: user.name, phone: user.phone, dealerId });
 }
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
@@ -71,7 +77,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   // Already a dealer → straight through.
   if (user.dealerId) {
-    await setDealerCookie(userId, String(user.dealerId));
+    await setDealerCookie(user, String(user.dealerId));
     return ok({ dealerId: String(user.dealerId), alreadyDealer: true });
   }
 
@@ -85,7 +91,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     await existing.save();
     user.dealerId = existing._id;
     await user.save();
-    await setDealerCookie(userId, String(existing._id));
+    await setDealerCookie(user, String(existing._id));
     return ok({ dealerId: String(existing._id), linked: true, status: existing.status });
   }
 
@@ -171,7 +177,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   await DealerSignupLog.create({ ip });
   user.dealerId = dealer._id;
   await user.save();
-  await setDealerCookie(userId, String(dealer._id));
+  await setDealerCookie(user, String(dealer._id));
 
   // Notify an admin (best-effort).
   const adminTo = process.env.ADMIN_EMAIL || COMPANY.email;

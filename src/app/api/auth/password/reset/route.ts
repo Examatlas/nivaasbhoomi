@@ -7,6 +7,7 @@ import { authMethod } from "@/lib/config/flags";
 import { consumeReset, type ResetRole } from "@/lib/auth/password-reset";
 import { hashPassword } from "@/lib/auth/password";
 import { signSession } from "@/lib/auth/jwt";
+import { setSessionHint } from "@/lib/auth/session-hint-server";
 import {
   USER_COOKIE,
   DEALER_COOKIE,
@@ -73,5 +74,6 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   await user.save();
   const token = await signSession({ role: "user", userId: String(user._id) });
   (await cookies()).set(USER_COOKIE, token, sessionCookieOptions());
+  await setSessionHint({ name: user.name, phone: user.phone, dealerId: user.dealerId });
   return ok({ role: "user", redirect: "/" });
 });

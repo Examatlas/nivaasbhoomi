@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth/middleware";
 import { connectDB } from "@/lib/db/connect";
 import { User } from "@/lib/db/models/User";
 import { Dealer } from "@/lib/db/models/Dealer";
+import { setSessionHint } from "@/lib/auth/session-hint-server";
 
 /**
  * PATCH /api/users/me   [buyer auth, self]   { name?, email? }
@@ -65,6 +66,10 @@ export const PATCH = withErrorHandling(async (req: NextRequest) => {
   if (parsed.data.email !== undefined) user.email = email; // "" clears it
 
   await user.save();
+
+  // Refresh the header hint so the (possibly new) name shows on the next paint
+  // with no fetch — the client's refresh() after a profile save reads it.
+  await setSessionHint({ name: user.name, phone: user.phone, dealerId: user.dealerId });
 
   return ok({
     id: String(user._id),
