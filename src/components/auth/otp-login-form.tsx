@@ -8,8 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
+import { formatRetryAfter } from "@/lib/auth/otp-retry";
 
 const RESEND_SECONDS = 30;
+
+/** Rate-limit (429) errors carry a retryAfter (seconds) — turn it into a clear
+ *  "try again in N" line, and return the seconds so we can pause the resend. */
+function rateLimit(err: unknown): { message: string; retryAfter: number } | null {
+  if (err instanceof ApiClientError && err.code === "RATE_LIMITED") {
+    const seconds = Number((err.details as { retryAfter?: number } | undefined)?.retryAfter);
+    const retryAfter = Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 0;
+    return { message: retryAfter ? formatRetryAfter(retryAfter) : err.message, retryAfter };
+  }
+  return null;
+}
 
 /**
  * WhatsApp login OTP — single entry point for both buyers and dealers. Enter a
@@ -52,7 +64,14 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
       setCooldown(RESEND_SECONDS);
       setTimeout(() => boxes.current[0]?.focus(), 50);
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Could not send the code.");
+      const limited = rateLimit(err);
+      if (limited) {
+        setError(limited.message);
+        // Pause the resend button for exactly as long as the server asks.
+        if (limited.retryAfter > 0) setCooldown(limited.retryAfter);
+      } else {
+        setError(err instanceof ApiClientError ? err.message : "Could not send the code.");
+      }
     } finally {
       setBusy(false);
     }

@@ -6,12 +6,17 @@ import {
   toDisplayPhone,
   generateOtpCode,
   rateLimitDecision,
+  cooldownDecision,
   isLockedOut,
   isExpired,
   decideVerify,
   OTP_TTL_SECONDS,
   OTP_MAX_ATTEMPTS,
+  OTP_RATE_PER_PHONE,
+  OTP_RATE_PER_IP,
+  RESEND_COOLDOWN_SECONDS,
 } from "./otp-login";
+import { formatRetryAfter } from "./otp-retry";
 
 // ---- phone normalization ----
 test("normalizeIndianMobile: canonicalises common formats to 91XXXXXXXXXX", () => {
@@ -42,12 +47,55 @@ test("generateOtpCode: always a 6-digit string", () => {
 });
 
 // ---- rate limit ----
-test("rateLimitDecision: blocks at 3/phone and 10/ip", () => {
-  assert.equal(rateLimitDecision(0, 0).allowed, true);
-  assert.equal(rateLimitDecision(2, 9).allowed, true);
-  assert.equal(rateLimitDecision(3, 0).allowed, false); // phone cap
-  assert.equal(rateLimitDecision(0, 10).allowed, false); // ip cap
-  assert.equal(rateLimitDecision(3, 0).retryAfter, 3600);
+test("default caps are the new tuned values (5/phone, 30/ip, 30s cooldown)", () => {
+  assert.equal(OTP_RATE_PER_PHONE, 5);
+  assert.equal(OTP_RATE_PER_IP, 30);
+  assert.equal(RESEND_COOLDOWN_SECONDS, 30);
+});
+
+test("rateLimitDecision: phone cap trips at 5", () => {
+  assert.equal(rateLimitDecision(4, 0).allowed, true); // 4 sends → still allowed
+  const blocked = rateLimitDecision(5, 0);
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.reason, "phone_limit");
+  assert.equal(blocked.retryAfter, 3600);
+});
+
+test("rateLimitDecision: ip cap trips at 30", () => {
+  assert.equal(rateLimitDecision(0, 29).allowed, true);
+  const blocked = rateLimitDecision(0, 30);
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.reason, "ip_limit");
+  assert.equal(blocked.retryAfter, 3600);
+});
+
+test("rateLimitDecision: phone limit is reported first when both are over", () => {
+  assert.equal(rateLimitDecision(5, 30).reason, "phone_limit");
+});
+
+// ---- resend cooldown ----
+test("cooldownDecision: a second send within the gap is blocked, with retryAfter", () => {
+  const now = new Date("2026-01-01T00:00:20Z"); // 20s after the last send
+  const last = new Date("2026-01-01T00:00:00Z");
+  const d = cooldownDecision(last, now, 30);
+  assert.equal(d.allowed, false);
+  assert.equal(d.reason, "cooldown");
+  assert.equal(d.retryAfter, 10); // 30 - 20
+});
+
+test("cooldownDecision: allowed once the gap has elapsed, or on a first-ever send", () => {
+  const now = new Date("2026-01-01T00:01:00Z"); // 60s later
+  assert.equal(cooldownDecision(new Date("2026-01-01T00:00:00Z"), now, 30).allowed, true);
+  assert.equal(cooldownDecision(null, now, 30).allowed, true); // never sent
+});
+
+// ---- retry-after formatting (client-safe) ----
+test("formatRetryAfter: seconds vs minutes, with pluralisation", () => {
+  assert.equal(formatRetryAfter(1), "Please try again in 1 second.");
+  assert.equal(formatRetryAfter(10), "Please try again in 10 seconds.");
+  assert.equal(formatRetryAfter(59), "Please try again in 59 seconds.");
+  assert.equal(formatRetryAfter(60), "Please try again in 1 minute.");
+  assert.equal(formatRetryAfter(3600), "Please try again in 60 minutes.");
 });
 
 // ---- attempt lockout ----
