@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
 import { authMethod, dealerLoginEnabled } from "@/lib/config/flags";
-import { normalisePhone } from "@/lib/utils/whatsapp";
+import { normalizeIndianMobile } from "@/lib/auth/otp-login";
 import { hashPassword } from "@/lib/auth/password";
 import { signSession } from "@/lib/auth/jwt";
 import { DEALER_COOKIE, sessionCookieOptions } from "@/lib/auth/cookie";
@@ -31,10 +31,6 @@ const bodySchema = z.object({
   password: z.string().min(8, "Use at least 8 characters.").max(200),
 });
 
-function validIndianMobile(phone: string): boolean {
-  return /^91[6-9]\d{9}$/.test(phone);
-}
-
 export const POST = withErrorHandling(async (req: NextRequest) => {
   if (!dealerLoginEnabled()) {
     return fail("FORBIDDEN", "Dealer sign-in is not available yet.");
@@ -54,8 +50,11 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     return fail("VALIDATION_ERROR", "Please check the form.", parsed.error.flatten());
   }
 
-  const phone = normalisePhone(parsed.data.phone);
-  if (!validIndianMobile(phone)) {
+  // ONE shared normalizer for every auth phone path (same as OTP send/verify),
+  // so a dealer created here and later signing in by OTP resolve to the exact
+  // same canonical "91XXXXXXXXXX" — no format mismatch, no "existing looks new".
+  const phone = normalizeIndianMobile(parsed.data.phone);
+  if (!phone) {
     return fail("VALIDATION_ERROR", "Enter a valid 10-digit Indian mobile number.");
   }
 

@@ -38,6 +38,13 @@ async function gateDealer(req: NextRequest, pathname: string) {
     return NextResponse.redirect(new URL("/dealer/login", req.url));
   }
 
+  // /dealer/register is the SELF-SIGNUP page: the visitor is here to BECOME a
+  // dealer, so they hold a BUYER session, not a dealer one. Gating it dealer-only
+  // sent it to /dealer/login?next=/dealer/register and looped forever. Let it
+  // through — the page's own guard routes (no session → login, already a dealer
+  // → dashboard, buyer session → the registration form).
+  if (pathname === "/dealer/register") return NextResponse.next();
+
   const claims = await verifySession(req.cookies.get(DEALER_COOKIE)?.value);
   const isDealer = claims?.role === "dealer";
 

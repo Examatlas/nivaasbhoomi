@@ -28,7 +28,17 @@ const DEAL_TYPES = [
  * /api/users/me/upgrade, which creates a "pending" Dealer, links both sides and
  * emails an admin. On success → the dealer dashboard (with its pending banner).
  */
-export function DealerRegistrationForm({ name, phone }: { name: string; phone: string }) {
+export function DealerRegistrationForm({
+  name,
+  phone,
+  mode = "new",
+}: {
+  name: string;
+  phone: string;
+  /** "upgrade" = an existing buyer account is becoming a dealer (link, don't
+   *  duplicate); "new" = a freshly-created number. Only changes the notice. */
+  mode?: "upgrade" | "new";
+}) {
   const [businessName, setBusinessName] = useState("");
   const [dealTypes, setDealTypes] = useState<string[]>([]);
   const [entries, setEntries] = useState<CoverageEntry[]>([]);
@@ -82,6 +92,13 @@ export function DealerRegistrationForm({ name, phone }: { name: string; phone: s
           Your account will be reviewed by our team before it goes live.
         </p>
       </div>
+
+      {mode === "upgrade" && (
+        <div className="rounded-card border border-clay-100 bg-clay-50 px-4 py-3 text-sm text-clay-800">
+          This number is already linked to your account. You&apos;re upgrading it to a{" "}
+          <b>dealer</b> account — your existing details stay the same.
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">

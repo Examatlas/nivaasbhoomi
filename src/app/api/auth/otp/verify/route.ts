@@ -15,9 +15,9 @@ import {
   normalizeIndianMobile,
   isExpired,
   isLockedOut,
-  decideVerify,
   OTP_MAX_ATTEMPTS,
 } from "@/lib/auth/otp-login";
+import { safeInternalPath, dealerRegisterNext } from "@/lib/auth/otp-verify-nav";
 
 /**
  * POST /api/auth/otp/verify   { phone, code, role }   role = "buyer" | "dealer"
@@ -35,6 +35,9 @@ const bodySchema = z.object({
   phone: z.string().trim().min(1).max(20),
   code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code."),
   role: z.enum(["buyer", "dealer"]),
+  // Optional deep-link target (from the login page's ?next) — honoured only for
+  // an existing dealer / buyer, and only after safeInternalPath() clears it.
+  next: z.string().trim().max(512).optional(),
 });
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
@@ -50,6 +53,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const phone = normalizeIndianMobile(parsed.data.phone);
   if (!phone) return fail("VALIDATION_ERROR", "Enter a valid 10-digit Indian mobile number.");
   const { code, role } = parsed.data;
+  const safeNext = safeInternalPath(parsed.data.next);
 
   await connectDB();
   const otp = await Otp.findOne({ phone });
@@ -76,59 +80,57 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   // Correct — burn the code.
   await Otp.deleteMany({ phone });
 
+  // ---- The SERVER decides where to go, from the DB. The client only follows
+  //      the returned `next` — no client-side branching (that caused the loop). ----
   if (role === "dealer") {
     const dealer = await Dealer.findOne({ phone });
 
-    // No dealer on this number → self-registration (no dead end). Find or create
-    // the underlying User (phoneVerified), set the BUYER session so the dealer
-    // registration form can submit to /api/users/me/upgrade (requireUser), then
-    // point the client at /dealer/register. The upgrade route creates the Dealer
-    // as "pending", links both sides, and emails an admin.
-    if (decideVerify("dealer", Boolean(dealer)) === "register-dealer" || !dealer) {
-      let user = await User.findOne({ phone });
-      if (!user) {
-        user = await User.create({ phone, phoneVerified: true, lastLoginAt: new Date() });
-      } else {
-        user.phoneVerified = true;
-        user.lastLoginAt = new Date();
-        await user.save();
+    // 1) A dealer already exists on this number → straight into the panel.
+    if (dealer) {
+      if (dealer.status === "banned") {
+        return fail("FORBIDDEN", "This account has been suspended.");
       }
-      // Already linked to a dealer (edge: linked User, dealer lookup raced) →
-      // straight to the dashboard with both sessions.
-      const store = await cookies();
-      const linkedDealerId = user.dealerId ? String(user.dealerId) : undefined;
-      const userToken = await signSession({
-        role: "user",
-        userId: String(user._id),
-        ...(linkedDealerId ? { dealerId: linkedDealerId } : {}),
-      });
-      store.set(USER_COOKIE, userToken, sessionCookieOptions());
-      await setSessionHint({ name: user.name, phone: user.phone, dealerId: user.dealerId });
-      if (linkedDealerId) {
-        const dealerToken = await signSession({ role: "dealer", dealerId: linkedDealerId });
-        store.set(DEALER_COOKIE, dealerToken, sessionCookieOptions());
-        return ok({ role: "dealer", dealerId: linkedDealerId, redirect: "/dealer/dashboard" });
-      }
-      return ok({
-        role: "user",
-        userId: String(user._id),
-        needsRegistration: true,
-        name: user.name ?? null,
-        redirect: "/dealer/register",
-      });
+      dealer.phoneVerified = true;
+      await dealer.save();
+      const token = await signSession({ role: "dealer", dealerId: String(dealer._id) });
+      (await cookies()).set(DEALER_COOKIE, token, sessionCookieOptions());
+      return ok({ next: safeNext ?? "/dealer/dashboard" });
     }
 
-    if (dealer.status === "banned") {
-      return fail("FORBIDDEN", "This account has been suspended.");
+    // 2) No dealer yet → the visitor will REGISTER. "upgrade" when a buyer User
+    //    already exists on this number (link it, never duplicate); "new" when we
+    //    create the User now. Either way we set a BUYER session so /dealer/register
+    //    (and its submit to /api/users/me/upgrade) is authorised.
+    let user = await User.findOne({ phone });
+    const userExisted = Boolean(user);
+    if (!user) {
+      user = await User.create({ phone, phoneVerified: true, lastLoginAt: new Date() });
+    } else {
+      user.phoneVerified = true;
+      user.lastLoginAt = new Date();
+      await user.save();
     }
-    dealer.phoneVerified = true;
-    await dealer.save();
-    const token = await signSession({ role: "dealer", dealerId: String(dealer._id) });
-    (await cookies()).set(DEALER_COOKIE, token, sessionCookieOptions());
-    return ok({ role: "dealer", dealerId: String(dealer._id), redirect: "/dealer/dashboard" });
+
+    const store = await cookies();
+    const linkedDealerId = user.dealerId ? String(user.dealerId) : undefined;
+    const userToken = await signSession({
+      role: "user",
+      userId: String(user._id),
+      ...(linkedDealerId ? { dealerId: linkedDealerId } : {}),
+    });
+    store.set(USER_COOKIE, userToken, sessionCookieOptions());
+    await setSessionHint({ name: user.name, phone: user.phone, dealerId: user.dealerId });
+
+    // Edge: the User is already linked to a dealer (raced) → dashboard.
+    if (linkedDealerId) {
+      const dealerToken = await signSession({ role: "dealer", dealerId: linkedDealerId });
+      store.set(DEALER_COOKIE, dealerToken, sessionCookieOptions());
+      return ok({ next: "/dealer/dashboard" });
+    }
+    return ok(dealerRegisterNext(userExisted));
   }
 
-  // Buyer: find or auto-create.
+  // Buyer: find or auto-create, then go home (or a safe ?next deep link).
   let user = await User.findOne({ phone });
   const isNew = !user;
   if (!user) {
@@ -154,11 +156,5 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     const dealerToken = await signSession({ role: "dealer", dealerId: linkedDealerId });
     store.set(DEALER_COOKIE, dealerToken, sessionCookieOptions());
   }
-  return ok({
-    role: "user",
-    userId: String(user._id),
-    dealerId: linkedDealerId ?? null,
-    isNew,
-    redirect: "/",
-  });
+  return ok({ next: safeNext ?? "/", isNew });
 });

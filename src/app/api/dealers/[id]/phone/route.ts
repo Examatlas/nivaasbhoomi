@@ -5,7 +5,7 @@ import { ok, fail, withErrorHandling } from "@/lib/api/response";
 import { requireDealer } from "@/lib/auth/middleware";
 import { connectDB } from "@/lib/db/connect";
 import { Dealer } from "@/lib/db/models/Dealer";
-import { normalisePhone } from "@/lib/utils/whatsapp";
+import { normalizeIndianMobile } from "@/lib/auth/otp-login";
 import { phoneInUse } from "@/lib/auth/account-guards";
 
 /**
@@ -41,9 +41,11 @@ export const POST = withErrorHandling(
     const parsed = bodySchema.safeParse(json);
     if (!parsed.success) return fail("VALIDATION_ERROR", "Enter a valid phone number.");
 
-    const phone = normalisePhone(parsed.data.phone);
-    if (!/^\d{10,15}$/.test(phone)) {
-      return fail("VALIDATION_ERROR", "Enter a valid phone number with country code.");
+    // Same canonical normalizer as OTP login, so the new number resolves this
+    // dealer identically when WhatsApp-OTP login runs a lookup by phone.
+    const phone = normalizeIndianMobile(parsed.data.phone);
+    if (!phone) {
+      return fail("VALIDATION_ERROR", "Enter a valid 10-digit Indian mobile number.");
     }
 
     await connectDB();

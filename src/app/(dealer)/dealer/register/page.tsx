@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
  * buyer session, then sends the browser here). Renders the SHARED registration
  * form; submitting creates a "pending" Dealer awaiting admin approval.
  */
-export default async function DealerRegisterPage() {
+export default async function DealerRegisterPage({ searchParams }: PageProps<"/dealer/register">) {
   const session = await getUserSession();
   if (!session) redirect("/dealer/login");
 
@@ -29,6 +29,9 @@ export default async function DealerRegisterPage() {
   // Already a dealer → straight to the dashboard.
   if (user.dealerId) redirect("/dealer/dashboard");
 
+  const sp = await searchParams;
+  const mode = sp.mode === "upgrade" ? "upgrade" : "new";
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
       <div className="mb-8 flex flex-col items-center gap-3 text-center">
@@ -37,7 +40,7 @@ export default async function DealerRegisterPage() {
           Your number is verified. Tell us about your business to finish setting up.
         </p>
       </div>
-      <DealerRegistrationForm name={user.name ?? ""} phone={user.phone ?? ""} />
+      <DealerRegistrationForm name={user.name ?? ""} phone={user.phone ?? ""} mode={mode} />
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import { formatRetryAfter } from "@/lib/auth/otp-retry";
-import { verifyNavigation, canSubmitOtp, type VerifyResponse } from "@/lib/auth/otp-verify-nav";
+import { safeInternalPath, canSubmitOtp, type VerifyResponse } from "@/lib/auth/otp-verify-nav";
 import { hardNavigate } from "@/lib/auth/auth-nav";
 
 const RESEND_SECONDS = 30;
@@ -102,10 +102,14 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
       try {
         const res = await apiFetch<VerifyResponse>("/api/auth/otp/verify", {
           method: "POST",
-          body: JSON.stringify({ phone: phone.trim(), code: fullCode, role }),
+          // Pass the login page's ?next so the SERVER can honour a deep link;
+          // the server decides the real destination and returns it as `next`.
+          body: JSON.stringify({ phone: phone.trim(), code: fullCode, role, ...(next ? { next } : {}) }),
         });
-        const nav = verifyNavigation(res, { next });
-        if (nav.kind === "error") {
+        // The client does NOT branch on account state — it only follows the
+        // server-decided `next` (guarded against open redirects).
+        const dest = safeInternalPath(res.next);
+        if (!dest) {
           // Unknown/malformed success — surface it, never silently hang.
           inFlight.current = false;
           setError("Something went wrong. Please try again.");
@@ -116,7 +120,7 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
         // a HARD navigation so the destination renders with the new session — no
         // stale header, and the spinner ends when the page unloads.
         verified.current = true;
-        hardNavigate(nav.to);
+        hardNavigate(dest);
       } catch (err) {
         inFlight.current = false; // allow another attempt with a new code
         const limited = rateLimit(err);

@@ -1,36 +1,46 @@
 /**
- * Pure client-safe logic for the OTP verify screen (no React, no I/O) so the
- * "every branch goes somewhere" and "no double submit" rules are unit-tested.
+ * Pure client-safe logic for the OTP verify screen (no React, no I/O).
  *
- * Verify SUCCESS responses (see /api/auth/otp/verify) come in these shapes:
- *   • existing dealer            → { role:"dealer", redirect:"/dealer/dashboard" }
- *   • buyer / linked buyer       → { role:"user",   redirect:"/" }
- *   • verified number, NO dealer → { role:"user", needsRegistration:true,
- *                                    redirect:"/dealer/register" }
- * Anything without a redirect is treated as an error rather than silently
+ * ROUTING IS DECIDED ON THE SERVER. /api/auth/otp/verify inspects the DB and
+ * returns exactly where to go as `next` (plus a `mode` for the registration
+ * screen); the client does NOT branch on account state — it just follows `next`.
+ * Success responses:
+ *   • existing dealer            → { next: "/dealer/dashboard" }
+ *   • user exists, NO dealer     → { next: "/dealer/register?mode=upgrade", mode:"upgrade" }
+ *   • neither (user created)     → { next: "/dealer/register?mode=new",     mode:"new" }
+ *   • buyer login                → { next: "/" (or a safe ?next) }
+ * A response with no usable `next` is treated as an error rather than silently
  * leaving the user stranded on the OTP screen.
  */
 export interface VerifyResponse {
-  redirect?: string;
-  needsRegistration?: boolean;
+  next?: string;
+  mode?: "upgrade" | "new";
 }
 
-export type VerifyNav =
-  | { kind: "register"; to: string } // new dealer → shared registration form
-  | { kind: "navigate"; to: string } // existing dealer / buyer → their home
-  | { kind: "error" }; // unknown / malformed success — show an error, never hang
+/**
+ * Guard a redirect target: allow ONLY a same-origin absolute path (a single
+ * leading "/"). Blocks protocol-relative ("//evil"), absolute URLs (with a
+ * scheme) and backslash tricks, so a `?next` can never become an open redirect.
+ * Shared by the server (sanitising the client-supplied next) and the client
+ * (before navigating). Returns null when empty or unsafe.
+ */
+export function safeInternalPath(path: string | null | undefined): string | null {
+  if (!path || typeof path !== "string") return null;
+  if (!path.startsWith("/")) return null; // must be a root-relative path
+  if (path.startsWith("//")) return null; // protocol-relative → other origin
+  if (path.includes("\\")) return null; // backslash normalises to "/" in browsers
+  return path;
+}
 
-/** Map a verify success response to exactly one navigation action. The dealer
- *  self-registration redirect always wins over `next` (they must register
- *  first); every other success honours `next` when present. */
-export function verifyNavigation(
-  res: VerifyResponse | null | undefined,
-  opts: { next?: string | null } = {},
-): VerifyNav {
-  if (!res) return { kind: "error" };
-  if (res.needsRegistration && res.redirect) return { kind: "register", to: res.redirect };
-  if (res.redirect) return { kind: "navigate", to: opts.next || res.redirect };
-  return { kind: "error" };
+/** The register-branch destination when an OTP-verified number has NO dealer:
+ *  "upgrade" links an existing buyer User, "new" was just created. The `mode`
+ *  rides in the path so /dealer/register can show the right notice. */
+export function dealerRegisterNext(userExists: boolean): {
+  next: string;
+  mode: "upgrade" | "new";
+} {
+  const mode = userExists ? "upgrade" : "new";
+  return { next: `/dealer/register?mode=${mode}`, mode };
 }
 
 /** A submit may proceed only when nothing is in flight, the code hasn't already
