@@ -16,7 +16,10 @@
       "price": 42000000,
       "area": 1700,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862160/seed-listings/new-delhi-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862162/seed-listings/new-delhi-flat-2.jpg"
+      ]
     },
     {
       "city": "new-delhi",
@@ -28,7 +31,10 @@
       "price": 85000,
       "area": 1000,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862163/seed-listings/new-delhi-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862164/seed-listings/new-delhi-flat-4.jpg"
+      ]
     },
     {
       "city": "new-delhi",
@@ -39,7 +45,10 @@
       "propertyType": "plot",
       "price": 52000000,
       "area": 1800,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862169/seed-listings/new-delhi-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862170/seed-listings/new-delhi-plot-2.png"
+      ]
     },
     {
       "city": "new-delhi",
@@ -51,9 +60,11 @@
       "price": 85000000,
       "area": 2500,
       "bedrooms": "4",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862174/seed-listings/new-delhi-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862176/seed-listings/new-delhi-house-2.jpg"
+      ]
     },
-
     {
       "city": "mumbai",
       "locality": "dadar",
@@ -64,7 +75,10 @@
       "price": 40000000,
       "area": 800,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862177/seed-listings/mumbai-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862180/seed-listings/mumbai-flat-2.jpg"
+      ]
     },
     {
       "city": "mumbai",
@@ -76,7 +90,10 @@
       "price": 65000,
       "area": 750,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862181/seed-listings/mumbai-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862182/seed-listings/mumbai-flat-4.jpg"
+      ]
     },
     {
       "city": "mumbai",
@@ -88,7 +105,10 @@
       "price": 65000000,
       "area": 1100,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862184/seed-listings/mumbai-flat-5.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862186/seed-listings/mumbai-flat-6.jpg"
+      ]
     },
     {
       "city": "mumbai",
@@ -100,9 +120,11 @@
       "price": 250000000,
       "area": 2800,
       "bedrooms": "4",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862188/seed-listings/mumbai-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862189/seed-listings/mumbai-house-2.jpg"
+      ]
     },
-
     {
       "city": "bengaluru-urban",
       "locality": "bellandur",
@@ -113,7 +135,10 @@
       "price": 22500000,
       "area": 1500,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862191/seed-listings/bengaluru-urban-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862192/seed-listings/bengaluru-urban-flat-2.jpg"
+      ]
     },
     {
       "city": "bengaluru-urban",
@@ -125,7 +150,10 @@
       "price": 32000,
       "area": 1100,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862193/seed-listings/bengaluru-urban-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862195/seed-listings/bengaluru-urban-flat-4.jpg"
+      ]
     },
     {
       "city": "bengaluru-urban",
@@ -136,7 +164,10 @@
       "propertyType": "plot",
       "price": 15000000,
       "area": 1200,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862199/seed-listings/bengaluru-urban-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862201/seed-listings/bengaluru-urban-plot-2.jpg"
+      ]
     },
     {
       "city": "bengaluru-urban",
@@ -148,9 +179,11 @@
       "price": 32000000,
       "area": 2000,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862203/seed-listings/bengaluru-urban-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862204/seed-listings/bengaluru-urban-house-2.jpg"
+      ]
     },
-
     {
       "city": "hyderabad",
       "locality": "gachibowli",
@@ -161,7 +194,10 @@
       "price": 16500000,
       "area": 1650,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862206/seed-listings/hyderabad-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862207/seed-listings/hyderabad-flat-2.png"
+      ]
     },
     {
       "city": "hyderabad",
@@ -173,7 +209,10 @@
       "price": 28000,
       "area": 1150,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862208/seed-listings/hyderabad-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862210/seed-listings/hyderabad-flat-4.jpg"
+      ]
     },
     {
       "city": "hyderabad",
@@ -184,7 +223,10 @@
       "propertyType": "plot",
       "price": 30000000,
       "area": 2400,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862212/seed-listings/hyderabad-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862213/seed-listings/hyderabad-plot-2.jpg"
+      ]
     },
     {
       "city": "hyderabad",
@@ -196,9 +238,11 @@
       "price": 65000000,
       "area": 3000,
       "bedrooms": "4",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862215/seed-listings/hyderabad-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862216/seed-listings/hyderabad-house-2.jpg"
+      ]
     },
-
     {
       "city": "pune",
       "locality": "aundh",
@@ -209,7 +253,10 @@
       "price": 11500000,
       "area": 1050,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862218/seed-listings/pune-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862219/seed-listings/pune-flat-2.png"
+      ]
     },
     {
       "city": "pune",
@@ -221,7 +268,10 @@
       "price": 27000,
       "area": 1000,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862220/seed-listings/pune-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862222/seed-listings/pune-flat-4.jpg"
+      ]
     },
     {
       "city": "pune",
@@ -232,7 +282,10 @@
       "propertyType": "plot",
       "price": 14000000,
       "area": 2000,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862224/seed-listings/pune-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862225/seed-listings/pune-plot-2.jpg"
+      ]
     },
     {
       "city": "pune",
@@ -244,9 +297,11 @@
       "price": 15000000,
       "area": 1800,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862227/seed-listings/pune-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862228/seed-listings/pune-house-2.jpg"
+      ]
     },
-
     {
       "city": "chennai",
       "locality": "adyar",
@@ -257,7 +312,10 @@
       "price": 27000000,
       "area": 1500,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862230/seed-listings/chennai-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862231/seed-listings/chennai-flat-2.jpg"
+      ]
     },
     {
       "city": "chennai",
@@ -269,7 +327,10 @@
       "price": 35000,
       "area": 1150,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862232/seed-listings/chennai-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862234/seed-listings/chennai-flat-4.jpg"
+      ]
     },
     {
       "city": "chennai",
@@ -280,7 +341,10 @@
       "propertyType": "plot",
       "price": 16800000,
       "area": 1200,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862235/seed-listings/chennai-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862236/seed-listings/chennai-plot-2.jpg"
+      ]
     },
     {
       "city": "chennai",
@@ -292,9 +356,11 @@
       "price": 42000000,
       "area": 2000,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862238/seed-listings/chennai-house-1.png",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862240/seed-listings/chennai-house-2.jpg"
+      ]
     },
-
     {
       "city": "kolkata",
       "locality": "ballygunge",
@@ -305,7 +371,10 @@
       "price": 19500000,
       "area": 1400,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862241/seed-listings/kolkata-flat-1.png",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862243/seed-listings/kolkata-flat-2.jpg"
+      ]
     },
     {
       "city": "kolkata",
@@ -317,7 +386,10 @@
       "price": 30000,
       "area": 1050,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862245/seed-listings/kolkata-flat-3.png",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862246/seed-listings/kolkata-flat-4.jpg"
+      ]
     },
     {
       "city": "kolkata",
@@ -328,7 +400,10 @@
       "propertyType": "plot",
       "price": 8600000,
       "area": 1440,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862248/seed-listings/kolkata-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862249/seed-listings/kolkata-plot-2.jpg"
+      ]
     },
     {
       "city": "kolkata",
@@ -340,9 +415,11 @@
       "price": 65000000,
       "area": 2800,
       "bedrooms": "4",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862250/seed-listings/kolkata-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862252/seed-listings/kolkata-house-2.jpg"
+      ]
     },
-
     {
       "city": "ahmadabad",
       "locality": "bodakdev",
@@ -353,7 +430,10 @@
       "price": 13500000,
       "area": 1800,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862255/seed-listings/ahmadabad-flat-1.png",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862256/seed-listings/ahmadabad-flat-2.jpg"
+      ]
     },
     {
       "city": "ahmadabad",
@@ -365,7 +445,10 @@
       "price": 18000,
       "area": 1200,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862258/seed-listings/ahmadabad-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862260/seed-listings/ahmadabad-flat-4.jpg"
+      ]
     },
     {
       "city": "ahmadabad",
@@ -376,7 +459,10 @@
       "propertyType": "plot",
       "price": 8500000,
       "area": 2160,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862261/seed-listings/ahmadabad-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862262/seed-listings/ahmadabad-plot-2.jpg"
+      ]
     },
     {
       "city": "ahmadabad",
@@ -388,9 +474,11 @@
       "price": 9500000,
       "area": 1600,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862264/seed-listings/ahmadabad-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862266/seed-listings/ahmadabad-house-2.jpg"
+      ]
     },
-
     {
       "city": "jaipur",
       "locality": "bani-park",
@@ -401,7 +489,10 @@
       "price": 11500000,
       "area": 1650,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862270/seed-listings/jaipur-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862271/seed-listings/jaipur-flat-2.jpg"
+      ]
     },
     {
       "city": "jaipur",
@@ -413,7 +504,10 @@
       "price": 16000,
       "area": 1150,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862273/seed-listings/jaipur-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862274/seed-listings/jaipur-flat-4.jpg"
+      ]
     },
     {
       "city": "jaipur",
@@ -424,7 +518,10 @@
       "propertyType": "plot",
       "price": 4500000,
       "area": 1800,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862276/seed-listings/jaipur-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862278/seed-listings/jaipur-plot-2.jpg"
+      ]
     },
     {
       "city": "jaipur",
@@ -436,9 +533,11 @@
       "price": 9000000,
       "area": 1800,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862280/seed-listings/jaipur-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862281/seed-listings/jaipur-house-2.jpg"
+      ]
     },
-
     {
       "city": "lucknow",
       "locality": "aliganj",
@@ -449,7 +548,10 @@
       "price": 10500000,
       "area": 1500,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862282/seed-listings/lucknow-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862284/seed-listings/lucknow-flat-2.jpg"
+      ]
     },
     {
       "city": "lucknow",
@@ -461,7 +563,10 @@
       "price": 15000,
       "area": 1100,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862285/seed-listings/lucknow-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862287/seed-listings/lucknow-flat-4.jpg"
+      ]
     },
     {
       "city": "lucknow",
@@ -472,7 +577,10 @@
       "propertyType": "plot",
       "price": 8000000,
       "area": 2000,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862288/seed-listings/lucknow-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862289/seed-listings/lucknow-plot-2.jpg"
+      ]
     },
     {
       "city": "lucknow",
@@ -484,9 +592,11 @@
       "price": 11000000,
       "area": 1650,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862291/seed-listings/lucknow-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862292/seed-listings/lucknow-house-2.jpg"
+      ]
     },
-
     {
       "city": "patna",
       "locality": "bankipore",
@@ -497,7 +607,10 @@
       "price": 10800000,
       "area": 1450,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862293/seed-listings/patna-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862295/seed-listings/patna-flat-2.jpg"
+      ]
     },
     {
       "city": "patna",
@@ -509,7 +622,10 @@
       "price": 15000,
       "area": 1100,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862296/seed-listings/patna-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862297/seed-listings/patna-flat-4.jpg"
+      ]
     },
     {
       "city": "patna",
@@ -520,7 +636,10 @@
       "propertyType": "plot",
       "price": 9000000,
       "area": 1800,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862299/seed-listings/patna-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862300/seed-listings/patna-plot-2.jpg"
+      ]
     },
     {
       "city": "patna",
@@ -532,9 +651,11 @@
       "price": 11500000,
       "area": 1600,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862302/seed-listings/patna-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862304/seed-listings/patna-house-2.jpg"
+      ]
     },
-
     {
       "city": "ranchi",
       "locality": "bariatu",
@@ -545,7 +666,10 @@
       "price": 6500000,
       "area": 1400,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862305/seed-listings/ranchi-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862306/seed-listings/ranchi-flat-2.jpg"
+      ]
     },
     {
       "city": "ranchi",
@@ -557,7 +681,10 @@
       "price": 13000,
       "area": 1050,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862307/seed-listings/ranchi-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862309/seed-listings/ranchi-flat-4.jpg"
+      ]
     },
     {
       "city": "ranchi",
@@ -568,7 +695,10 @@
       "propertyType": "plot",
       "price": 6000000,
       "area": 2400,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862311/seed-listings/ranchi-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862312/seed-listings/ranchi-plot-2.jpg"
+      ]
     },
     {
       "city": "ranchi",
@@ -580,9 +710,11 @@
       "price": 9500000,
       "area": 1600,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862313/seed-listings/ranchi-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862316/seed-listings/ranchi-house-2.jpg"
+      ]
     },
-
     {
       "city": "varanasi",
       "locality": "bhelupura",
@@ -593,7 +725,10 @@
       "price": 8700000,
       "area": 1350,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862317/seed-listings/varanasi-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862318/seed-listings/varanasi-flat-2.jpg"
+      ]
     },
     {
       "city": "varanasi",
@@ -605,7 +740,10 @@
       "price": 13000,
       "area": 1000,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862320/seed-listings/varanasi-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862322/seed-listings/varanasi-flat-4.jpg"
+      ]
     },
     {
       "city": "varanasi",
@@ -616,7 +754,10 @@
       "propertyType": "plot",
       "price": 6000000,
       "area": 1500,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862323/seed-listings/varanasi-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862324/seed-listings/varanasi-plot-2.jpg"
+      ]
     },
     {
       "city": "varanasi",
@@ -628,9 +769,11 @@
       "price": 11000000,
       "area": 1500,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862326/seed-listings/varanasi-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862327/seed-listings/varanasi-house-2.jpg"
+      ]
     },
-
     {
       "city": "prayagraj",
       "locality": "allahpur",
@@ -641,7 +784,10 @@
       "price": 7400000,
       "area": 1350,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862329/seed-listings/prayagraj-flat-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862330/seed-listings/prayagraj-flat-2.jpg"
+      ]
     },
     {
       "city": "prayagraj",
@@ -653,7 +799,10 @@
       "price": 12000,
       "area": 1000,
       "bedrooms": "2",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862331/seed-listings/prayagraj-flat-3.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862333/seed-listings/prayagraj-flat-4.jpg"
+      ]
     },
     {
       "city": "prayagraj",
@@ -664,7 +813,10 @@
       "propertyType": "plot",
       "price": 5400000,
       "area": 1800,
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862334/seed-listings/prayagraj-plot-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862335/seed-listings/prayagraj-plot-2.jpg"
+      ]
     },
     {
       "city": "prayagraj",
@@ -676,7 +828,10 @@
       "price": 9000000,
       "area": 1500,
       "bedrooms": "3",
-      "images": ["REPLACE_WITH_CLOUDINARY_URL_1", "REPLACE_WITH_CLOUDINARY_URL_2"]
+      "images": [
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862337/seed-listings/prayagraj-house-1.jpg",
+        "https://res.cloudinary.com/daxfbr8l1/image/upload/v1788862339/seed-listings/prayagraj-house-2.jpg"
+      ]
     }
   ]
 }

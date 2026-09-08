@@ -1,3 +1,4 @@
+import { isValidObjectId } from "mongoose";
 import { Dealer } from "@/lib/db/models/Dealer";
 import { hasRemainingQuota } from "@/lib/leads/quota-guard";
 
@@ -19,9 +20,13 @@ export interface DealerCardInfo {
 export async function fetchDealerCardInfo(
   dealerIds: string[],
 ): Promise<Map<string, DealerCardInfo>> {
-  if (dealerIds.length === 0) return new Map();
+  // Seed (display-only) listings have dealerId=null, which arrives here as
+  // null/undefined or the string "null". Keep only real ObjectIds, or the
+  // Dealer query casts "null" -> ObjectId and throws (crashing the whole page).
+  const validIds = dealerIds.filter((id) => id && isValidObjectId(id));
+  if (validIds.length === 0) return new Map();
   const dealers = await Dealer.find(
-    { _id: { $in: dealerIds } },
+    { _id: { $in: validIds } },
     { verificationTier: 1, zenithConnected: 1, zenithNumber: 1, leadsUsedThisMonth: 1, maxLeadsPerMonth: 1 },
   ).lean();
   return new Map(

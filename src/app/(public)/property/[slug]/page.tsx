@@ -55,6 +55,7 @@ import { EmiCalculator } from "@/components/public/emi-calculator";
 import { ListingGrid } from "@/components/public/listing-grid";
 import { getSimilarListings } from "@/lib/listings/query";
 import { possessionLabel } from "@/lib/utils/listing-format";
+import { seedPhotoCredit } from "@/lib/listings/seed-credits";
 import type { PublicListingDetail } from "@/types/property";
 
 export const revalidate = 3600; // ISR (Section 9)
@@ -352,7 +353,14 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                 {l.description}
               </p>
               {l.isSeed && (
-                <p className="mt-3 text-meta text-subtle-foreground">Demo listing — reference ke liye</p>
+                <div className="mt-3 flex flex-col gap-0.5">
+                  <p className="text-meta text-subtle-foreground">Demo listing — reference ke liye</p>
+                  {seedPhotoCredit(l.title) && (
+                    <p className="text-meta text-subtle-foreground">
+                      Photo: {seedPhotoCredit(l.title)} / Pexels
+                    </p>
+                  )}
+                </div>
               )}
             </Card>
 

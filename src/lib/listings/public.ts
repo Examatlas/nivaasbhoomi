@@ -1,3 +1,4 @@
+import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db/connect";
 import { Listing } from "@/lib/db/models/Listing";
 import { City } from "@/lib/db/models/City";
@@ -50,16 +51,19 @@ export async function getPublicListing(slug: string): Promise<PublicListingResul
   if (!city || !locality) return { kind: "not-found" };
 
   const [dealer, state, reraState] = await Promise.all([
-    Dealer.findById(l.dealerId, {
-      slug: 1,
-      businessName: 1,
-      verificationTier: 1,
-      rating: 1,
-      ratingCount: 1,
-      avgResponseMinutes: 1,
-      zenithConnected: 1,
-      zenithNumber: 1,
-    }).lean(),
+    // Seed listings have dealerId=null — skip the lookup (renders no dealer section).
+    isValidObjectId(l.dealerId)
+      ? Dealer.findById(l.dealerId, {
+          slug: 1,
+          businessName: 1,
+          verificationTier: 1,
+          rating: 1,
+          ratingCount: 1,
+          avgResponseMinutes: 1,
+          zenithConnected: 1,
+          zenithNumber: 1,
+        }).lean()
+      : null,
     l.stateId ? State.findById(l.stateId, { name: 1 }).lean() : null,
     l.reraStateId ? State.findById(l.reraStateId, { name: 1 }).lean() : null,
   ]);
