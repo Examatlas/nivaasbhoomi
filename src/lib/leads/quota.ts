@@ -1,42 +1,34 @@
 import { connectDB } from "@/lib/db/connect";
 import { Dealer } from "@/lib/db/models/Dealer";
+import { startOfMonthIST, nextMonthlyReset } from "@/lib/leads/quota-reset-date";
 
 /**
- * Monthly lead-quota reset (DEV-SPEC.txt Section 12).
+ * Monthly lead-quota reset (STEP 3.2). CALENDAR-MONTH based: on the 1st of each
+ * month every dealer's leadsUsedThisMonth goes back to 0.
  *
- * For every dealer whose quotaResetAt has passed: reset leadsUsedThisMonth to 0
- * and advance quotaResetAt by 30 days. Run daily at 00:05 IST by the cron route
- * / script. Idempotent - running it twice in a day is a no-op the second time
- * (quotaResetAt has already moved into the future).
+ * Implemented as ONE atomic updateMany over dealers not yet reset this month
+ * (lastResetAt before this month's start, or never set). That makes it naturally
+ * IDEMPOTENT: a second run the same day matches nobody, so it can't double-reset.
+ * The cron route only calls this on the 1st (IST), per spec.
  */
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-
 export interface QuotaResetResult {
   reset: number;
 }
 
-export async function resetExpiredQuotas(now: Date = new Date()): Promise<QuotaResetResult> {
+export async function resetMonthlyQuotas(now: Date = new Date()): Promise<QuotaResetResult> {
   await connectDB();
+  const monthStart = startOfMonthIST(now);
 
-  // Dealers whose window has elapsed (or was never set - a freshly-created
-  // dealer with no quotaResetAt gets one now).
-  const due = await Dealer.find(
-    { $or: [{ quotaResetAt: { $lte: now } }, { quotaResetAt: null }] },
-    { quotaResetAt: 1 },
-  ).lean();
+  const res = await Dealer.updateMany(
+    { $or: [{ lastResetAt: null }, { lastResetAt: { $lt: monthStart } }] },
+    {
+      $set: {
+        leadsUsedThisMonth: 0,
+        lastResetAt: now,
+        quotaResetAt: nextMonthlyReset(now),
+      },
+    },
+  );
 
-  let reset = 0;
-  for (const d of due) {
-    // Advance from the previous reset point when possible so the cadence stays
-    // on a fixed 30-day grid; otherwise start the clock now.
-    const base = d.quotaResetAt && d.quotaResetAt <= now ? d.quotaResetAt : now;
-    const next = new Date(base.getTime() + THIRTY_DAYS_MS);
-    await Dealer.updateOne(
-      { _id: d._id },
-      { $set: { leadsUsedThisMonth: 0, quotaResetAt: next } },
-    );
-    reset += 1;
-  }
-
-  return { reset };
+  return { reset: res.modifiedCount ?? 0 };
 }

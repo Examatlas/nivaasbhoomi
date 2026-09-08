@@ -78,7 +78,7 @@ export function DealerAuthForm() {
           icon={Building2}
           value={businessName}
           onChange={setBusinessName}
-          placeholder="e.g. Ranchi Prime Properties"
+          placeholder="e.g. Sharma Realty"
           autoComplete="organization"
           required
         />

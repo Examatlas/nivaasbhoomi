@@ -36,6 +36,14 @@ export function computeExpiresAt(lastRefreshedAt: Date): Date {
 }
 
 /**
+ * Price band for "similar listings": ±pct around a price (default ±25%). Kept
+ * pure so the window is unit-tested independently of the DB query that uses it.
+ */
+export function priceBand(price: number, pct = 0.25): { min: number; max: number } {
+  return { min: Math.round(price * (1 - pct)), max: Math.round(price * (1 + pct)) };
+}
+
+/**
  * Resolve the slug for a listing, guaranteeing it is generated exactly ONCE.
  * If a slug already exists it is returned unchanged - the URL never moves, even
  * when price or other fields change (Section 6: "Slug NEVER regenerate on edit

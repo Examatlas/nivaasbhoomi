@@ -70,6 +70,7 @@ export const dealerListingSchema = z.object({
   balconies: z.number().int().min(0).max(20).optional(),
   carpetArea: z.number().positive().optional(),
   builtUpArea: z.number().positive().optional(),
+  superBuiltUpArea: z.number().positive().optional(),
   plotArea: z.number().positive().optional(),
   floor: z.number().int().min(0).max(200).optional(),
   totalFloors: z.number().int().min(0).max(200).optional(),

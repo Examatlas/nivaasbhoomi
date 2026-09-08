@@ -41,7 +41,8 @@ export async function computeLocalityRates(now: Date = new Date()): Promise<Rate
   await connectDB();
 
   const listings = await Listing.find(
-    { status: "approved" },
+    // Seed (display-only) listings never feed real rate aggregates.
+    { status: "approved", isSeed: { $ne: true } },
     {
       cityId: 1, localityId: 1, stateId: 1, propertyType: 1, purpose: 1,
       expectedPrice: 1, monthlyRent: 1, carpetArea: 1, builtUpArea: 1, plotArea: 1, createdAt: 1,

@@ -141,6 +141,7 @@ export async function getMyListingForEdit(
     balconies: l.balconies,
     carpetArea: l.carpetArea,
     builtUpArea: l.builtUpArea,
+    superBuiltUpArea: l.superBuiltUpArea,
     plotArea: l.plotArea,
     floor: l.floor,
     totalFloors: l.totalFloors,

@@ -110,6 +110,7 @@ const listingSchema = new Schema(
     balconies: { type: Number },
     carpetArea: { type: Number },
     builtUpArea: { type: Number },
+    superBuiltUpArea: { type: Number },
     plotArea: { type: Number },
     floor: { type: Number },
     totalFloors: { type: Number },
@@ -200,6 +201,14 @@ const listingSchema = new Schema(
     expiryWarnedAt: { type: Date },
     viewCount: { type: Number, default: 0 },
     leadCount: { type: Number, default: 0 },
+
+    // ---- Seed (display-only) listings ----
+    // A temporary placeholder listing so a fresh city/site doesn't look empty.
+    // Display-only: NO contact/enquiry (blocked server-side too), never counted
+    // toward city/locality activation or rate data, and noindexed. Removed as
+    // real dealers arrive, or auto-archived after seedExpiresAt.
+    isSeed: { type: Boolean, default: false },
+    seedExpiresAt: { type: Date, default: null },
 
     // SEO
     metaTitle: { type: String },
@@ -317,6 +326,9 @@ listingSchema.index({ status: 1, expiresAt: 1 }); // expiry cron
 listingSchema.index({ cityId: 1, status: 1, createdAt: -1 }); // city page
 listingSchema.index({ localityId: 1, status: 1, expectedPrice: 1 });
 listingSchema.index({ location: "2dsphere" }); // future map search (from lat/lng)
+// Seed admin filter (by city) + the expire-seed cron (isSeed + seedExpiresAt).
+listingSchema.index({ isSeed: 1, cityId: 1 });
+listingSchema.index({ isSeed: 1, seedExpiresAt: 1 });
 
 export type ListingDoc = InferSchemaType<typeof listingSchema>;
 

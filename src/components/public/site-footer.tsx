@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
+import { getVisibleFeaturedCities } from "@/lib/listings/featured-cities-query";
 
 /**
  * Public site footer. Calm, text-first, no ad slots - the layout is allowed to
@@ -38,13 +39,14 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
   },
 ];
 
-export function SiteFooter() {
+export async function SiteFooter() {
   const year = new Date().getFullYear();
+  const featuredCities = await getVisibleFeaturedCities();
 
   return (
     <footer className="mt-20 border-t border-border bg-surface">
       <div className="mx-auto max-w-page px-4 py-12 sm:px-6">
-        <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div className="flex flex-col gap-3">
             <Logo href="/" />
             <p className="max-w-xs text-sm text-muted-foreground">
@@ -52,6 +54,25 @@ export function SiteFooter() {
               spam calls, no hidden numbers.
             </p>
           </div>
+
+          {/* Popular Cities — pan-India, only cities that exist in the DB. */}
+          {featuredCities.length > 0 && (
+            <nav className="flex flex-col gap-3">
+              <h2 className="text-overline text-subtle-foreground uppercase">Popular Cities</h2>
+              <ul className="flex flex-col gap-2">
+                {featuredCities.map((c) => (
+                  <li key={c.slug}>
+                    <Link
+                      href={`/${c.slug}`}
+                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {c.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
 
           {COLUMNS.map((col) => (
             <nav key={col.title} className="flex flex-col gap-3">

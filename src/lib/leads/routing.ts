@@ -4,8 +4,8 @@ import { connectDB } from "@/lib/db/connect";
 import { Lead } from "@/lib/db/models/Lead";
 import { Dealer } from "@/lib/db/models/Dealer";
 import { Listing } from "@/lib/db/models/Listing";
-import { sendBusinessText } from "@/lib/whatsapp/send";
 import { applyAssignSideEffects, logAudit } from "@/lib/leads/assign";
+import { hasRemainingQuota, markQuotaUnassigned } from "@/lib/leads/quota-guard";
 
 /**
  * Lead routing engine (DEV-SPEC.txt Section 12) — the core of the business.
@@ -51,9 +51,9 @@ export type RoutingDecision =
   | { action: "already-assigned"; dealerId: string; reason: string }
   | { action: "skip"; reason: string };
 
-/** A dealer has room for another lead this month. */
+/** A dealer has room for another lead this month (shared quota primitive). */
 export function hasQuota(d: DealerLite): boolean {
-  return d.leadsUsedThisMonth < d.maxLeadsPerMonth;
+  return hasRemainingQuota(d.leadsUsedThisMonth, d.maxLeadsPerMonth);
 }
 
 /** Response-SLA: the assigned dealer must VIEW the lead within this window. */
@@ -254,12 +254,9 @@ export async function routeLead(leadId: string): Promise<RouteResult> {
         return await performAssignment(lead, decision.dealerId, decision.reason);
 
       case "quota-exceeded": {
-        // Claim it into the admin queue only if still unassigned.
-        await Lead.updateOne(
-          { _id: lead._id, assignedDealerId: null },
-          { $set: { status: "quota-exceeded" } },
-        );
-        await notifyDealerUpgrade(decision.dealerId);
+        // STEP 3.3: never waste the lead. Park it UNASSIGNED (not charged),
+        // remembering the intended dealer so an admin can place it.
+        await markQuotaUnassigned(lead._id as mongoose.Types.ObjectId, decision.dealerId);
         return {
           decision: "quota-exceeded",
           reason: decision.reason,
@@ -363,23 +360,6 @@ async function performAssignment(
   };
 }
 
-// ---- notifications ----
-
-/**
- * Nudge an over-quota dealer to upgrade. There's no dedicated template in
- * Section 11, so this is a best-effort free-form message (delivered only inside
- * the 24h window); the admin queue (lead.status = 'quota-exceeded') is the
- * reliable mechanism.
- */
-async function notifyDealerUpgrade(dealerId: string): Promise<void> {
-  const dealer = await Dealer.findById(dealerId, { phone: 1 }).lean();
-  if (!dealer?.phone) return;
-  await sendBusinessText(
-    dealer.phone,
-    "You just missed a lead because your monthly lead quota is full. Upgrade your plan on NivaasBhoomi to receive more leads.",
-  );
-}
-
 /**
  * Direct assignment to a CHOSEN dealer — a buyer contacting a dealer from their
  * public /agent profile. Reuses the exact rules as routeLead: exclusivity + lock
@@ -421,10 +401,8 @@ export async function routeLeadToDealer(
       return { decision: "unmatched", reason: `dealer is ${dealer.status}`, leadId };
     }
     if (!hasQuota(dealer)) {
-      await Lead.updateOne(
-        { _id: lead._id, assignedDealerId: null },
-        { $set: { status: "quota-exceeded" } },
-      );
+      // STEP 3.3: park it unassigned (not charged), keep the intended dealer.
+      await markQuotaUnassigned(lead._id as mongoose.Types.ObjectId, dealerId);
       return { decision: "quota-exceeded", reason: "dealer over monthly quota", leadId, dealerId };
     }
 

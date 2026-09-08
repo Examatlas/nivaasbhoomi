@@ -44,13 +44,14 @@ function db() {
 async function countApprovedListingsInCity(
   cityId: mongoose.Types.ObjectId,
 ): Promise<number> {
-  return db().collection(LISTINGS).countDocuments({ cityId, status: "approved" });
+  // Seed (display-only) listings NEVER count toward activation.
+  return db().collection(LISTINGS).countDocuments({ cityId, status: "approved", isSeed: { $ne: true } });
 }
 
 async function countApprovedListingsInLocality(
   localityId: mongoose.Types.ObjectId,
 ): Promise<number> {
-  return db().collection(LISTINGS).countDocuments({ localityId, status: "approved" });
+  return db().collection(LISTINGS).countDocuments({ localityId, status: "approved", isSeed: { $ne: true } });
 }
 
 async function countVerifiedDealersInCity(

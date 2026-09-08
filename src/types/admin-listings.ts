@@ -44,6 +44,7 @@ export interface ListingRow {
   photoCount: number;
   createdAt?: string;
   expiresAt?: string;
+  isSeed?: boolean;
 }
 
 export interface DealerLite {

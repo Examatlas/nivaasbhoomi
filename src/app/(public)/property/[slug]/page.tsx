@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ScrollText,
   Home,
+  Calculator,
 } from "lucide-react";
 
 import { getPublicListing, getApprovedListingSlugs } from "@/lib/listings/public";
@@ -38,12 +39,22 @@ import { getFreshness } from "@/lib/utils/date";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { PropertyContactButton } from "@/components/public/property-contact-button";
+import { SeedContactNotice } from "@/components/public/seed-contact-notice";
 import { resolveContactMode } from "@/lib/leads/contact-mode";
 import { JsonLd } from "@/components/shared/json-ld";
 import { PropertyGallery } from "@/components/public/property-gallery";
 import { PropertyMap } from "@/components/public/property-map";
 import { VerificationBadge } from "@/components/public/verification-badge";
 import { FreshnessIndicator } from "@/components/public/freshness-indicator";
+import { SectionNav, type Section } from "@/components/public/section-nav";
+import { SaveButton } from "@/components/public/save-button";
+import { ShareButton } from "@/components/public/share-button";
+import { ListingId } from "@/components/public/listing-id";
+import { ReportListing } from "@/components/public/report-listing";
+import { EmiCalculator } from "@/components/public/emi-calculator";
+import { ListingGrid } from "@/components/public/listing-grid";
+import { getSimilarListings } from "@/lib/listings/query";
+import { possessionLabel } from "@/lib/utils/listing-format";
 import type { PublicListingDetail } from "@/types/property";
 
 export const revalidate = 3600; // ISR (Section 9)
@@ -66,7 +77,7 @@ export async function generateMetadata({
   }
   const l = result.listing;
   const cover = l.photos[l.coverPhotoIndex] ?? l.photos[0];
-  return propertyMetadata({
+  const meta = propertyMetadata({
     slug: l.slug,
     bhk: l.bhk,
     propertyType: l.propertyType,
@@ -77,6 +88,10 @@ export async function generateMetadata({
     description: l.description,
     image: ogImageUrl(cover),
   });
+  // Seed (display-only) listings are noindex, nofollow — deleting them later
+  // must not leave an indexed 404.
+  if (l.isSeed) meta.robots = { index: false, follow: false };
+  return meta;
 }
 
 export default async function PropertyPage({ params }: PageProps<"/property/[slug]">) {
@@ -91,8 +106,33 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
   const l = result.listing;
   const price = formatListingPrice(l.purpose, l.price);
   const isPlot = l.propertyType === "plot";
-  const area = l.carpetArea ?? l.builtUpArea ?? l.plotArea;
+  // Representative area for JSON-LD floorSize + the single-value fallbacks.
+  const area = l.carpetArea ?? l.builtUpArea ?? l.superBuiltUpArea ?? l.plotArea;
   const freshness = getFreshness(l.refreshedAt);
+  const possession = possessionLabel(l.possessionStatus);
+
+  // Similar listings (same city + type + purpose, ±25% price). Seeds get none.
+  const similar = l.isSeed
+    ? []
+    : await getSimilarListings({
+        listingId: l.id,
+        cityId: l.cityId,
+        cityName: l.cityName,
+        propertyType: l.propertyType,
+        purpose: l.purpose,
+        price: l.price,
+      });
+
+  // In-page section nav. Amenities only appears when there's something to show.
+  const hasAmenities = Boolean(
+    l.amenities?.length || l.furnishingDetails?.length || l.parking || l.waterSource?.length,
+  );
+  const sections: Section[] = [
+    { id: "overview", label: "Overview" },
+    ...(hasAmenities ? [{ id: "amenities", label: "Amenities" }] : []),
+    ...(l.lat != null && l.lng != null ? [{ id: "location", label: "Location" }] : []),
+    ...(l.dealer ? [{ id: "dealer", label: "Dealer" }] : []),
+  ];
 
   // Per-dealer button mode: "whatsapp" (into the dealer's Zenith automation) when
   // the dealer is Zenith-connected, else "contact". The wa.me link (with the
@@ -106,36 +146,47 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
     .map((p) => photoUrl(p, "gallery"))
     .map((u) => (u.startsWith("http") ? u : absoluteUrl(u)));
 
-  const jsonld = [
-    realEstateListingJsonLd({
-      slug: l.slug,
-      title: l.title,
-      description: l.description,
-      purpose: l.purpose,
-      price: l.price,
-      images: imageUrls,
-      localityName: l.localityName,
-      cityName: l.cityName,
-      areaSqft: area,
-      bhk: l.bhk,
-    }),
-    productOfferJsonLd({
-      slug: l.slug,
-      title: l.title,
-      description: l.description,
-      purpose: l.purpose,
-      price: l.price,
-      images: imageUrls,
-      localityName: l.localityName,
-      cityName: l.cityName,
-    }),
-    breadcrumbJsonLd([
-      { name: "Home", url: "/" },
-      { name: l.cityName, url: `/${l.citySlug}` },
-      { name: l.localityName, url: `/${l.citySlug}/${l.localitySlug}` },
-      { name: l.title, url: `/property/${l.slug}` },
-    ]),
-  ];
+  // Seed listings emit NO listing structured data (only breadcrumb nav) — so a
+  // demo listing never appears as a real property in search results.
+  const jsonld = l.isSeed
+    ? [
+        breadcrumbJsonLd([
+          { name: "Home", url: "/" },
+          { name: l.cityName, url: `/${l.citySlug}` },
+          { name: l.localityName, url: `/${l.citySlug}/${l.localitySlug}` },
+          { name: l.title, url: `/property/${l.slug}` },
+        ]),
+      ]
+    : [
+        realEstateListingJsonLd({
+          slug: l.slug,
+          title: l.title,
+          description: l.description,
+          purpose: l.purpose,
+          price: l.price,
+          images: imageUrls,
+          localityName: l.localityName,
+          cityName: l.cityName,
+          areaSqft: area,
+          bhk: l.bhk,
+        }),
+        productOfferJsonLd({
+          slug: l.slug,
+          title: l.title,
+          description: l.description,
+          purpose: l.purpose,
+          price: l.price,
+          images: imageUrls,
+          localityName: l.localityName,
+          cityName: l.cityName,
+        }),
+        breadcrumbJsonLd([
+          { name: "Home", url: "/" },
+          { name: l.cityName, url: `/${l.citySlug}` },
+          { name: l.localityName, url: `/${l.citySlug}/${l.localitySlug}` },
+          { name: l.title, url: `/property/${l.slug}` },
+        ]),
+      ];
 
   return (
     <>
@@ -160,6 +211,9 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
           </Link>
         </nav>
 
+        {/* Sticky in-page section nav (Overview / Amenities / Location / Dealer). */}
+        <SectionNav sections={sections} />
+
         <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
           {/* Left: gallery + details */}
           <div className="flex flex-col gap-6">
@@ -169,6 +223,16 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
               title={l.title}
             />
 
+            {/* Reference id + share / save. Save is account-based (buyer auth);
+                seed (display-only) listings are not shortlistable. */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <ListingId id={l.id} />
+              <div className="flex items-center gap-2">
+                <ShareButton path={`/property/${l.slug}`} title={l.title} variant="inline" />
+                {!l.isSeed && <SaveButton listingId={l.id} variant="inline" />}
+              </div>
+            </div>
+
             {/* Header (price + title) - shown here on mobile; sidebar repeats on desktop */}
             <div className="lg:hidden">
               <PriceHeader
@@ -177,28 +241,56 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                 priceSuffix={price.suffix}
               />
               <div className="mt-3">
-                <PropertyContactButton
-                  listingId={l.id}
-                  listingTitle={l.title}
-                  dealerName={l.dealer?.businessName}
-                  mode={contactMode}
-                  whatsappNumber={l.dealer?.zenithNumber ?? undefined}
-                  listingSlug={l.slug}
-                  block
-                />
+                {l.isSeed ? (
+                  <SeedContactNotice cityId={l.cityId} localityId={l.localityId} purpose={l.purpose} />
+                ) : (
+                  <PropertyContactButton
+                    listingId={l.id}
+                    listingTitle={l.title}
+                    dealerName={l.dealer?.businessName}
+                    mode={contactMode}
+                    whatsappNumber={l.dealer?.zenithNumber ?? undefined}
+                    listingSlug={l.slug}
+                    block
+                  />
+                )}
               </div>
             </div>
 
             {/* Key specs */}
-            <Card className="p-5">
+            <Card id="overview" className="scroll-mt-32 p-5">
               <h2 className="mb-4 text-lg font-semibold text-ink-950">Overview</h2>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {l.bhk && !isPlot && (
                   <Spec icon={BedDouble} label="Configuration" value={formatBhk(l.bhk)} />
                 )}
-                {area ? (
-                  <Spec icon={Maximize} label="Area" value={formatArea(area)} />
-                ) : null}
+                {/* Carpet / Built-up / Super built-up shown separately when known;
+                    for a plot only the plot area applies. */}
+                {isPlot ? (
+                  l.plotArea ? (
+                    <Spec icon={Maximize} label="Plot area" value={formatArea(l.plotArea)} />
+                  ) : null
+                ) : (
+                  <>
+                    {l.carpetArea ? (
+                      <Spec icon={Maximize} label="Carpet area" value={formatArea(l.carpetArea)} />
+                    ) : null}
+                    {l.builtUpArea ? (
+                      <Spec icon={Maximize} label="Built-up area" value={formatArea(l.builtUpArea)} />
+                    ) : null}
+                    {l.superBuiltUpArea ? (
+                      <Spec
+                        icon={Maximize}
+                        label="Super built-up"
+                        value={formatArea(l.superBuiltUpArea)}
+                      />
+                    ) : null}
+                    {/* Fallback so a listing with none of the three still shows an area. */}
+                    {!l.carpetArea && !l.builtUpArea && !l.superBuiltUpArea && area ? (
+                      <Spec icon={Maximize} label="Area" value={formatArea(area)} />
+                    ) : null}
+                  </>
+                )}
                 {l.bathrooms != null && !isPlot && (
                   <Spec icon={Bath} label="Bathrooms" value={String(l.bathrooms)} />
                 )}
@@ -220,6 +312,22 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                 {l.ageOfProperty && (
                   <Spec icon={CalendarClock} label="Age" value={l.ageOfProperty} />
                 )}
+                {l.projectName && (
+                  <Spec icon={Building2} label="Project" value={l.projectName} />
+                )}
+                {/* Possession: the exact date when known, else the status label. */}
+                {l.possessionDate ? (
+                  <Spec
+                    icon={CalendarClock}
+                    label="Possession"
+                    value={new Date(l.possessionDate).toLocaleDateString("en-IN", {
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  />
+                ) : possession ? (
+                  <Spec icon={CalendarClock} label="Possession" value={possession} />
+                ) : null}
                 {l.pricePerSqft ? (
                   <Spec
                     icon={Maximize}
@@ -243,6 +351,9 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
               <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
                 {l.description}
               </p>
+              {l.isSeed && (
+                <p className="mt-3 text-meta text-subtle-foreground">Demo listing — reference ke liye</p>
+              )}
             </Card>
 
             {/* Amenities / furnishing / utilities */}
@@ -250,7 +361,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
               l.furnishingDetails?.length ||
               l.parking ||
               l.waterSource?.length) && (
-              <Card className="p-5">
+              <Card id="amenities" className="scroll-mt-32 p-5">
                 <h2 className="mb-4 text-lg font-semibold text-ink-950">
                   Amenities & features
                 </h2>
@@ -269,7 +380,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                 <ScrollText className="size-5 text-clay-600" /> Possession & legal
               </h2>
               <dl className="grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
-                <Row label="Possession" value={l.possessionStatus} />
+                <Row label="Possession" value={possession} />
                 <Row label="Ownership" value={l.ownershipType} />
                 <Row label="RERA number" value={l.reraNumber} />
                 <Row label="RERA state" value={l.reraStateName} />
@@ -303,6 +414,19 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
               </dl>
             </Card>
 
+            {/* EMI estimator — sale listings only, prefilled with the asking price. */}
+            {l.purpose === "sale" && (
+              <Card className="p-5">
+                <h2 className="mb-1 flex items-center gap-2 text-lg font-semibold text-ink-950">
+                  <Calculator className="size-5 text-clay-600" /> EMI estimate
+                </h2>
+                <p className="mb-4 text-meta text-muted-foreground">
+                  A rough monthly instalment for this price. Adjust the loan amount, rate and tenure.
+                </p>
+                <EmiCalculator initialPrincipal={l.price} />
+              </Card>
+            )}
+
             {/* Video */}
             {l.video?.url && (
               <Card className="p-5">
@@ -321,7 +445,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
 
             {/* Location map */}
             {l.lat != null && l.lng != null && (
-              <Card className="p-5">
+              <Card id="location" className="scroll-mt-32 p-5">
                 <h2 className="mb-1 flex items-center gap-2 text-lg font-semibold text-ink-950">
                   <MapPin className="size-5 text-clay-600" /> Location
                 </h2>
@@ -333,6 +457,19 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                 <PropertyMap lat={l.lat} lng={l.lng} label={l.title} />
               </Card>
             )}
+
+            {/* Dealer — in the content flow so it's an anchor target on every
+                breakpoint (the sticky sidebar only exists on desktop). */}
+            {l.dealer && (
+              <div id="dealer" className="scroll-mt-32">
+                <DealerCard dealer={l.dealer} />
+              </div>
+            )}
+
+            {/* Report — a quiet trust affordance at the end of the content. */}
+            <div className="flex justify-end">
+              <ReportListing listingId={l.id} />
+            </div>
           </div>
 
           {/* Right: sticky desktop sidebar */}
@@ -345,27 +482,39 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                   priceSuffix={price.suffix}
                 />
                 <div className="mt-4">
-                  <PropertyContactButton
-                  listingId={l.id}
-                  listingTitle={l.title}
-                  dealerName={l.dealer?.businessName}
-                  mode={contactMode}
-                  whatsappNumber={l.dealer?.zenithNumber ?? undefined}
-                  listingSlug={l.slug}
-                  block
-                />
+                  {l.isSeed ? (
+                    <SeedContactNotice cityId={l.cityId} localityId={l.localityId} purpose={l.purpose} />
+                  ) : (
+                    <PropertyContactButton
+                      listingId={l.id}
+                      listingTitle={l.title}
+                      dealerName={l.dealer?.businessName}
+                      mode={contactMode}
+                      whatsappNumber={l.dealer?.zenithNumber ?? undefined}
+                      listingSlug={l.slug}
+                      block
+                    />
+                  )}
                 </div>
-                <p className="mt-2 text-center text-meta text-muted-foreground">
-                  No spam. The verified dealer contacts you directly.
-                </p>
+                {!l.isSeed && (
+                  <p className="mt-2 text-center text-meta text-muted-foreground">
+                    No spam. The verified dealer contacts you directly.
+                  </p>
+                )}
               </Card>
-
-              {l.dealer && <DealerCard dealer={l.dealer} />}
 
               <FreshnessNote refreshedAt={l.refreshedAt} days={freshness.days} />
             </div>
           </aside>
         </div>
+
+        {/* Similar properties — same city + type + purpose, ±25% price. */}
+        {similar.length > 0 && (
+          <section className="mt-12">
+            <h2 className="mb-5 text-display-sm">Similar properties</h2>
+            <ListingGrid listings={similar} />
+          </section>
+        )}
       </div>
 
       {/* Mobile sticky CTA bar */}
@@ -379,16 +528,20 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
               )}
             </p>
           </div>
-          <PropertyContactButton
-            listingId={l.id}
-            listingTitle={l.title}
-            dealerName={l.dealer?.businessName}
-            mode={contactMode}
-                  whatsappNumber={l.dealer?.zenithNumber ?? undefined}
-                  listingSlug={l.slug}
-            triggerLabel="Contact"
-            size="md"
-          />
+          {l.isSeed ? (
+            <span className="text-meta text-muted-foreground">In verification</span>
+          ) : (
+            <PropertyContactButton
+              listingId={l.id}
+              listingTitle={l.title}
+              dealerName={l.dealer?.businessName}
+              mode={contactMode}
+              whatsappNumber={l.dealer?.zenithNumber ?? undefined}
+              listingSlug={l.slug}
+              triggerLabel="Contact"
+              size="md"
+            />
+          )}
         </div>
       </div>
     </>

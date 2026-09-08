@@ -55,6 +55,7 @@ export interface PublicListingDetail {
   balconies?: number;
   carpetArea?: number;
   builtUpArea?: number;
+  superBuiltUpArea?: number;
   plotArea?: number;
   floor?: number;
   totalFloors?: number;
@@ -77,9 +78,13 @@ export interface PublicListingDetail {
   // location (NO fullAddress)
   localityName: string;
   localitySlug: string;
+  localityId: string;
   cityName: string;
   citySlug: string;
+  cityId: string;
   stateName?: string;
+  /** Seed (display-only) listing — no contact, noindex, no structured data. */
+  isSeed: boolean;
   subLocality?: string;
   projectName?: string;
   landmark?: string;

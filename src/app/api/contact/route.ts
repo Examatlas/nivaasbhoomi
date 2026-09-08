@@ -7,6 +7,7 @@ import { connectDB } from "@/lib/db/connect";
 import { User } from "@/lib/db/models/User";
 import { createEnquiry, createAgentProfileEnquiry } from "@/lib/leads/enquiry";
 import { isFromAlert } from "@/lib/alerts/from-alert";
+import { isSeedListing, SEED_CONTACT_BLOCKED_MESSAGE } from "@/lib/listings/seed";
 
 /**
  * POST /api/contact   (buyer auth required — the gated "Contact Us" action)
@@ -51,6 +52,12 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   }
 
   await connectDB();
+
+  // Seed (display-only) listings can never be contacted — block server-side.
+  if (parsed.data.listingId && (await isSeedListing(parsed.data.listingId))) {
+    return fail("VALIDATION_ERROR", SEED_CONTACT_BLOCKED_MESSAGE);
+  }
+
   const user = await User.findById(auth.identity.userId, {
     phone: 1,
     name: 1,

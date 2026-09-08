@@ -9,8 +9,14 @@ import { formatPrice } from "@/lib/utils/price";
  * Interactive EMI calculator (Phase 8). Pure math from lib/calculators/emi;
  * this is just the controls + a principal-vs-interest breakdown bar.
  */
-export function EmiCalculator() {
-  const [principal, setPrincipal] = useState(5000000);
+export function EmiCalculator({ initialPrincipal }: { initialPrincipal?: number } = {}) {
+  // Clamp any pre-fill (e.g. a listing's price) to the slider's range so the
+  // control never starts out of bounds.
+  const [principal, setPrincipal] = useState(() =>
+    initialPrincipal && initialPrincipal > 0
+      ? Math.min(50000000, Math.max(100000, Math.round(initialPrincipal)))
+      : 5000000,
+  );
   const [ratePct, setRatePct] = useState(8.5);
   const [years, setYears] = useState(20);
 

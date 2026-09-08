@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { User as UserIcon, LogOut, ChevronDown, LayoutDashboard, Store, Loader2, Bell } from "lucide-react";
+import { User as UserIcon, LogOut, ChevronDown, LayoutDashboard, Store, Loader2, Bell, Heart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/components/auth/session-provider";
@@ -113,6 +113,14 @@ export function HeaderAuth() {
               role="menuitem"
             >
               <UserIcon className="size-4 text-muted-foreground" /> My Profile
+            </Link>
+            <Link
+              href="/saved"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-ink-800 hover:bg-surface-muted"
+              role="menuitem"
+            >
+              <Heart className="size-4 text-muted-foreground" /> Saved properties
             </Link>
             <Link
               href="/alerts"

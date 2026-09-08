@@ -53,8 +53,9 @@ export async function createEnquiry(input: EnquiryInput): Promise<EnquiryResult>
 
   let validListingId: string | null = null;
   if (listingId) {
-    const listing = await Listing.findById(listingId, { status: 1 }).lean();
-    if (listing && listing.status === "approved") validListingId = listingId;
+    const listing = await Listing.findById(listingId, { status: 1, isSeed: 1 }).lean();
+    // Defence-in-depth: never create a lead for a seed (display-only) listing.
+    if (listing && listing.status === "approved" && !listing.isSeed) validListingId = listingId;
   }
   if (!validListingId) return { ok: true, leadId: "", assignedNow: false, decision: "skip" };
 

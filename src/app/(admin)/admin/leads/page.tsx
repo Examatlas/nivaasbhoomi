@@ -5,6 +5,7 @@ import { MapPin, AlertTriangle, ArrowRight } from "lucide-react";
 import {
   getUnmatchedByCity,
   getAllLeads,
+  countQuotaExhausted,
   getLeadCities,
   getDealerLeadSummary,
   type AdminLeadRow,
@@ -51,6 +52,9 @@ export default async function AdminLeadsPage({ searchParams }: PageProps<"/admin
   // Tool leads are the only leads with status "unassigned" — so that filter
   // surfaces every lead-magnet tool (stamp duty, legal checklist, …) at once.
   const toolView = view === "all" && sp.status === "unassigned";
+  const quotaView = view === "all" && sp.reason === "quota_exhausted";
+  // Counter (STEP 3.6): how many leads are parked because a dealer was full.
+  const quotaExhaustedCount = await countQuotaExhausted();
 
   return (
     <div className="mx-auto max-w-page px-4 py-8 sm:px-6">
@@ -64,7 +68,12 @@ export default async function AdminLeadsPage({ searchParams }: PageProps<"/admin
 
       <div className="mb-6 flex flex-wrap gap-1.5">
         <Tab label="Unmatched queue" href="/admin/leads" active={view === "queue"} />
-        <Tab label="All leads" href="/admin/leads?view=all" active={view === "all" && !toolView} />
+        <Tab label="All leads" href="/admin/leads?view=all" active={view === "all" && !toolView && !quotaView} />
+        <Tab
+          label={`Quota exhausted${quotaExhaustedCount > 0 ? ` (${quotaExhaustedCount})` : ""}`}
+          href="/admin/leads?view=all&reason=quota_exhausted"
+          active={quotaView}
+        />
         <Tab
           label="Tool leads (unassigned)"
           href="/admin/leads?view=all&status=unassigned"
@@ -185,11 +194,12 @@ async function AllLeads({ sp }: { sp: Record<string, string | string[] | undefin
   const from = s("from");
   const to = s("to");
   const notViewed = sp.notViewed === "1";
+  const unassignedReason = s("reason");
   const q = s("q");
   const page = Number(s("page") ?? "1") || 1;
 
   const [result, cities] = await Promise.all([
-    getAllLeads({ status, cityId, source, from, to, notViewed, q, page }),
+    getAllLeads({ status, cityId, source, from, to, notViewed, unassignedReason, q, page }),
     getLeadCities(),
   ]);
 

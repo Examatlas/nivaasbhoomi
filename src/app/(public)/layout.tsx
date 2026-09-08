@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/components/public/site-header";
 import { SiteFooter } from "@/components/public/site-footer";
 import { SessionProvider } from "@/components/auth/session-provider";
+import { SavedProvider } from "@/components/public/saved-provider";
 import { ProfileCompletePopup } from "@/components/auth/profile-complete-popup";
 
 /**
@@ -14,12 +15,14 @@ import { ProfileCompletePopup } from "@/components/auth/profile-complete-popup";
 export default function PublicLayout({ children }: LayoutProps<"/">) {
   return (
     <SessionProvider>
-      <div className="flex min-h-dvh flex-col">
-        <SiteHeader />
-        <main className="flex-1">{children}</main>
-        <SiteFooter />
-      </div>
-      <ProfileCompletePopup />
+      <SavedProvider>
+        <div className="flex min-h-dvh flex-col">
+          <SiteHeader />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </div>
+        <ProfileCompletePopup />
+      </SavedProvider>
     </SessionProvider>
   );
 }

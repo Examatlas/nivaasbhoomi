@@ -38,5 +38,5 @@ export function BecomeDealerFlow({ name, phone }: { name: string; phone: string 
     );
   }
 
-  return <DealerRegistrationForm name={name} phone={phone} />;
+  return <DealerRegistrationForm name={name} phone={phone} mode="upgrade" />;
 }

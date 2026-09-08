@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { listBuyers, listDealerUsers } from "@/lib/admin/users";
 import { Badge } from "@/components/ui/badge";
+import { AdminConvertDealer } from "@/components/admin/admin-convert-dealer";
 
 export const metadata: Metadata = { title: "Admin — Users" };
 export const dynamic = "force-dynamic";
@@ -26,8 +27,9 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
   const tab = sp.tab === "dealers" ? "dealers" : "buyers";
   const q = typeof sp.q === "string" ? sp.q : undefined;
   const page = Math.max(1, Number(typeof sp.page === "string" ? sp.page : "1") || 1);
+  const withoutDealer = sp.without === "1";
 
-  const buyers = tab === "buyers" ? await listBuyers({ q, page }) : null;
+  const buyers = tab === "buyers" ? await listBuyers({ q, page, withoutDealer }) : null;
   const dealers = tab === "dealers" ? await listDealerUsers({ q, page }) : null;
   const result = buyers ?? dealers!;
 
@@ -41,9 +43,20 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
       </div>
 
       {/* Tabs */}
-      <div className="mb-5 flex gap-1">
+      <div className="mb-5 flex flex-wrap items-center gap-1">
         <TabLink label="Buyers" href="/admin/users?tab=buyers" active={tab === "buyers"} />
         <TabLink label="Dealers" href="/admin/users?tab=dealers" active={tab === "dealers"} />
+        {tab === "buyers" && (
+          <>
+            <span className="mx-2 h-5 w-px bg-border" aria-hidden />
+            <TabLink label="All" href="/admin/users?tab=buyers" active={!withoutDealer} />
+            <TabLink
+              label="Without dealer"
+              href="/admin/users?tab=buyers&without=1"
+              active={withoutDealer}
+            />
+          </>
+        )}
       </div>
 
       {/* Search */}
@@ -104,13 +117,20 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                   <td className="px-3 py-2 text-muted-foreground">+{u.phone}</td>
                   <td className="px-3 py-2 text-muted-foreground">{fmtDate(u.createdAt)}</td>
                   <td className="px-3 py-2 tabular text-ink-900">{u.enquiryCount}</td>
-                  <td className="px-3 py-2 text-right">
-                    <Link
-                      href={`/admin/users/${u.id}`}
-                      className="font-medium text-clay-700 hover:underline"
-                    >
-                      View
-                    </Link>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center justify-end gap-3">
+                      {u.hasDealer ? (
+                        <span className="text-meta text-muted-foreground">Dealer</span>
+                      ) : (
+                        <AdminConvertDealer userId={u.id} userName={u.name} userPhone={u.phone} />
+                      )}
+                      <Link
+                        href={`/admin/users/${u.id}`}
+                        className="font-medium text-clay-700 hover:underline"
+                      >
+                        View
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

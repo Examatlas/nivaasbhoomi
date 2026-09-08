@@ -37,6 +37,8 @@ import { OtpRequestLog } from "@/lib/db/models/OtpRequestLog";
 import { DealerSignupLog } from "@/lib/db/models/DealerSignupLog";
 import { ToolSubmitLog } from "@/lib/db/models/ToolSubmitLog";
 import { SavedSearch } from "@/lib/db/models/SavedSearch";
+import { SavedListing } from "@/lib/db/models/SavedListing";
+import { ListingReport } from "@/lib/db/models/ListingReport";
 import { AlertLog } from "@/lib/db/models/AlertLog";
 import { LocalityRate } from "@/lib/db/models/LocalityRate";
 import { CityRate } from "@/lib/db/models/CityRate";
@@ -60,6 +62,8 @@ const MODELS: [string, Model<any>][] = [
   ["DealerSignupLog", DealerSignupLog],
   ["ToolSubmitLog", ToolSubmitLog],
   ["SavedSearch", SavedSearch],
+  ["SavedListing", SavedListing],
+  ["ListingReport", ListingReport],
   ["AlertLog", AlertLog],
   ["LocalityRate", LocalityRate],
   ["CityRate", CityRate],

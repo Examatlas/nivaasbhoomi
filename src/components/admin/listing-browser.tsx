@@ -38,35 +38,59 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "pending-location", label: "Pending location" },
 ];
 
+const SEED_FILTERS: { value: string; label: string }[] = [
+  { value: "all", label: "All listings" },
+  { value: "seed", label: "Seed only" },
+  { value: "real", label: "Real only" },
+];
+
 export function ListingBrowser() {
   const [status, setStatus] = useState("all");
+  const [seed, setSeed] = useState("all");
 
   const endpoint = useCallback(
     ({ q, page, limit }: { q: string; page: number; limit: number }) => {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) });
       if (q) params.set("q", q);
       if (status !== "all") params.set("status", status);
+      if (seed !== "all") params.set("seed", seed);
       return `/api/admin/listings?${params.toString()}`;
     },
-    [status],
+    [status, seed],
   );
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="w-48">
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_FILTERS.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex gap-2">
+          <div className="w-44">
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTERS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-36">
+            <Select value={seed} onValueChange={setSeed}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SEED_FILTERS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <Button asChild>
           <Link href="/admin/listings/new">
@@ -120,9 +144,12 @@ export function ListingBrowser() {
                 ) : null}
               </td>
               <td className="px-4 py-2.5">
-                <Badge tone={STATUS_TONES[l.status] ?? "neutral"} size="sm">
-                  {l.status}
-                </Badge>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge tone={STATUS_TONES[l.status] ?? "neutral"} size="sm">
+                    {l.status}
+                  </Badge>
+                  {l.isSeed && <Badge tone="warning" size="sm">Seed</Badge>}
+                </div>
               </td>
             </tr>
           );

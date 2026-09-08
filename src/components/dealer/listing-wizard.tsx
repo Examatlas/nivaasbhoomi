@@ -85,6 +85,7 @@ interface FormValues {
   balconies?: number;
   carpetArea?: number;
   builtUpArea?: number;
+  superBuiltUpArea?: number;
   plotArea?: number;
   floor?: number;
   totalFloors?: number;
@@ -146,6 +147,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
       balconies: initial?.balconies,
       carpetArea: initial?.carpetArea,
       builtUpArea: initial?.builtUpArea,
+      superBuiltUpArea: initial?.superBuiltUpArea,
       plotArea: initial?.plotArea,
       floor: initial?.floor,
       totalFloors: initial?.totalFloors,
@@ -332,6 +334,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
       balconies: num(v.balconies),
       carpetArea: num(v.carpetArea),
       builtUpArea: num(v.builtUpArea),
+      superBuiltUpArea: num(v.superBuiltUpArea),
       furnishing: str(v.furnishing),
       furnishingDetails,
       amenities,
@@ -670,6 +673,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
                 <Field label="Balconies"><NumInput reg={register("balconies", { valueAsNumber: true })} /></Field>
                 <Field label="Carpet area (sq.ft.)"><NumInput reg={register("carpetArea", { valueAsNumber: true })} /></Field>
                 <Field label="Built-up area (sq.ft.)"><NumInput reg={register("builtUpArea", { valueAsNumber: true })} /></Field>
+                <Field label="Super built-up area (sq.ft.)"><NumInput reg={register("superBuiltUpArea", { valueAsNumber: true })} /></Field>
                 <Field label="Floor"><NumInput reg={register("floor", { valueAsNumber: true })} /></Field>
                 <Field label="Total floors"><NumInput reg={register("totalFloors", { valueAsNumber: true })} /></Field>
               </>

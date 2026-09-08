@@ -18,6 +18,7 @@ import { JsonLd } from "@/components/shared/json-ld";
 import { getFeaturedListings, getActiveCities } from "@/lib/listings/query";
 import { organizationJsonLd, webSiteJsonLd } from "@/lib/seo/jsonld";
 import { homeMetadata } from "@/lib/seo/metadata";
+import { getVisibleFeaturedCities } from "@/lib/listings/featured-cities-query";
 
 export const revalidate = 3600; // ISR
 
@@ -30,9 +31,10 @@ export const metadata = homeMetadata();
  * SearchAction JSON-LD.
  */
 export default async function HomePage() {
-  const [featured, cities] = await Promise.all([
+  const [featured, cities, featuredCities] = await Promise.all([
     getFeaturedListings(8),
     getActiveCities(),
+    getVisibleFeaturedCities(),
   ]);
 
   return (
@@ -62,11 +64,11 @@ export default async function HomePage() {
               <HomeSearch cities={cities.map((c) => ({ name: c.name, slug: c.slug }))} />
             </div>
 
-            {/* City selector - active cities only */}
-            {cities.length > 0 && (
+            {/* Popular cities — pan-India, filtered to cities that exist in the DB. */}
+            {featuredCities.length > 0 && (
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 <span className="text-meta text-muted-foreground">Popular cities:</span>
-                {cities.slice(0, 8).map((c) => (
+                {featuredCities.map((c) => (
                   <Link
                     key={c.slug}
                     href={`/${c.slug}`}

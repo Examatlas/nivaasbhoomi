@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db/connect";
 import { Conversation } from "@/lib/db/models/Conversation";
 import { upsertLead, parseListingRef, type ExtractedFields } from "@/lib/leads/upsert";
 import { routeLead } from "@/lib/leads/routing";
+import { normalisePhone } from "@/lib/utils/whatsapp";
 
 /**
  * Ingest a QUALIFIED lead pushed by Zenith Code (Pattern 1). This is the second
@@ -46,7 +47,11 @@ export interface IngestResult {
 }
 
 export async function ingestQualifiedLead(payload: IngestPayload): Promise<IngestResult> {
-  const phone = (payload.phone ?? "").replace(/\D/g, "");
+  // Canonicalise to 91XXXXXXXXXX — the SAME form OTP/contact paths store, so a
+  // Zenith-pushed lead dedups and matches instead of splitting the buyer. For
+  // real (already 91-prefixed) inbound this is identical to a raw digit-strip;
+  // it only rescues 0-/00-/bare-10-digit shapes that a raw strip left dangling.
+  const phone = normalisePhone(payload.phone ?? "");
   if (!phone) return { status: "empty", note: "missing phone" };
 
   await connectDB();

@@ -11,6 +11,8 @@ import { Dealer } from "@/lib/db/models/Dealer";
 import { Listing } from "@/lib/db/models/Listing";
 import { Lead } from "@/lib/db/models/Lead";
 import { findDuplicateLead } from "@/lib/leads/dedupe";
+import { hasRemainingQuota } from "@/lib/leads/quota-guard";
+import { SEED_CONTACT_BLOCKED_MESSAGE } from "@/lib/listings/seed";
 import { logAudit } from "@/lib/leads/assign";
 import { SITE_URL, BRAND } from "@/lib/seo/site";
 
@@ -60,8 +62,11 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
       title: 1,
       slug: 1,
       status: 1,
+      isSeed: 1,
     }).lean();
     if (!listing || listing.status !== "approved") return fail("NOT_FOUND", "Listing not available.");
+    // Seed (display-only) listings can never be contacted — block server-side.
+    if (listing.isSeed) return fail("VALIDATION_ERROR", SEED_CONTACT_BLOCKED_MESSAGE);
     listingId = String(listing._id);
     dealerId = listing.dealerId ? String(listing.dealerId) : null;
     listingTitle = listing.title ?? "";
@@ -76,8 +81,39 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     zenithNumber: 1,
     zenithConnected: 1,
     status: 1,
+    leadsUsedThisMonth: 1,
+    maxLeadsPerMonth: 1,
   }).lean();
   if (!dealer || dealer.status === "banned") return fail("NOT_FOUND", "Dealer not available.");
+
+  const now = new Date();
+  const dealerOid = new mongoose.Types.ObjectId(dealerId);
+
+  // QUOTA (STEP 3.3): the SAME shared check as every other contact path. When the
+  // dealer is full we DON'T reveal the WhatsApp number — we capture the enquiry as
+  // an "unassigned" lead (quota_exhausted) for an admin to place, and the client
+  // falls back to the normal contact success. Never charge past the cap.
+  if (!hasRemainingQuota(dealer.leadsUsedThisMonth ?? 0, dealer.maxLeadsPerMonth ?? 0)) {
+    const dup = await findDuplicateLead({
+      phone: user.phone,
+      listingId,
+      dealerId: listingId ? null : dealerId,
+    });
+    if (!dup) {
+      await Lead.create({
+        phone: user.phone,
+        name: user.name || undefined,
+        source: "whatsapp_click",
+        status: "unassigned",
+        intendedDealerId: dealerOid,
+        unassignedReason: "quota_exhausted",
+        ...(listingId ? { listingId: new mongoose.Types.ObjectId(listingId) } : {}),
+        ...((await isFromAlert()) ? { fromAlert: true } : {}),
+      });
+    }
+    return ok({ quotaExhausted: true, captured: true });
+  }
+
   const waNumber =
     dealer.zenithConnected && dealer.zenithNumber ? dealer.zenithNumber : dealer.phone;
 
@@ -94,9 +130,6 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     dealerId: listingId ? null : dealerId,
   });
   if (dup) return ok({ waUrl, deduped: true });
-
-  const now = new Date();
-  const dealerOid = new mongoose.Types.ObjectId(dealerId);
 
   const lead = await Lead.create({
     phone: user.phone,

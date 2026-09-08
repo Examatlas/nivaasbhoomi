@@ -6,10 +6,10 @@
  */
 import "@/scripts/load-env";
 import mongoose from "mongoose";
-import { resetExpiredQuotas } from "@/lib/leads/quota";
+import { resetMonthlyQuotas } from "@/lib/leads/quota";
 
 async function main() {
-  const res = await resetExpiredQuotas();
+  const res = await resetMonthlyQuotas();
   console.log(`✓ Quota reset complete: ${res.reset} dealer(s) updated.`);
   await mongoose.disconnect();
   process.exit(0);

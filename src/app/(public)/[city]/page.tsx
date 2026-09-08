@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Home, MapPin, TrendingUp, Building2 } from "lucide-react";
 
 import {
-  resolveActiveCity,
+  resolveDisplayCity,
   countApprovedInCity,
   computeCityRateRange,
   getCityPopularLocalities,
@@ -37,11 +37,20 @@ interface CityPageData {
   rate: RateRange;
   localities: { name: string; slug: string; listingCount: number }[];
   listings: ListingCardData[];
+  /** False for an inactive city shown only because it has seed listings (B5) —
+   *  then the page is noindex and skips the rate/locality (real-data) sections. */
+  isActive: boolean;
 }
 
 const load = cache(async (citySlug: string): Promise<CityPageData | null> => {
-  const city = await resolveActiveCity(citySlug);
-  if (!city) return null; // inactive/missing city -> 404 (Section 9)
+  const city = await resolveDisplayCity(citySlug);
+  if (!city) return null; // inactive + no seed / missing → 404 (Section 9)
+
+  // Inactive city shown only for its seed listings: minimal, noindex page.
+  if (!city.isActive) {
+    const listings = await getCityListings(city.id, city.name, 12);
+    return { city, count: listings.length, rate: {}, localities: [], listings, isActive: false };
+  }
 
   const [count, rate, localities, listings] = await Promise.all([
     countApprovedInCity(city.id),
@@ -50,7 +59,7 @@ const load = cache(async (citySlug: string): Promise<CityPageData | null> => {
     getCityListings(city.id, city.name, 12),
   ]);
 
-  return { city, count, rate, localities, listings };
+  return { city, count, rate, localities, listings, isActive: true };
 });
 
 // Only ACTIVE cities are prebuilt; dynamicParams stays true so a newly-activated
@@ -67,12 +76,15 @@ export async function generateMetadata({
   const data = await load(city);
   if (!data) return { title: "City not found", robots: { index: false, follow: false } };
 
-  return cityMetadata({
+  const meta = cityMetadata({
     cityName: data.city.name,
     citySlug: data.city.slug,
     listingCount: data.count,
     topLocalities: data.localities.slice(0, 2).map((l) => l.name),
   });
+  // A seed-only (inactive) city page is noindex until it launches for real.
+  if (!data.isActive) meta.robots = { index: false, follow: false };
+  return meta;
 }
 
 export default async function CityPage({ params }: PageProps<"/[city]">) {
@@ -84,16 +96,26 @@ export default async function CityPage({ params }: PageProps<"/[city]">) {
   const hasSale = rate.saleMin != null && rate.saleMax != null;
   const hasRent = rate.rentMin != null && rate.rentMax != null;
 
-  const jsonld = [
-    breadcrumbJsonLd([
-      { name: "Home", url: "/" },
-      { name: data.city.name, url: `/${data.city.slug}` },
-    ]),
-    itemListJsonLd(
-      data.listings.map((l) => ({ url: `/property/${l.slug}`, name: l.title })),
-    ),
-    faqPageJsonLd(data.city.faq),
-  ].filter(Boolean) as Record<string, unknown>[];
+  // Seed-only (inactive) city: only breadcrumb — no listing/FAQ structured data.
+  const jsonld = (
+    data.isActive
+      ? [
+          breadcrumbJsonLd([
+            { name: "Home", url: "/" },
+            { name: data.city.name, url: `/${data.city.slug}` },
+          ]),
+          itemListJsonLd(
+            data.listings.map((l) => ({ url: `/property/${l.slug}`, name: l.title })),
+          ),
+          faqPageJsonLd(data.city.faq),
+        ]
+      : [
+          breadcrumbJsonLd([
+            { name: "Home", url: "/" },
+            { name: data.city.name, url: `/${data.city.slug}` },
+          ]),
+        ]
+  ).filter(Boolean) as Record<string, unknown>[];
 
   return (
     <>
@@ -111,11 +133,19 @@ export default async function CityPage({ params }: PageProps<"/[city]">) {
 
         <header className="mb-5">
           <h1 className="text-display-md">Property in {data.city.name}</h1>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="size-4 text-clay-500" />
-            {data.count} verified {data.count === 1 ? "listing" : "listings"} ·{" "}
-            {data.localities.length} localities · direct WhatsApp contact
-          </p>
+          {data.isActive ? (
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <MapPin className="size-4 text-clay-500" />
+              {data.count} verified {data.count === 1 ? "listing" : "listings"} ·{" "}
+              {data.localities.length} localities · direct WhatsApp contact
+            </p>
+          ) : (
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <MapPin className="size-4 text-clay-500" />
+              We&apos;re building verified inventory in {data.city.name} — here&apos;s a preview.
+              Set an alert to hear the moment real listings go live.
+            </p>
+          )}
         </header>
 
         {/* Rate range */}

@@ -1,0 +1,43 @@
+{
+  "_readme": [
+    "Seed (display-only) listings for npm run seed:listings.",
+    "- city / locality: the SLUG (preferred) or exact name of an existing City / Locality.",
+    "- purpose: 'sale' or 'rent'. price = sale price (sale) or monthly rent (rent).",
+    "- propertyType: flat | independent-house | villa | plot | commercial-shop | office | pg | warehouse",
+    "- bedrooms (optional): '1rk','1','2','3','4','5plus'. area = usable sqft (optional but recommended).",
+    "- images: FULL Cloudinary URLs you already uploaded (the script never downloads or scrapes).",
+    "- Every imported listing is set isSeed=true, status=approved, seedExpiresAt=+30 days, dealerId=null.",
+    "Delete this _readme block (and this file's name) or copy to your own JSON before importing."
+  ],
+  "listings": [
+    {
+      "city": "delhi",
+      "locality": "dwarka",
+      "title": "3 BHK Flat for sale in Dwarka, Delhi",
+      "description": "Spacious 3 BHK in a gated society with covered parking, lift and power backup. Close to the metro and daily-needs market.",
+      "purpose": "sale",
+      "propertyType": "flat",
+      "price": 12500000,
+      "area": 1450,
+      "bedrooms": "3",
+      "images": [
+        "https://res.cloudinary.com/YOUR_CLOUD/image/upload/v1/seed/delhi/dwarka-3bhk-1.jpg",
+        "https://res.cloudinary.com/YOUR_CLOUD/image/upload/v1/seed/delhi/dwarka-3bhk-2.jpg"
+      ]
+    },
+    {
+      "city": "mumbai",
+      "locality": "andheri-west",
+      "title": "2 BHK Flat for rent in Andheri West, Mumbai",
+      "description": "Semi-furnished 2 BHK with balcony, 24x7 security and reserved parking. Walking distance to the station.",
+      "purpose": "rent",
+      "propertyType": "flat",
+      "price": 55000,
+      "area": 900,
+      "bedrooms": "2",
+      "images": [
+        "https://res.cloudinary.com/YOUR_CLOUD/image/upload/v1/seed/mumbai/andheri-2bhk-1.jpg"
+      ]
+    }
+  ]
+}

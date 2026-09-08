@@ -53,10 +53,15 @@ export interface ListingCardData {
   price: number;
 
   bhk?: string;
-  /** Chosen area (carpet preferred, else built-up, else plot). */
+  /** Chosen area (carpet preferred, else built-up, else super built-up, else plot). */
   area?: number;
   areaUnit?: string;
   furnishing?: Furnishing;
+
+  /** Possession status ("ready-to-move" | "under-construction") — drives a card tag. */
+  possessionStatus?: string;
+  /** Project / society name, shown as a quiet line under the title. */
+  projectName?: string;
 
   localityName: string;
   cityName: string;

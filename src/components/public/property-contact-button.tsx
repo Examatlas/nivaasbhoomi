@@ -48,8 +48,6 @@ export function PropertyContactButton({
   dealerName,
   mode = "contact",
   whatsappNumber,
-  listingSlug,
-  profileSlug,
   dealerId,
   triggerLabel = "Contact Us",
   block,
@@ -77,43 +75,7 @@ export function PropertyContactButton({
   // and can never carry a build-time-baked localhost. Works for a listing
   // (property URL + [Ref]) OR a dealer profile (profile URL).
   if (mode === "whatsapp" && whatsappNumber) {
-    const openWhatsApp = async () => {
-      // Pre-open a tab synchronously (in the click gesture) so the popup blocker
-      // doesn't kill it after the await; we set its URL once the server responds.
-      const win = window.open("", "_blank");
-      try {
-        const res = await fetch("/api/leads/whatsapp-click", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify(listingId ? { listingId } : { dealerId }),
-        });
-        if (res.status === 401) {
-          win?.close();
-          const next = window.location.pathname + window.location.search;
-          window.location.href = `/login?next=${encodeURIComponent(next)}`;
-          return;
-        }
-        const json = (await res.json()) as { data?: { waUrl?: string } };
-        const waUrl = json?.data?.waUrl;
-        if (waUrl && win) win.location.href = waUrl;
-        else if (waUrl) window.open(waUrl, "_blank", "noopener,noreferrer");
-        else win?.close();
-      } catch {
-        win?.close();
-      }
-    };
-    return (
-      <Button
-        block={block}
-        size={size}
-        className="bg-wa-600 text-white hover:bg-wa-700"
-        onClick={openWhatsApp}
-      >
-        <MessageSquare className="size-4" />
-        WhatsApp
-      </Button>
-    );
+    return <WhatsAppButton listingId={listingId} dealerId={dealerId} block={block} size={size} />;
   }
 
   // "contact" mode: a listing enquiry (listingId) or a direct dealer enquiry
@@ -122,6 +84,81 @@ export function PropertyContactButton({
     <ContactDialog
       {...{ listingId: listingId ?? "", dealerId, listingTitle, dealerName, triggerLabel, block, size }}
     />
+  );
+}
+
+/**
+ * WhatsApp CTA for a Zenith-connected dealer. Tracks the click as a lead, then
+ * opens WhatsApp. STEP 3.3: if the dealer is over their monthly quota, the server
+ * returns { quotaExhausted } WITHOUT a number — we reveal nothing and show the
+ * same neutral success as a normal enquiry (the buyer never learns about quota).
+ */
+function WhatsAppButton({
+  listingId,
+  dealerId,
+  block,
+  size,
+}: {
+  listingId?: string;
+  dealerId?: string;
+  block?: boolean;
+  size?: ButtonProps["size"];
+}) {
+  const [captured, setCaptured] = useState(false);
+
+  const openWhatsApp = async () => {
+    // Pre-open a tab synchronously (in the click gesture) so the popup blocker
+    // doesn't kill it after the await; we set its URL once the server responds.
+    const win = window.open("", "_blank");
+    try {
+      const res = await fetch("/api/leads/whatsapp-click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(listingId ? { listingId } : { dealerId }),
+      });
+      if (res.status === 401) {
+        win?.close();
+        const next = window.location.pathname + window.location.search;
+        window.location.href = `/login?next=${encodeURIComponent(next)}`;
+        return;
+      }
+      const json = (await res.json()) as {
+        data?: { waUrl?: string; quotaExhausted?: boolean };
+      };
+      const waUrl = json?.data?.waUrl;
+      if (waUrl && win) win.location.href = waUrl;
+      else if (waUrl) window.open(waUrl, "_blank", "noopener,noreferrer");
+      else {
+        // No number (quota full or nothing to open) → close the tab; if the lead
+        // was captured, show the neutral success in place of the button.
+        win?.close();
+        if (json?.data?.quotaExhausted) setCaptured(true);
+      }
+    } catch {
+      win?.close();
+    }
+  };
+
+  if (captured) {
+    return (
+      <p className="inline-flex items-center gap-2 rounded-control border border-success-100 bg-success-50 px-3 py-2 text-sm font-medium text-success-700">
+        <CheckCircle2 className="size-4" /> Enquiry received — we&apos;ll connect you with the
+        right dealer shortly.
+      </p>
+    );
+  }
+
+  return (
+    <Button
+      block={block}
+      size={size}
+      className="bg-wa-600 text-white hover:bg-wa-700"
+      onClick={openWhatsApp}
+    >
+      <MessageSquare className="size-4" />
+      WhatsApp
+    </Button>
   );
 }
 

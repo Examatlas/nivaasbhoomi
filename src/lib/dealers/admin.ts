@@ -6,6 +6,7 @@ import { Listing } from "@/lib/db/models/Listing";
 import { State } from "@/lib/db/models/State";
 import { tierName, toDealerProfileFields } from "@/lib/dealers/account";
 import type { DealerProfileFields } from "@/lib/dealers/account";
+import { DEFAULT_MONTHLY_QUOTA } from "@/lib/leads/quota-config";
 
 /**
  * Admin dealer + verification views (DEV-SPEC.txt Sections 13, 15). These
@@ -26,6 +27,8 @@ export interface AdminDealerRow {
   verifiedDocs: number;
   duplicateFlagged: boolean;
   duplicateReason?: string;
+  quotaUsed: number;
+  quotaMax: number;
 }
 
 const DOC_KEYS = ["pan", "aadhaar", "gst", "udyam", "rera", "officePhoto"] as const;
@@ -33,10 +36,13 @@ const DOC_KEYS = ["pan", "aadhaar", "gst", "udyam", "rera", "officePhoto"] as co
 export async function getDealersForAdmin(opts: {
   q?: string;
   status?: string;
+  /** Filter by exact verification tier — the "Needs verification" (Tier 0) view. */
+  tier?: number;
 }): Promise<AdminDealerRow[]> {
   await connectDB();
   const filter: Record<string, unknown> = {};
   if (opts.status) filter.status = opts.status;
+  if (typeof opts.tier === "number") filter.verificationTier = opts.tier;
   if (opts.q?.trim()) {
     const rx = new RegExp(opts.q.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
     filter.$or = [{ businessName: rx }, { name: rx }, { phone: rx }];
@@ -64,6 +70,8 @@ export async function getDealersForAdmin(opts: {
       verifiedDocs: verified,
       duplicateFlagged: Boolean(d.duplicateFlagged),
       duplicateReason: d.duplicateReason ?? undefined,
+      quotaUsed: Math.max(0, d.leadsUsedThisMonth ?? 0),
+      quotaMax: d.maxLeadsPerMonth ?? DEFAULT_MONTHLY_QUOTA,
     };
   });
 }

@@ -15,6 +15,8 @@ const auditLogSchema = new Schema(
         "lead.admin-assign", // admin placed an unmatched lead
         "lead.admin-override-reassign", // admin moved a locked lead
         "lead.status-change", // dealer/admin changed status
+        "dealer.admin-convert", // admin converted a User into a Dealer (STEP 2)
+        "dealer.quota-adjust", // admin changed a dealer's monthly quota (STEP 3)
       ],
       required: true,
       index: true,

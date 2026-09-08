@@ -15,6 +15,23 @@ export function dealerLoginEnabled(): boolean {
 }
 
 /**
+ * Self-signup dealer status. Default: a newly-registered dealer is ACTIVE
+ * immediately (they get the dashboard + can create listings) — but stays at
+ * verificationTier 0, so their listings never go live until an admin verifies
+ * their documents (that gate is separate and unchanged). Set
+ * DEALER_SIGNUP_ACTIVE=false to go back to requiring admin approval (status
+ * "pending") without a code change.
+ */
+export function dealerSelfSignupActive(): boolean {
+  return process.env.DEALER_SIGNUP_ACTIVE !== "false";
+}
+
+/** The status a self-signup / buyer-upgrade dealer is created with. */
+export function dealerSignupStatus(): "active" | "pending" {
+  return dealerSelfSignupActive() ? "active" : "pending";
+}
+
+/**
  * How buyers AND dealers authenticate. Switchable without a rewrite:
  *
  *   "password"  — email + password (bcrypt). The LAUNCH default: it works today

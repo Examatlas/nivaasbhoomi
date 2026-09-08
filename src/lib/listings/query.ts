@@ -4,7 +4,8 @@ import { connectDB } from "@/lib/db/connect";
 import { Listing } from "@/lib/db/models/Listing";
 import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
-import { fetchDealerCardInfo } from "@/lib/listings/dealer-card-info";
+import { fetchDealerCardInfo, rankRowsByDealerQuota } from "@/lib/listings/dealer-card-info";
+import { priceBand } from "@/lib/listings/derive";
 import type { FilterQuery } from "@/lib/filters/parse";
 import { filterToSegment } from "@/lib/filters/segment";
 import type { ListingCardData, ListingPurpose, PropertyType } from "@/types/listing";
@@ -113,6 +114,9 @@ export async function fetchApprovedCards(params: {
   const dealerIds = [...new Set(rows.map((r) => String(r.dealerId)))];
   const dealerInfo = await fetchDealerCardInfo(dealerIds);
 
+  // Quota-exhausted dealers' listings rank last (STEP 3.4).
+  rankRowsByDealerQuota(rows, dealerInfo);
+
   return rows.map((l) => {
     const dealer = dealerInfo.get(String(l.dealerId));
     const photos = (l.photos ?? []).map((p) => ({
@@ -131,9 +135,11 @@ export async function fetchApprovedCards(params: {
       isCntLand: Boolean(l.isCntLand),
       price: (l.purpose === "rent" ? l.monthlyRent : l.expectedPrice) ?? 0,
       bhk: l.bhk ?? undefined,
-      area: l.carpetArea ?? l.builtUpArea ?? l.plotArea ?? undefined,
+      area: l.carpetArea ?? l.builtUpArea ?? l.superBuiltUpArea ?? l.plotArea ?? undefined,
       areaUnit: "sq.ft.",
       furnishing: l.furnishing ?? undefined,
+      possessionStatus: l.possessionStatus ?? undefined,
+      projectName: l.projectName ?? undefined,
       localityName,
       cityName,
       photo: cover,
@@ -171,6 +177,7 @@ export async function computeRateRange(localityId: string): Promise<RateRange> {
       $match: {
         localityId: _id,
         status: "approved",
+        isSeed: { $ne: true }, // seed excluded from real rate data
         purpose: "sale",
         expectedPrice: { $gt: 0 },
       },
@@ -189,6 +196,7 @@ export async function computeRateRange(localityId: string): Promise<RateRange> {
       $match: {
         localityId: _id,
         status: "approved",
+        isSeed: { $ne: true }, // seed excluded from real rate data
         purpose: "rent",
         monthlyRent: { $gt: 0 },
       },
@@ -380,16 +388,16 @@ export async function getStaticFilterParams(): Promise<
 export async function getFeaturedListings(limit = 8): Promise<ListingCardData[]> {
   await connectDB();
 
-  // Only surface listings from LAUNCHED (active) cities on the home page.
+  // Real listings from LAUNCHED (active) cities, PLUS seed (display-only)
+  // listings from anywhere — so the home page is never empty pre-launch.
   const activeCityIds = (await City.find({ isActive: true }, { _id: 1 }).lean()).map(
     (c) => c._id,
   );
-  if (activeCityIds.length === 0) return [];
 
   const rows = await Listing.find({
     status: "approved",
     slug: { $type: "string" },
-    cityId: { $in: activeCityIds },
+    $or: [{ cityId: { $in: activeCityIds }, isSeed: { $ne: true } }, { isSeed: true }],
   })
     .sort({ lastRefreshedAt: -1 })
     .limit(limit)
@@ -407,6 +415,9 @@ export async function getFeaturedListings(limit = 8): Promise<ListingCardData[]>
   ]);
   const cityName = new Map(cities.map((c) => [String(c._id), c.name]));
   const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
+
+  // Quota-exhausted dealers' listings rank last (STEP 3.4).
+  rankRowsByDealerQuota(rows, dealerInfo);
 
   return rows.map((l) => {
     const dealer = dealerInfo.get(String(l.dealerId));
@@ -426,9 +437,11 @@ export async function getFeaturedListings(limit = 8): Promise<ListingCardData[]>
       isCntLand: Boolean(l.isCntLand),
       price: (l.purpose === "rent" ? l.monthlyRent : l.expectedPrice) ?? 0,
       bhk: l.bhk ?? undefined,
-      area: l.carpetArea ?? l.builtUpArea ?? l.plotArea ?? undefined,
+      area: l.carpetArea ?? l.builtUpArea ?? l.superBuiltUpArea ?? l.plotArea ?? undefined,
       areaUnit: "sq.ft.",
       furnishing: l.furnishing ?? undefined,
+      possessionStatus: l.possessionStatus ?? undefined,
+      projectName: l.projectName ?? undefined,
       localityName: localityName.get(String(l.localityId)) ?? "",
       cityName: cityName.get(String(l.cityId)) ?? "",
       photo: cover,
@@ -475,6 +488,34 @@ export async function resolveActiveCity(citySlug: string): Promise<ResolvedCity 
   };
 }
 
+/**
+ * Resolve a city for DISPLAY: an active city (normal), OR an inactive city that
+ * has at least one seed (display-only) listing — so the city page isn't empty
+ * pre-launch (Part B5). Active-city behaviour is unchanged; the inactive branch
+ * is new and only fires when seed listings exist.
+ */
+export async function resolveDisplayCity(
+  citySlug: string,
+): Promise<(ResolvedCity & { isActive: boolean }) | null> {
+  await connectDB();
+  const city = await City.findOne(
+    { slug: citySlug },
+    { name: 1, slug: 1, introText: 1, faq: 1, isActive: 1 },
+  ).lean();
+  if (!city) return null;
+  const mapped = {
+    id: String(city._id),
+    name: city.name,
+    slug: city.slug,
+    introText: city.introText ?? undefined,
+    faq: (city.faq ?? []).map((f) => ({ question: f.question, answer: f.answer })),
+  };
+  if (city.isActive) return { ...mapped, isActive: true };
+  const hasSeed = await Listing.exists({ cityId: city._id, status: "approved", isSeed: true });
+  if (!hasSeed) return null; // inactive + no seed → 404, exactly as before
+  return { ...mapped, isActive: false };
+}
+
 /** Approved-listing rate range across a whole city. */
 export async function computeCityRateRange(cityId: string): Promise<RateRange> {
   await connectDB();
@@ -484,6 +525,7 @@ export async function computeCityRateRange(cityId: string): Promise<RateRange> {
       $match: {
         cityId: _id,
         status: "approved",
+        isSeed: { $ne: true }, // seed excluded from real rate data
         purpose: "sale",
         expectedPrice: { $gt: 0 },
       },
@@ -502,6 +544,7 @@ export async function computeCityRateRange(cityId: string): Promise<RateRange> {
       $match: {
         cityId: _id,
         status: "approved",
+        isSeed: { $ne: true }, // seed excluded from real rate data
         purpose: "rent",
         monthlyRent: { $gt: 0 },
       },
@@ -573,6 +616,9 @@ export async function getCityListings(
   ]);
   const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
 
+  // Quota-exhausted dealers' listings rank last (STEP 3.4).
+  rankRowsByDealerQuota(rows, dealerInfo);
+
   return rows.map((l) => {
     const dealer = dealerInfo.get(String(l.dealerId));
     const photos = (l.photos ?? []).map((p) => ({
@@ -591,9 +637,11 @@ export async function getCityListings(
       isCntLand: Boolean(l.isCntLand),
       price: (l.purpose === "rent" ? l.monthlyRent : l.expectedPrice) ?? 0,
       bhk: l.bhk ?? undefined,
-      area: l.carpetArea ?? l.builtUpArea ?? l.plotArea ?? undefined,
+      area: l.carpetArea ?? l.builtUpArea ?? l.superBuiltUpArea ?? l.plotArea ?? undefined,
       areaUnit: "sq.ft.",
       furnishing: l.furnishing ?? undefined,
+      possessionStatus: l.possessionStatus ?? undefined,
+      projectName: l.projectName ?? undefined,
       localityName: localityName.get(String(l.localityId)) ?? "",
       cityName,
       photo: cover,
@@ -611,6 +659,160 @@ export async function getCityListings(
       whatsappNumber: PORTAL_WHATSAPP,
     } satisfies ListingCardData;
   });
+}
+
+/** Shape a lean Listing doc into PropertyCard data (shared by the helpers below). */
+function toCard(
+  l: Record<string, unknown> & {
+    _id: unknown;
+    dealerId: unknown;
+    localityId: unknown;
+  },
+  cityName: string,
+  localityName: string,
+  dealer?: { verificationTier?: number; zenithConnected?: boolean; zenithNumber?: string | null },
+): ListingCardData {
+  const doc = l as Record<string, unknown>;
+  const photos = ((doc.photos as { url?: string; publicId?: string; width?: number; height?: number }[]) ?? []).map(
+    (p) => ({
+      url: p.url!,
+      publicId: p.publicId ?? undefined,
+      width: p.width ?? 1200,
+      height: p.height ?? 900,
+    }),
+  );
+  const cover = photos[(doc.coverPhotoIndex as number) ?? 0] ?? photos[0];
+  return {
+    id: String(l._id),
+    slug: doc.slug as string,
+    title: doc.title as string,
+    purpose: doc.purpose as ListingPurpose,
+    propertyType: doc.propertyType as PropertyType,
+    isCntLand: Boolean(doc.isCntLand),
+    price: ((doc.purpose === "rent" ? doc.monthlyRent : doc.expectedPrice) as number) ?? 0,
+    bhk: (doc.bhk as string) ?? undefined,
+    area:
+      (doc.carpetArea as number) ??
+      (doc.builtUpArea as number) ??
+      (doc.superBuiltUpArea as number) ??
+      (doc.plotArea as number) ??
+      undefined,
+    areaUnit: "sq.ft.",
+    furnishing: (doc.furnishing as ListingCardData["furnishing"]) ?? undefined,
+    possessionStatus: (doc.possessionStatus as string) ?? undefined,
+    projectName: (doc.projectName as string) ?? undefined,
+    localityName,
+    cityName,
+    photo: cover,
+    photos,
+    photoCount: photos.length,
+    badges: {
+      documentsChecked: Boolean((doc.badges as { documentsChecked?: boolean })?.documentsChecked),
+      photosVerified: Boolean((doc.badges as { photosVerified?: boolean })?.photosVerified),
+      siteVisited: Boolean((doc.badges as { siteVisited?: boolean })?.siteVisited),
+    },
+    verificationTier: dealer?.verificationTier ?? 0,
+    zenithConnected: dealer?.zenithConnected ?? false,
+    zenithNumber: dealer?.zenithNumber ?? null,
+    refreshedAt: ((doc.lastRefreshedAt as Date) ?? (doc.createdAt as Date) ?? new Date()).toISOString(),
+    whatsappNumber: PORTAL_WHATSAPP,
+  } satisfies ListingCardData;
+}
+
+/**
+ * Similar listings for the property page: same city + same propertyType + same
+ * purpose, within ±25% of the price, excluding the current listing and seeds.
+ * Newest first, capped. Returns [] when nothing qualifies (section hidden).
+ */
+export async function getSimilarListings(params: {
+  listingId: string;
+  cityId: string;
+  cityName: string;
+  propertyType: string;
+  purpose: "sale" | "rent";
+  price: number;
+  limit?: number;
+}): Promise<ListingCardData[]> {
+  await connectDB();
+  const { listingId, cityId, cityName, propertyType, purpose, price, limit = 6 } = params;
+  if (!price || price <= 0) return [];
+
+  const priceField = purpose === "rent" ? "monthlyRent" : "expectedPrice";
+  const band = priceBand(price, 0.25);
+  const filter: Record<string, unknown> = {
+    _id: { $ne: new mongoose.Types.ObjectId(listingId) },
+    cityId: new mongoose.Types.ObjectId(cityId),
+    status: "approved",
+    isSeed: { $ne: true },
+    slug: { $type: "string" },
+    propertyType,
+    purpose,
+    [priceField]: { $gte: band.min, $lte: band.max },
+  };
+  const rows = await Listing.find(filter)
+    .sort({ lastRefreshedAt: -1 })
+    .limit(limit)
+    .lean();
+  if (rows.length === 0) return [];
+
+  const localityIds = [...new Set(rows.map((r) => String(r.localityId)))];
+  const dealerIds = [...new Set(rows.map((r) => String(r.dealerId)))];
+  const [localities, dealerInfo] = await Promise.all([
+    Locality.find({ _id: { $in: localityIds } }, { name: 1 }).lean(),
+    fetchDealerCardInfo(dealerIds),
+  ]);
+  const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
+
+  return rows.map((l) =>
+    toCard(
+      l as never,
+      cityName,
+      localityName.get(String(l.localityId)) ?? "",
+      dealerInfo.get(String(l.dealerId)),
+    ),
+  );
+}
+
+/**
+ * Resolve a set of listing ids to PropertyCard data (the buyer's /saved page).
+ * Only approved listings are returned; the result preserves the given id order.
+ */
+export async function getListingsByIds(ids: string[]): Promise<ListingCardData[]> {
+  await connectDB();
+  const objectIds = ids
+    .filter((id) => mongoose.Types.ObjectId.isValid(id))
+    .map((id) => new mongoose.Types.ObjectId(id));
+  if (objectIds.length === 0) return [];
+
+  const rows = await Listing.find({
+    _id: { $in: objectIds },
+    status: "approved",
+    slug: { $type: "string" },
+  }).lean();
+  if (rows.length === 0) return [];
+
+  const cityIds = [...new Set(rows.map((r) => String(r.cityId)))];
+  const localityIds = [...new Set(rows.map((r) => String(r.localityId)))];
+  const dealerIds = [...new Set(rows.map((r) => String(r.dealerId)))];
+  const [cities, localities, dealerInfo] = await Promise.all([
+    City.find({ _id: { $in: cityIds } }, { name: 1 }).lean(),
+    Locality.find({ _id: { $in: localityIds } }, { name: 1 }).lean(),
+    fetchDealerCardInfo(dealerIds),
+  ]);
+  const cityName = new Map(cities.map((c) => [String(c._id), c.name]));
+  const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
+
+  const cards = rows.map((l) =>
+    toCard(
+      l as never,
+      cityName.get(String(l.cityId)) ?? "",
+      localityName.get(String(l.localityId)) ?? "",
+      dealerInfo.get(String(l.dealerId)),
+    ),
+  );
+  // Preserve the order the ids came in (newest-saved first).
+  const byId = new Map(cards.map((c) => [c.id, c]));
+  return ids.map((id) => byId.get(id)).filter((c): c is ListingCardData => c != null);
 }
 
 /** All active cities (home selector + city generateStaticParams). */

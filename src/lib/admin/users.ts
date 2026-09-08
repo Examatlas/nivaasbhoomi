@@ -37,11 +37,15 @@ export interface AdminBuyerRow {
   phone: string;
   createdAt: string;
   enquiryCount: number;
+  /** True when this buyer is already linked to a Dealer (hides "Convert"). */
+  hasDealer: boolean;
 }
 
 export async function listBuyers(opts: {
   q?: string;
   page?: number;
+  /** "Users without dealer" filter — surfaces orphan Users (STEP 2). */
+  withoutDealer?: boolean;
 }): Promise<Paged<AdminBuyerRow>> {
   await connectDB();
   const page = Math.max(1, opts.page ?? 1);
@@ -51,9 +55,10 @@ export async function listBuyers(opts: {
     const rx = new RegExp(escapeRegex(opts.q.trim()), "i");
     filter.$or = [{ name: rx }, { email: rx }, { phone: rx }];
   }
+  if (opts.withoutDealer) filter.dealerId = null;
 
   const total = await User.countDocuments(filter);
-  const users = await User.find(filter, { name: 1, email: 1, phone: 1, createdAt: 1 })
+  const users = await User.find(filter, { name: 1, email: 1, phone: 1, createdAt: 1, dealerId: 1 })
     .sort({ createdAt: -1 })
     .skip((page - 1) * PAGE_SIZE)
     .limit(PAGE_SIZE)
@@ -77,6 +82,7 @@ export async function listBuyers(opts: {
       phone: u.phone,
       createdAt: (u.createdAt ?? new Date()).toISOString(),
       enquiryCount: byPhone.get(u.phone) ?? 0,
+      hasDealer: Boolean(u.dealerId),
     })),
     total,
     page,

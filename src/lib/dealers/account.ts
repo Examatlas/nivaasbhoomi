@@ -7,6 +7,7 @@ import { Listing } from "@/lib/db/models/Listing";
 import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
 import { computeVerificationTier, type VerificationTier } from "@/lib/dealers/tier";
+import { DEFAULT_MONTHLY_QUOTA } from "@/lib/leads/quota-config";
 
 /**
  * The signed-in dealer's OWN account (DEV-SPEC.txt Sections 4, 13). Unlike the
@@ -75,6 +76,8 @@ export interface MyDealer {
   avgResponseMinutes?: number;
   totalSiteVisits: number;
   plan: string;
+  /** Monthly lead quota (STEP 3): used vs max, reset on the 1st. */
+  quota: { used: number; max: number };
   coverageCities: string[];
   coverageLocalities: string[];
   coverage: CoverageCity[];
@@ -202,6 +205,10 @@ export async function getMyDealer(): Promise<MyDealer | null> {
     avgResponseMinutes: d.avgResponseMinutes ?? undefined,
     totalSiteVisits: d.totalSiteVisits ?? 0,
     plan: d.plan ?? "free",
+    quota: {
+      used: Math.max(0, d.leadsUsedThisMonth ?? 0),
+      max: d.maxLeadsPerMonth ?? DEFAULT_MONTHLY_QUOTA,
+    },
     coverageCities: (d.coverageCities ?? []).map(String),
     coverageLocalities: (d.coverageLocalities ?? []).map(String),
     coverage,

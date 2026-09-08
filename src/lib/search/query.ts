@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/db/connect";
 import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
 import { Listing } from "@/lib/db/models/Listing";
-import { fetchDealerCardInfo } from "@/lib/listings/dealer-card-info";
+import { fetchDealerCardInfo, rankRowsByDealerQuota } from "@/lib/listings/dealer-card-info";
 import type { ListingCardData, ListingPurpose, PropertyType } from "@/types/listing";
 
 const PORTAL_WHATSAPP = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
@@ -132,6 +132,9 @@ async function searchListings(
   ]);
   const localityName = new Map(localities.map((l) => [String(l._id), l.name]));
 
+  // Quota-exhausted dealers' listings rank last (STEP 3.4).
+  rankRowsByDealerQuota(rows, dealerInfo);
+
   return rows.map((l) => {
     const dealer = dealerInfo.get(String(l.dealerId));
     const photos = (l.photos ?? []).map((p) => ({
@@ -149,9 +152,11 @@ async function searchListings(
       propertyType: l.propertyType as PropertyType,
       price: (l.purpose === "rent" ? l.monthlyRent : l.expectedPrice) ?? 0,
       bhk: l.bhk ?? undefined,
-      area: l.carpetArea ?? l.builtUpArea ?? l.plotArea ?? undefined,
+      area: l.carpetArea ?? l.builtUpArea ?? l.superBuiltUpArea ?? l.plotArea ?? undefined,
       areaUnit: "sq.ft.",
       furnishing: l.furnishing ?? undefined,
+      possessionStatus: l.possessionStatus ?? undefined,
+      projectName: l.projectName ?? undefined,
       localityName: localityName.get(String(l.localityId)) ?? "",
       cityName: cityById.get(String(l.cityId))?.name ?? "",
       photo: cover,

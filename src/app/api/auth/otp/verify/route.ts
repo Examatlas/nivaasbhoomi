@@ -9,7 +9,14 @@ import { Dealer } from "@/lib/db/models/Dealer";
 import { User } from "@/lib/db/models/User";
 import { verifyPassword } from "@/lib/auth/password";
 import { signSession } from "@/lib/auth/jwt";
-import { DEALER_COOKIE, USER_COOKIE, sessionCookieOptions } from "@/lib/auth/cookie";
+import {
+  DEALER_COOKIE,
+  USER_COOKIE,
+  SIGNUP_COOKIE,
+  sessionCookieOptions,
+  signupCookieOptions,
+} from "@/lib/auth/cookie";
+import { signSignupToken } from "@/lib/auth/signup-token";
 import { setSessionHint } from "@/lib/auth/session-hint-server";
 import {
   normalizeIndianMobile,
@@ -97,37 +104,30 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
       return ok({ next: safeNext ?? "/dealer/dashboard" });
     }
 
-    // 2) No dealer yet → the visitor will REGISTER. "upgrade" when a buyer User
-    //    already exists on this number (link it, never duplicate); "new" when we
-    //    create the User now. Either way we set a BUYER session so /dealer/register
-    //    (and its submit to /api/users/me/upgrade) is authorised.
-    let user = await User.findOne({ phone });
-    const userExisted = Boolean(user);
-    if (!user) {
-      user = await User.create({ phone, phoneVerified: true, lastLoginAt: new Date() });
-    } else {
-      user.phoneVerified = true;
-      user.lastLoginAt = new Date();
-      await user.save();
-    }
+    // 2) No dealer yet → the visitor will REGISTER. STEP 1 fix: do NOT create a
+    //    User here. Instead mint a short-lived verified-phone token and hand it to
+    //    /dealer/register via a cookie; the User + Dealer are created together only
+    //    when the form is submitted, so an abandoned form leaves NO orphan User.
+    const existingUser = await User.findOne({ phone }, { name: 1, dealerId: 1 }).lean();
 
-    const store = await cookies();
-    const linkedDealerId = user.dealerId ? String(user.dealerId) : undefined;
-    const userToken = await signSession({
-      role: "user",
-      userId: String(user._id),
-      ...(linkedDealerId ? { dealerId: linkedDealerId } : {}),
-    });
-    store.set(USER_COOKIE, userToken, sessionCookieOptions());
-    await setSessionHint({ name: user.name, phone: user.phone, dealerId: user.dealerId });
-
-    // Edge: the User is already linked to a dealer (raced) → dashboard.
-    if (linkedDealerId) {
-      const dealerToken = await signSession({ role: "dealer", dealerId: linkedDealerId });
-      store.set(DEALER_COOKIE, dealerToken, sessionCookieOptions());
+    // Edge: a User is already linked to a dealer (inconsistent phone) → sign in.
+    if (existingUser?.dealerId) {
+      const store = await cookies();
+      const linkedDealerId = String(existingUser.dealerId);
+      store.set(
+        USER_COOKIE,
+        await signSession({ role: "user", userId: String(existingUser._id), dealerId: linkedDealerId }),
+        sessionCookieOptions(),
+      );
+      store.set(DEALER_COOKIE, await signSession({ role: "dealer", dealerId: linkedDealerId }), sessionCookieOptions());
+      await setSessionHint({ name: existingUser.name, phone, dealerId: existingUser.dealerId });
       return ok({ next: "/dealer/dashboard" });
     }
-    return ok(dealerRegisterNext(userExisted));
+
+    // Mint the 15-minute signup token (verified phone) and send to registration.
+    // "upgrade" when a buyer User already exists (link it); "new" when it doesn't.
+    (await cookies()).set(SIGNUP_COOKIE, await signSignupToken(phone), signupCookieOptions());
+    return ok(dealerRegisterNext(Boolean(existingUser)));
   }
 
   // Buyer: find or auto-create, then go home (or a safe ?next deep link).

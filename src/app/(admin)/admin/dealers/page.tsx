@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getDealersForAdmin } from "@/lib/dealers/admin";
 import { Badge } from "@/components/ui/badge";
 import { DealerApprovalActions } from "@/components/admin/dealer-approval-actions";
+import { AdminQuotaCell } from "@/components/admin/admin-quota-cell";
 
 export const metadata: Metadata = { title: "Admin — Dealers" };
 export const dynamic = "force-dynamic";
@@ -22,7 +23,8 @@ export default async function AdminDealersPage({ searchParams }: PageProps<"/adm
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : undefined;
   const status = typeof sp.status === "string" ? sp.status : undefined;
-  const dealers = await getDealersForAdmin({ q, status });
+  const tier0 = sp.tier === "0";
+  const dealers = await getDealersForAdmin({ q, status, ...(tier0 ? { tier: 0 } : {}) });
 
   return (
     <div className="mx-auto max-w-page px-4 py-8 sm:px-6">
@@ -37,27 +39,25 @@ export default async function AdminDealersPage({ searchParams }: PageProps<"/adm
       {/* Quick tabs */}
       <div className="mb-4 flex flex-wrap gap-2">
         {[
-          { label: "All dealers", value: undefined },
-          { label: "Pending approval", value: "pending" },
-          { label: "Active", value: "active" },
-          { label: "Rejected", value: "rejected" },
-        ].map((t) => {
-          const active = (status ?? undefined) === t.value;
-          return (
-            <Link
-              key={t.label}
-              href={t.value ? `/admin/dealers?status=${t.value}` : "/admin/dealers"}
-              className={
-                "rounded-control border px-3 py-1.5 text-sm font-medium " +
-                (active
-                  ? "border-clay-200 bg-clay-50 text-clay-800"
-                  : "border-border bg-surface text-muted-foreground hover:text-foreground")
-              }
-            >
-              {t.label}
-            </Link>
-          );
-        })}
+          { label: "All dealers", href: "/admin/dealers", active: !status && !tier0 },
+          { label: "Needs verification (Tier 0)", href: "/admin/dealers?tier=0", active: tier0 },
+          { label: "Pending approval", href: "/admin/dealers?status=pending", active: status === "pending" },
+          { label: "Active", href: "/admin/dealers?status=active", active: status === "active" },
+          { label: "Rejected", href: "/admin/dealers?status=rejected", active: status === "rejected" },
+        ].map((t) => (
+          <Link
+            key={t.label}
+            href={t.href}
+            className={
+              "rounded-control border px-3 py-1.5 text-sm font-medium " +
+              (t.active
+                ? "border-clay-200 bg-clay-50 text-clay-800"
+                : "border-border bg-surface text-muted-foreground hover:text-foreground")
+            }
+          >
+            {t.label}
+          </Link>
+        ))}
       </div>
 
       <form method="get" className="mb-5 flex flex-wrap items-end gap-2 rounded-card border border-border bg-surface p-3">
@@ -86,6 +86,7 @@ export default async function AdminDealersPage({ searchParams }: PageProps<"/adm
               <th className="px-3 py-2 font-medium">Dealer</th>
               <th className="px-3 py-2 font-medium">Tier</th>
               <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2 font-medium">Quota</th>
               <th className="px-3 py-2 font-medium">Docs</th>
               <th className="px-3 py-2 font-medium">Rating</th>
               <th className="px-3 py-2 font-medium"></th>
@@ -112,6 +113,9 @@ export default async function AdminDealersPage({ searchParams }: PageProps<"/adm
                 <td className="px-3 py-2">
                   <Badge tone={STATUS_TONE[d.status] ?? "warning"} size="sm">{d.status}</Badge>
                 </td>
+                <td className="px-3 py-2">
+                  <AdminQuotaCell dealerId={d.id} used={d.quotaUsed} max={d.quotaMax} />
+                </td>
                 <td className="px-3 py-2 text-muted-foreground">
                   {d.verifiedDocs}/{d.uploadedDocs} verified
                 </td>
@@ -131,7 +135,7 @@ export default async function AdminDealersPage({ searchParams }: PageProps<"/adm
               </tr>
             ))}
             {dealers.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">No dealers.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">No dealers.</td></tr>
             )}
           </tbody>
         </table>

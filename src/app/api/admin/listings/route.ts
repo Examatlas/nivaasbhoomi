@@ -55,6 +55,10 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   if (dealerId && mongoose.Types.ObjectId.isValid(dealerId)) {
     filter.dealerId = new mongoose.Types.ObjectId(dealerId);
   }
+  // Seed (display-only) filter: "seed" → only seed, "real" → exclude seed.
+  const seed = p.get("seed");
+  if (seed === "seed") filter.isSeed = true;
+  else if (seed === "real") filter.isSeed = { $ne: true };
 
   type Row = {
     _id: mongoose.Types.ObjectId;
@@ -73,6 +77,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     coverPhotoIndex?: number;
     createdAt?: Date;
     expiresAt?: Date;
+    isSeed?: boolean;
   };
 
   const [items, total] = await Promise.all([
@@ -92,6 +97,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
       coverPhotoIndex: 1,
       createdAt: 1,
       expiresAt: 1,
+      isSeed: 1,
     })
       .sort({ createdAt: -1 })
       .skip(query.skip)
@@ -135,6 +141,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
           photoCount: l.photos?.length ?? 0,
           createdAt: l.createdAt,
           expiresAt: l.expiresAt,
+          isSeed: Boolean(l.isSeed),
         };
       }),
       total,

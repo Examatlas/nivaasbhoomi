@@ -60,6 +60,12 @@ const leadSchema = new Schema(
 
     // assignment - EXCLUSIVE
     assignedDealerId: { type: Types.ObjectId, ref: "Dealer" },
+    // The dealer this enquiry was FOR when it could not be assigned (quota full).
+    // Lets an admin see the original target while the lead sits unassigned (STEP 3.3).
+    intendedDealerId: { type: Types.ObjectId, ref: "Dealer", default: null },
+    // Why an "unassigned" lead is unassigned: "quota_exhausted" (dealer full).
+    // Null for tool leads (which are unassigned by nature, not by quota).
+    unassignedReason: { type: String, default: null },
     assignedAt: { type: Date },
     isLocked: { type: Boolean, default: true }, // NEVER auto-reassign once viewed
 
@@ -162,6 +168,11 @@ leadSchema.index({ listingId: 1 });
 leadSchema.index({ status: 1, viewedAt: 1, slaDeadline: 1 });
 // Admin filter: leads by source + status (e.g. unassigned tool leads), newest first.
 leadSchema.index({ source: 1, status: 1, createdAt: -1 });
+// Admin "Quota exhausted" filter — only the parked-by-quota leads (STEP 3.3).
+leadSchema.index(
+  { unassignedReason: 1, createdAt: -1 },
+  { partialFilterExpression: { unassignedReason: { $type: "string" } } },
+);
 
 export type LeadDoc = InferSchemaType<typeof leadSchema>;
 

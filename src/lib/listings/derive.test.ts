@@ -5,6 +5,7 @@ import {
   computePricePerSqft,
   computeExpiresAt,
   resolveListingSlug,
+  priceBand,
   LISTING_TTL_MS,
 } from "@/lib/listings/derive";
 
@@ -28,6 +29,19 @@ test("pricePerSqft: undefined for rent, missing price, or missing/zero area", ()
   assert.equal(computePricePerSqft("sale", undefined, 1250, undefined), undefined);
   assert.equal(computePricePerSqft("sale", 5_200_000, 0, 0), undefined);
   assert.equal(computePricePerSqft("sale", 5_200_000, undefined, undefined), undefined);
+});
+
+test("priceBand: ±25% window for similar listings, rounded", () => {
+  assert.deepEqual(priceBand(10_000_000), { min: 7_500_000, max: 12_500_000 });
+  // A sale near the band edge stays in; well outside stays out.
+  const { min, max } = priceBand(5_000_000);
+  assert.equal(6_200_000 <= max, true); // +24% is inside
+  assert.equal(6_300_000 <= max, false); // +26% is outside
+  assert.equal(min, 3_750_000);
+});
+
+test("priceBand: custom pct", () => {
+  assert.deepEqual(priceBand(1_000_000, 0.1), { min: 900_000, max: 1_100_000 });
 });
 
 test("expiresAt is exactly 30 days after lastRefreshedAt", () => {

@@ -189,6 +189,8 @@ export async function getAllLeads(opts: {
   dealerId?: string;
   source?: string;
   notViewed?: boolean;
+  /** STEP 3.3: filter parked-by-quota leads ("quota_exhausted"). */
+  unassignedReason?: string;
   from?: string;
   to?: string;
   q?: string;
@@ -197,6 +199,7 @@ export async function getAllLeads(opts: {
   await connectDB();
   const filter: Record<string, unknown> = {};
   if (opts.status) filter.status = opts.status;
+  if (opts.unassignedReason) filter.unassignedReason = opts.unassignedReason;
   if (opts.cityId && mongoose.Types.ObjectId.isValid(opts.cityId)) {
     filter.cityId = new mongoose.Types.ObjectId(opts.cityId);
   }
@@ -230,6 +233,12 @@ export async function getAllLeads(opts: {
     page,
     pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
   };
+}
+
+/** Count of leads parked because their dealer was over quota (STEP 3.6 counter). */
+export async function countQuotaExhausted(): Promise<number> {
+  await connectDB();
+  return Lead.countDocuments({ unassignedReason: "quota_exhausted", assignedDealerId: null });
 }
 
 /** Distinct cities present in the leads collection, for the filter dropdown. */

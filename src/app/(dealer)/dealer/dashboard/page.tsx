@@ -53,6 +53,57 @@ export default async function DealerDashboardPage() {
         </div>
       )}
 
+      {/* Tier-0 (unverified) notice: the dealer is ACTIVE and can list, but
+          listings stay private until documents are verified. No approval banner. */}
+      {dealer.status === "active" && dealer.verificationTier === 0 && (
+        <div className="mb-6 flex flex-col gap-2 rounded-card border border-clay-100 bg-clay-50 px-4 py-4 text-sm text-clay-800 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2">
+            <BadgeCheck className="mt-0.5 size-5 shrink-0 text-clay-600" />
+            <p>
+              <span className="font-semibold">Aapki listings tab live hongi jab hum aapke documents verify kar denge.</span>{" "}
+              Verification ke liye Verification page par documents upload karein.
+            </p>
+          </div>
+          <Link
+            href="/dealer/verification"
+            className="shrink-0 self-start rounded-control bg-clay-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-clay-700 sm:self-auto"
+          >
+            Upload documents
+          </Link>
+        </div>
+      )}
+
+      {/* Monthly lead quota (STEP 3.5). No paywall / upgrade copy — there is no
+          paid plan yet; an exhausted month simply routes new enquiries via admin. */}
+      {dealer.quota.used >= dealer.quota.max ? (
+        <div className="mb-6 rounded-card border border-warning-100 bg-warning-50 px-4 py-4 text-sm text-warning-700">
+          <p className="font-semibold">
+            Your lead quota for this month ({dealer.quota.max}) is used up.
+          </p>
+          <p className="mt-1">
+            Your quota refreshes on the 1st of next month. Until then, new enquiries for your
+            listings are routed to you through our team.
+          </p>
+        </div>
+      ) : (
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-card border border-border bg-surface px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-ink-950">
+              {dealer.quota.used} of {dealer.quota.max} leads this month
+            </p>
+            <p className="text-meta text-muted-foreground">Resets on the 1st.</p>
+          </div>
+          <div className="hidden h-2 w-40 overflow-hidden rounded-full bg-surface-muted sm:block">
+            <div
+              className="h-full rounded-full bg-clay-500"
+              style={{
+                width: `${Math.min(100, Math.round((dealer.quota.used / Math.max(1, dealer.quota.max)) * 100))}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard

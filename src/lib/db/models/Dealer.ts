@@ -1,6 +1,7 @@
 import { Schema, model, models, Types, type InferSchemaType, type Model } from "mongoose";
 
 import { computeVerificationTier, effectiveVerificationTier } from "@/lib/dealers/tier";
+import { DEFAULT_MONTHLY_QUOTA } from "@/lib/leads/quota-config";
 
 /**
  * Dealer (DEV-SPEC.txt Section 4).
@@ -90,11 +91,14 @@ const dealerSchema = new Schema(
     // in the generic-lead ranking (Section 12). Null = never assigned.
     lastAssignedAt: { type: Date, default: null },
 
-    // plan
+    // plan / quota (STEP 3: 30/month, reset on the 1st — see lib/leads/quota-*)
     plan: { type: String, enum: ["free", "starter", "pro"], default: "free" },
-    maxLeadsPerMonth: { type: Number, default: 10 },
+    maxLeadsPerMonth: { type: Number, default: DEFAULT_MONTHLY_QUOTA },
     leadsUsedThisMonth: { type: Number, default: 0 },
     quotaResetAt: { type: Date },
+    // Last time the calendar-month reset zeroed leadsUsedThisMonth. Used to make
+    // the daily reset cron idempotent (skip a dealer already reset this month).
+    lastResetAt: { type: Date, default: null },
     planExpiresAt: { type: Date },
 
     // status

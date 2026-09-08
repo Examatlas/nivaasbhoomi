@@ -41,8 +41,9 @@ export default function AboutUsPage() {
       <LegalSection title="Pan-India, city by city">
         <p>
           NivaasBhoomi is built for the whole of India and rolls out city by city so each area has
-          real depth before it goes live, rather than a thin national listing. The platform begins
-          in Ranchi and across Jharkhand, with more cities being activated over time.
+          real depth before it goes live, rather than a thin national listing. We&apos;re activating
+          major cities across India — Delhi, Mumbai, Bengaluru, Hyderabad, Pune, Chennai, Kolkata,
+          Jaipur, Lucknow, Patna, Ranchi and more — each as it reaches real listing depth.
         </p>
       </LegalSection>
 

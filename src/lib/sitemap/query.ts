@@ -200,9 +200,10 @@ export const getCitySitemapEntries = cache(
       entries.push(...filterEntries);
     }
 
-    // 4) All approved listings in this city.
+    // 4) All approved listings in this city (seed/display-only listings are
+    //    never in the sitemap — they're noindex and get deleted).
     const listings = await Listing.find(
-      { cityId, status: "approved", slug: { $type: "string" } },
+      { cityId, status: "approved", slug: { $type: "string" }, isSeed: { $ne: true } },
       { slug: 1, updatedAt: 1, lastRefreshedAt: 1 },
     )
       .sort({ slug: 1 })

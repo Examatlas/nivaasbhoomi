@@ -32,13 +32,20 @@ export function DealerRegistrationForm({
   name,
   phone,
   mode = "new",
+  submitPath = "/api/users/me/upgrade",
 }: {
   name: string;
   phone: string;
   /** "upgrade" = an existing buyer account is becoming a dealer (link, don't
-   *  duplicate); "new" = a freshly-created number. Only changes the notice. */
+   *  duplicate); "new" = a freshly-verified number with no account yet. Changes
+   *  the copy (no "upgrade" wording for a brand-new dealer). */
   mode?: "upgrade" | "new";
+  /** Where the form submits: buyer-upgrade (session) vs self-signup (token). */
+  submitPath?: string;
 }) {
+  // Editable name: empty for a brand-new dealer (no account yet), prefilled from
+  // the existing account on an upgrade — but always editable so it can be fixed.
+  const [nameValue, setNameValue] = useState(name);
   const [businessName, setBusinessName] = useState("");
   const [dealTypes, setDealTypes] = useState<string[]>([]);
   const [entries, setEntries] = useState<CoverageEntry[]>([]);
@@ -55,6 +62,7 @@ export function DealerRegistrationForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (nameValue.trim().length < 2) return setError("Enter your name.");
     if (businessName.trim().length < 2) return setError("Enter your business name.");
     const coverageCities = entries.map((x) => x.cityId);
     if (coverageCities.length === 0) return setError("Add at least one coverage city.");
@@ -63,9 +71,10 @@ export function DealerRegistrationForm({
     const coverageLocalities = entries.flatMap((x) => x.localities.map((l) => l.localityId));
     setBusy(true);
     try {
-      await apiFetch("/api/users/me/upgrade", {
+      await apiFetch(submitPath, {
         method: "POST",
         body: JSON.stringify({
+          name: nameValue.trim(),
           businessName: businessName.trim(),
           dealTypes,
           coverageCities,
@@ -87,9 +96,12 @@ export function DealerRegistrationForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-6">
       <div>
-        <h1 className="text-display-sm">Dealer registration</h1>
+        <h1 className="text-display-sm">
+          {mode === "upgrade" ? "Become a dealer" : "Create your dealer profile"}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your account will be reviewed by our team before it goes live.
+          Aapka number verify ho gaya hai. Apne business ki jaankari bharein — listings
+          verify hone ke baad live hongi.
         </p>
       </div>
 
@@ -102,8 +114,14 @@ export function DealerRegistrationForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label>Your name</Label>
-          <Input value={name || "—"} disabled />
+          <Label required>Your name</Label>
+          <Input
+            value={nameValue}
+            onChange={(e) => setNameValue(e.target.value)}
+            maxLength={120}
+            placeholder="Aapka poora naam"
+            autoComplete="name"
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>Phone (login number)</Label>

@@ -26,7 +26,9 @@ interface LocalityOpt extends Opt {
 export interface CoverageEntry {
   cityId: string;
   cityName: string;
-  localities: { localityId: string; name: string }[];
+  // pincode is kept so a selected chip can disambiguate same-named localities
+  // (e.g. two "Adalahatu" with different pincodes).
+  localities: { localityId: string; name: string; pincode?: string | null }[];
 }
 
 export interface CoverageValue {
@@ -56,7 +58,7 @@ export function CoverageEditor({
   const [stateId, setStateId] = useState("");
   const [cityId, setCityId] = useState("");
   const [cityName, setCityName] = useState("");
-  const [checked, setChecked] = useState<Record<string, string>>({}); // id -> name
+  const [checked, setChecked] = useState<Record<string, { name: string; pincode?: string | null }>>({}); // id -> {name, pincode}
 
   useEffect(() => {
     apiFetch<Opt[]>("/api/locations/states")
@@ -96,9 +98,10 @@ export function CoverageEditor({
 
   function addCoverage() {
     if (!cityId) return;
-    const localitiesToAdd = Object.entries(checked).map(([localityId, name]) => ({
+    const localitiesToAdd = Object.entries(checked).map(([localityId, v]) => ({
       localityId,
-      name,
+      name: v.name,
+      pincode: v.pincode,
     }));
     const existing = entries.find((e) => e.cityId === cityId);
     let next: CoverageEntry[];
@@ -203,7 +206,7 @@ export function CoverageEditor({
                       onCheckedChange={(c) =>
                         setChecked((prev) => {
                           const next = { ...prev };
-                          if (c) next[l._id] = l.name;
+                          if (c) next[l._id] = { name: l.name, pincode: l.pincode };
                           else delete next[l._id];
                           return next;
                         })
@@ -256,6 +259,9 @@ export function CoverageEditor({
                     >
                       <MapPin className="size-3 text-clay-500" />
                       {l.name}
+                      {l.pincode ? (
+                        <span className="text-muted-foreground">({l.pincode})</span>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => removeLocality(e.cityId, l.localityId)}

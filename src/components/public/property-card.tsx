@@ -7,6 +7,9 @@ import { PropertyContactButton } from "@/components/public/property-contact-butt
 import { resolveContactMode } from "@/lib/leads/contact-mode";
 import { VerificationBadge } from "@/components/public/verification-badge";
 import { FreshnessIndicator } from "@/components/public/freshness-indicator";
+import { SaveButton } from "@/components/public/save-button";
+import { ShareButton } from "@/components/public/share-button";
+import { possessionLabel } from "@/lib/utils/listing-format";
 import { cn } from "@/lib/utils/cn";
 import {
   formatArea,
@@ -57,6 +60,8 @@ export function PropertyCard({
     area,
     areaUnit = "sq.ft.",
     furnishing,
+    possessionStatus,
+    projectName,
     localityName,
     cityName,
     photo,
@@ -71,6 +76,7 @@ export function PropertyCard({
 
   const href = `/property/${slug}`;
   const { primary: priceLabel, suffix: priceSuffix } = formatListingPrice(purpose, price);
+  const possession = possessionLabel(possessionStatus);
   // Card thumbnail delivered via the Cloudinary card-thumb transform (S14).
   const coverSrc = photo ? photoUrl(photo, "cardThumb") : null;
 
@@ -117,11 +123,10 @@ export function PropertyCard({
             dimming the photo the way competitor cards do. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-ink-950/45 to-transparent" />
 
-        {/* Top overlay bar. A single justify-between row so the purpose/featured
-            chips (left) and the verification badge (right) can never overlap on
-            a narrow card - the left group wraps instead of sliding under the
-            right one, which stays pinned and never shrinks. */}
-        <div className="pointer-events-none absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+        {/* Top-left overlay: purpose/featured/CNT/possession + verification.
+            The left group wraps on a narrow card; the action cluster (a sibling
+            of this Link, below) stays pinned top-right and never overlaps. */}
+        <div className="pointer-events-none absolute inset-x-3 top-3 flex items-start gap-2 pr-16">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Badge
               tone={purpose === "rent" ? "clay" : "ink"}
@@ -139,11 +144,18 @@ export function PropertyCard({
                 CNT
               </Badge>
             )}
+            {possession && (
+              <Badge
+                tone={possessionStatus === "ready-to-move" ? "success" : "neutral"}
+                className="bg-surface/95 shadow-subtle backdrop-blur-sm"
+              >
+                {possession}
+              </Badge>
+            )}
+            {verificationTier >= 1 && (
+              <VerificationBadge tier={verificationTier} size="sm" className="shrink-0" />
+            )}
           </div>
-
-          {verificationTier >= 1 && (
-            <VerificationBadge tier={verificationTier} size="sm" className="shrink-0" />
-          )}
         </div>
 
         {/* Photo count, bottom-right - promises a real gallery, not one photo. */}
@@ -154,6 +166,13 @@ export function PropertyCard({
           </span>
         )}
       </Link>
+
+      {/* Action cluster — sibling of the media Link (never nested in the anchor)
+          so a save/share tap can't navigate. Pinned top-right of the photo. */}
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+        <ShareButton path={href} title={title} />
+        <SaveButton listingId={id} />
+      </div>
 
       {/* ---------- Body ---------- */}
       <div className="flex flex-1 flex-col gap-3 p-4">
@@ -176,6 +195,11 @@ export function PropertyCard({
             {title}
           </h3>
         </Link>
+
+        {/* Project / society name - a quiet line under the title. */}
+        {projectName && (
+          <p className="-mt-1 line-clamp-1 text-meta text-muted-foreground">{projectName}</p>
+        )}
 
         {/* Locality */}
         <p className="flex items-center gap-1.5 text-meta text-muted-foreground">

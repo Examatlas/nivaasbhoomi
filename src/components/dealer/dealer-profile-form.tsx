@@ -115,7 +115,7 @@ export function DealerProfileForm({
               id="businessName"
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
-              placeholder="e.g. Ranchi Prime Properties"
+              placeholder="e.g. Sharma Realty"
               required
             />
           </div>
