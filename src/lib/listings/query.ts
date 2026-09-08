@@ -591,6 +591,21 @@ export async function countApprovedInCity(cityId: string): Promise<number> {
   });
 }
 
+/**
+ * REAL (non-seed) approved listings in a city — the SEO index gate. A city goes
+ * live at 1 listing (seed counts, activation.ts), but Google only indexes it
+ * once it has real, contactable listings, since seed listings have no contact
+ * button (a buyer from search would bounce). See CITY_INDEX_MIN_LISTINGS.
+ */
+export async function countRealApprovedInCity(cityId: string): Promise<number> {
+  await connectDB();
+  return Listing.countDocuments({
+    cityId: new mongoose.Types.ObjectId(cityId),
+    status: "approved",
+    isSeed: { $ne: true },
+  });
+}
+
 /** Newest approved listings in a city, as PropertyCard data. */
 export async function getCityListings(
   cityId: string,

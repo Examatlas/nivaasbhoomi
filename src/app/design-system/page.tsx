@@ -366,8 +366,8 @@ export default function DesignSystemPage() {
               <CardHeader>
                 <CardTitle>City readiness</CardTitle>
                 <CardDescription>
-                  Ranchi needs 25 listings, 5 verified dealers and 3 active localities to
-                  go live.
+                  A city goes live at just 1 listing (seed listings count); Google indexes
+                  it once it has 5 real listings.
                 </CardDescription>
               </CardHeader>
               <CardContent>

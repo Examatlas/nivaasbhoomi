@@ -7,6 +7,7 @@ import { Home, MapPin, TrendingUp, Building2 } from "lucide-react";
 import {
   resolveDisplayCity,
   countApprovedInCity,
+  countRealApprovedInCity,
   computeCityRateRange,
   getCityPopularLocalities,
   getCityListings,
@@ -14,6 +15,7 @@ import {
   type RateRange,
 } from "@/lib/listings/query";
 import { cityMetadata } from "@/lib/seo/metadata";
+import { CITY_INDEX_MIN_LISTINGS } from "@/lib/config/activation";
 import { breadcrumbJsonLd, faqPageJsonLd, itemListJsonLd } from "@/lib/seo/jsonld";
 import { formatPrice, formatRent } from "@/lib/utils/price";
 
@@ -34,6 +36,8 @@ interface CityPageData {
     faq: { question: string; answer: string }[];
   };
   count: number;
+  /** REAL (non-seed) approved listings — drives the SEO index/noindex gate. */
+  realCount: number;
   rate: RateRange;
   localities: { name: string; slug: string; listingCount: number }[];
   listings: ListingCardData[];
@@ -46,20 +50,22 @@ const load = cache(async (citySlug: string): Promise<CityPageData | null> => {
   const city = await resolveDisplayCity(citySlug);
   if (!city) return null; // inactive + no seed / missing → 404 (Section 9)
 
-  // Inactive city shown only for its seed listings: minimal, noindex page.
+  // Inactive city shown only for its seed listings: minimal, noindex page
+  // (realCount 0 — seed listings never make a page indexable).
   if (!city.isActive) {
     const listings = await getCityListings(city.id, city.name, 12);
-    return { city, count: listings.length, rate: {}, localities: [], listings, isActive: false };
+    return { city, count: listings.length, realCount: 0, rate: {}, localities: [], listings, isActive: false };
   }
 
-  const [count, rate, localities, listings] = await Promise.all([
+  const [count, realCount, rate, localities, listings] = await Promise.all([
     countApprovedInCity(city.id),
+    countRealApprovedInCity(city.id),
     computeCityRateRange(city.id),
     getCityPopularLocalities(city.id),
     getCityListings(city.id, city.name, 12),
   ]);
 
-  return { city, count, rate, localities, listings, isActive: true };
+  return { city, count, realCount, rate, localities, listings, isActive: true };
 });
 
 // Only ACTIVE cities are prebuilt; dynamicParams stays true so a newly-activated
@@ -82,8 +88,13 @@ export async function generateMetadata({
     listingCount: data.count,
     topLocalities: data.localities.slice(0, 2).map((l) => l.name),
   });
-  // A seed-only (inactive) city page is noindex until it launches for real.
-  if (!data.isActive) meta.robots = { index: false, follow: false };
+  // SEO thin-content guard: noindex an inactive (seed-only) city, AND any active
+  // city with fewer than CITY_INDEX_MIN_LISTINGS *real* (non-seed) listings.
+  // Seed listings show the city but have no contact button, so a buyer from
+  // Google would bounce — we only index once there's real, contactable depth.
+  if (!data.isActive || data.realCount < CITY_INDEX_MIN_LISTINGS) {
+    meta.robots = { index: false, follow: false };
+  }
   return meta;
 }
 

@@ -1,7 +1,8 @@
 /**
- * DEV-ONLY: force a city's isActive = true, bypassing the Section 13 activation
- * guard (25 listings / 5 dealers / 3 localities). This is a local testing
- * convenience so the city page can be viewed before a city truly qualifies.
+ * DEV-ONLY: force a city's isActive = true, bypassing the activation guard
+ * (now just 1 listing, seed included; SEO index happens separately at 5 real
+ * listings). This is a local testing convenience so the city page can be viewed
+ * before a city truly qualifies.
  *
  * It REFUSES to run when NODE_ENV=production. The real activation path
  * (POST /api/admin/locations/cities/[id]/activate -> canActivateCity) keeps the

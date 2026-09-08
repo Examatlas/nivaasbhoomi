@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db/connect";
 import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
+import { CITY_ACTIVATION } from "@/lib/config/activation";
 
 /**
  * Location activation rules (DEV-SPEC.txt Section 13).
@@ -23,12 +24,17 @@ import { Locality } from "@/lib/db/models/Locality";
 const LISTINGS = "listings";
 const DEALERS = "dealers";
 
-// Thresholds straight from Section 13.
-export const CITY_ACTIVATION_THRESHOLDS = {
-  approvedListings: 25,
-  verifiedDealers: 5, // dealers at verificationTier >= 1
-  activeLocalities: 3,
-} as const;
+// Thresholds from the activation config (env-overridable). Default: 1 listing,
+// no dealer/locality requirement — the goal is simply to show the city.
+export const CITY_ACTIVATION_THRESHOLDS: {
+  approvedListings: number;
+  verifiedDealers: number;
+  activeLocalities: number;
+} = {
+  approvedListings: CITY_ACTIVATION.minListings,
+  verifiedDealers: CITY_ACTIVATION.minDealers, // dealers at verificationTier >= 1
+  activeLocalities: CITY_ACTIVATION.minLocalities,
+};
 
 export const LOCALITY_ACTIVATION = {
   minIntroTextChars: 500,
@@ -43,9 +49,13 @@ function db() {
 
 async function countApprovedListingsInCity(
   cityId: mongoose.Types.ObjectId,
+  includeSeed = false,
 ): Promise<number> {
-  // Seed (display-only) listings NEVER count toward activation.
-  return db().collection(LISTINGS).countDocuments({ cityId, status: "approved", isSeed: { $ne: true } });
+  // Activation counts seed (display-only) listings — the point is to SHOW the
+  // city (includeSeed=true). The display counter still excludes them (default).
+  const filter: Record<string, unknown> = { cityId, status: "approved" };
+  if (!includeSeed) filter.isSeed = { $ne: true };
+  return db().collection(LISTINGS).countDocuments(filter);
 }
 
 async function countApprovedListingsInLocality(
@@ -92,7 +102,7 @@ export async function canActivateCity(
   const _id = new mongoose.Types.ObjectId(String(cityId));
 
   const [approvedListings, verifiedDealers, activeLocalities] = await Promise.all([
-    countApprovedListingsInCity(_id),
+    countApprovedListingsInCity(_id, true), // seed listings count toward activation
     countVerifiedDealersInCity(_id),
     Locality.countDocuments({ cityId: _id, isActive: true }),
   ]);

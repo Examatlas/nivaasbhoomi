@@ -10,6 +10,7 @@ import { Dealer } from "@/lib/db/models/Dealer";
 import { Blog } from "@/lib/db/models/Blog";
 import type { FilterQuery } from "@/lib/filters/parse";
 import { filterToSegment } from "@/lib/filters/segment";
+import { CITY_INDEX_MIN_LISTINGS } from "@/lib/config/activation";
 import { absoluteUrl } from "@/lib/seo/site";
 import { allStampDutyStates } from "@/data/stamp-duty-rates";
 
@@ -39,13 +40,29 @@ type SitemapEntry = MetadataRoute.Sitemap[number];
 
 // ---- cities ----
 
-/** Active city slugs (drives the index + generateSitemaps ids). */
+/**
+ * Sitemap city slugs: ACTIVE cities that also clear the SEO index threshold
+ * (CITY_INDEX_MIN_LISTINGS *real*, non-seed approved listings — mirrors the city
+ * page's own noindex gate). A 1-listing city is live + linked, but stays out of
+ * the sitemap until it has real, contactable depth, so Google is never fed a
+ * thin page whose listings can't even be contacted.
+ */
 export const getSitemapCitySlugs = cache(async (): Promise<string[]> => {
   await connectDB();
-  const rows = await City.find({ isActive: true }, { slug: 1 })
+  const cities = await City.find({ isActive: true }, { slug: 1 })
     .sort({ slug: 1 })
     .lean();
-  return rows.map((c) => c.slug);
+  if (cities.length === 0) return [];
+
+  const counts = await Listing.aggregate<{ _id: mongoose.Types.ObjectId; n: number }>([
+    { $match: { cityId: { $in: cities.map((c) => c._id) }, status: "approved", isSeed: { $ne: true } } },
+    { $group: { _id: "$cityId", n: { $sum: 1 } } },
+  ]);
+  const byId = new Map(counts.map((c) => [String(c._id), c.n]));
+
+  return cities
+    .filter((c) => (byId.get(String(c._id)) ?? 0) >= CITY_INDEX_MIN_LISTINGS)
+    .map((c) => c.slug);
 });
 
 // ---- per-city sitemap ----
