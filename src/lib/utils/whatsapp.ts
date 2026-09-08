@@ -57,7 +57,7 @@ export interface ListingEnquiry {
  * The exact enquiry message a buyer sends from a PropertyCard or the property
  * page (DEV-SPEC.txt Section 11 - CTA LINK FORMAT):
  *
- *   Hi, mujhe ye property dekhni hai:
+ *   Hi, I'm interested in this property:
  *   {title}
  *   {SITE_URL}/property/{slug}
  *   [Ref: {listingId}]
@@ -75,7 +75,7 @@ export function buildListingEnquiry({
   const base = (siteUrl || "").replace(/\/$/, "");
   const url = base ? `${base}/property/${slug}` : `/property/${slug}`;
   const message = [
-    "Hi, mujhe ye property dekhni hai:",
+    "Hi, I'm interested in this property:",
     title,
     url,
     `[Ref: ${listingId}]`,

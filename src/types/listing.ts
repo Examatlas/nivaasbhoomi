@@ -89,4 +89,7 @@ export interface ListingCardData {
   zenithNumber?: string | null;
 
   featured?: boolean;
+
+  /** Seed (display-only) listing. No contact CTA on the card or detail page. */
+  isSeed?: boolean;
 }

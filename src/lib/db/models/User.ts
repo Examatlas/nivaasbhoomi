@@ -25,6 +25,8 @@ const userSchema = new Schema(
     name: { type: String, trim: true },
     waProfileName: { type: String, trim: true },
     lastLoginAt: { type: Date, default: null },
+    // Buyer's chosen city (slug) — remembers the home-page city across devices.
+    preferredCitySlug: { type: String, default: null, trim: true },
     // Set when this buyer upgrades to (or is linked with) a Dealer account.
     dealerId: { type: Types.ObjectId, ref: "Dealer", default: null },
   },

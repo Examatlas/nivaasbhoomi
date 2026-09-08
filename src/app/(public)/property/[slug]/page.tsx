@@ -354,7 +354,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
               </p>
               {l.isSeed && (
                 <div className="mt-3 flex flex-col gap-0.5">
-                  <p className="text-meta text-subtle-foreground">Demo listing — reference ke liye</p>
+                  <p className="text-meta text-subtle-foreground">Demo listing — for reference only</p>
                   {seedPhotoCredit(l.title) && (
                     <p className="text-meta text-subtle-foreground">
                       Photo: {seedPhotoCredit(l.title)} / Pexels

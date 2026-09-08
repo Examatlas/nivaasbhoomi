@@ -3,6 +3,8 @@ import { SiteFooter } from "@/components/public/site-footer";
 import { SessionProvider } from "@/components/auth/session-provider";
 import { SavedProvider } from "@/components/public/saved-provider";
 import { ProfileCompletePopup } from "@/components/auth/profile-complete-popup";
+import { CityProvider } from "@/components/public/city/city-provider";
+import { getActiveCitiesGeo } from "@/lib/listings/home";
 
 /**
  * Public route-group layout. Wraps every buyer-facing page (home, city,
@@ -12,17 +14,20 @@ import { ProfileCompletePopup } from "@/components/auth/profile-complete-popup";
  * SessionProvider fetches the buyer session on the client so the header reflects
  * login state without making these ISR/static pages dynamic.
  */
-export default function PublicLayout({ children }: LayoutProps<"/">) {
+export default async function PublicLayout({ children }: LayoutProps<"/">) {
+  const cities = await getActiveCitiesGeo();
   return (
     <SessionProvider>
-      <SavedProvider>
-        <div className="flex min-h-dvh flex-col">
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-        </div>
-        <ProfileCompletePopup />
-      </SavedProvider>
+      <CityProvider cities={cities}>
+        <SavedProvider>
+          <div className="flex min-h-dvh flex-col">
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+          </div>
+          <ProfileCompletePopup />
+        </SavedProvider>
+      </CityProvider>
     </SessionProvider>
   );
 }

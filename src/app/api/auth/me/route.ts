@@ -29,6 +29,7 @@ export const GET = withErrorHandling(async () => {
     email: 1,
     phone: 1,
     dealerId: 1,
+    preferredCitySlug: 1,
   }).lean();
   if (!user) {
     await clearSessionHint();
@@ -46,6 +47,7 @@ export const GET = withErrorHandling(async () => {
     email: user.email ?? null,
     phone: user.phone ?? null,
     dealerId: user.dealerId ? String(user.dealerId) : null,
+    preferredCitySlug: user.preferredCitySlug ?? null,
     profileComplete: Boolean(user.name),
   });
 });

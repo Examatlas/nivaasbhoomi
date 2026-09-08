@@ -4,6 +4,7 @@ import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/public/mobile-nav";
 import { HeaderAuth } from "@/components/auth/header-auth";
+import { CitySwitcher } from "@/components/public/city/city-switcher";
 
 const NAV_LINKS = [
   { href: "/", label: "Buy" },
@@ -25,7 +26,10 @@ export function SiteHeader() {
           <Logo />
         </Link>
 
-        <nav className="ml-4 hidden items-center gap-1 md:flex">
+        {/* City chip — geo-detected, remembered per visitor. */}
+        <CitySwitcher />
+
+        <nav className="ml-1 hidden items-center gap-1 md:flex">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.label}

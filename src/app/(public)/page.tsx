@@ -1,185 +1,187 @@
 import Link from "next/link";
 import {
-  ShieldCheck,
-  MessageCircle,
   Sparkles,
-  Clock,
-  Search,
-  Handshake,
+  Eye,
+  PhoneOff,
+  UserCheck,
+  BellOff,
   Landmark,
   Calculator,
+  ClipboardCheck,
   ArrowRight,
+  FileText,
+  ShieldCheck,
+  IndianRupee,
+  Building2,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { ListingGrid } from "@/components/public/listing-grid";
 import { HomeSearch } from "@/components/public/home-search";
+import { HomeExperience } from "@/components/public/home/home-experience";
+import { CategoryTiles } from "@/components/public/home/category-tiles";
 import { JsonLd } from "@/components/shared/json-ld";
-import { getFeaturedListings, getActiveCities } from "@/lib/listings/query";
+import { getHomeData } from "@/lib/listings/home";
 import { organizationJsonLd, webSiteJsonLd } from "@/lib/seo/jsonld";
 import { homeMetadata } from "@/lib/seo/metadata";
-import { getVisibleFeaturedCities } from "@/lib/listings/featured-cities-query";
 
-export const revalidate = 3600; // ISR
+export const revalidate = 3600; // ISR — stays static; city is resolved client-side
 
-// Self-referencing canonical + OpenGraph for the home page (Section 10).
 export const metadata = homeMetadata();
 
 /**
- * Home. Real hero + city selector (active cities only) + newest listings across
- * launched cities + how-it-works + trust signals. Organization + WebSite +
- * SearchAction JSON-LD.
+ * Home. City-aware: the header chip + this page resolve the visitor's city
+ * client-side (geo cookie), so the "Properties in <city>" section is relevant
+ * instead of a mixed nationwide feed. Honest copy — no fake counts, no
+ * "verified" claim over demo listings. Stays static/ISR (Section 9).
  */
 export default async function HomePage() {
-  const [featured, cities, featuredCities] = await Promise.all([
-    getFeaturedListings(8),
-    getActiveCities(),
-    getVisibleFeaturedCities(),
-  ]);
+  const home = await getHomeData(6);
+  const cityOptions = home.cities.map((c) => ({ name: c.name, slug: c.slug }));
 
   return (
     <>
       <JsonLd data={[organizationJsonLd(), webSiteJsonLd()]} />
 
-      {/* ---------- Hero ---------- */}
+      {/* ---------- 1. Hero + search ---------- */}
       <section className="border-b border-border bg-gradient-to-b from-ink-50/60 to-background">
         <div className="mx-auto max-w-page px-4 py-16 sm:px-6 sm:py-24">
           <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
             <Badge tone="clay" className="mb-5">
               <Sparkles className="size-3.5" />
-              No spam calls. Contact on WhatsApp.
+              The dealer&apos;s number is on the page
             </Badge>
 
             <h1 className="text-display-md text-balance sm:text-display-lg">
-              Find your next home,{" "}
-              <span className="text-clay-600">contact directly.</span>
+              Find a home without{" "}
+              <span className="text-clay-600">giving your number away.</span>
             </h1>
 
             <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Verified flats, plots and houses across India. See every listing freely - no
-              phone-number popups, no brokers spamming your phone.
+              Browse every flat, plot and house in full. When you&apos;re ready, message the
+              dealer on WhatsApp yourself. No forms, no callbacks, no &quot;sir, when can you
+              visit?&quot; at 10pm.
             </p>
 
             <div className="mt-8 w-full max-w-xl">
-              <HomeSearch cities={cities.map((c) => ({ name: c.name, slug: c.slug }))} />
+              <HomeSearch cities={cityOptions} />
             </div>
 
-            {/* Popular cities — pan-India, filtered to cities that exist in the DB. */}
-            {featuredCities.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                <span className="text-meta text-muted-foreground">Popular cities:</span>
-                {featuredCities.map((c) => (
-                  <Link
-                    key={c.slug}
-                    href={`/${c.slug}`}
-                    className="rounded-full border border-border bg-surface px-3 py-1 text-meta font-medium text-ink-800 transition-colors hover:bg-surface-muted"
-                  >
-                    {c.name}
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-meta text-muted-foreground">
+            {/* Buyer trust chips (B4). */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-meta text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck className="size-4 text-ink-600" />
-                Verified dealers only
+                <Eye className="size-4 text-ink-600" /> See every listing free
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <MessageCircle className="size-4 text-wa-600" />
-                Direct WhatsApp contact
+                <PhoneOff className="size-4 text-clay-600" /> No phone-number popups
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <Clock className="size-4 text-clay-600" />
-                Fresh, dated listings
+                <UserCheck className="size-4 text-ink-600" /> Your number goes to one dealer only
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <BellOff className="size-4 text-clay-600" /> No spam calls
               </span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ---------- Featured ---------- */}
-      {featured.length > 0 && (
-        <section className="mx-auto max-w-page px-4 py-14 sm:px-6">
-          <div className="mb-6">
-            <h2 className="text-display-sm">Latest verified listings</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Freshly verified property, contact directly on WhatsApp.
-            </p>
-          </div>
-          <ListingGrid listings={featured} />
-        </section>
-      )}
+      {/* ---------- 2 + 3. Properties in <city> + Browse by city ---------- */}
+      <HomeExperience cities={home.cities} />
 
-      {/* ---------- How it works ---------- */}
+      {/* ---------- 4. What are you looking for? ---------- */}
+      <CategoryTiles />
+
+      {/* ---------- 5. Privacy strip (navy) ---------- */}
+      <section className="bg-ink-950 text-white">
+        <div className="mx-auto max-w-page px-4 py-14 sm:px-6">
+          <h2 className="max-w-2xl text-display-sm text-white">
+            Most property sites sell your number. We don&apos;t have a way to.
+          </h2>
+          <div className="mt-8 grid gap-8 sm:grid-cols-3">
+            <TrustPoint
+              icon={PhoneOff}
+              title="Your phone stays quiet"
+              body="Nobody calls you 40 times. You start the conversation, on WhatsApp, when you want to."
+            />
+            <TrustPoint
+              icon={FileText}
+              title="The number is on the page"
+              body={`Not behind a form. Not after signup. Not "our executive will reach out shortly."`}
+            />
+            <TrustPoint
+              icon={UserCheck}
+              title="One enquiry, one dealer"
+              body="Your enquiry goes to the dealer whose listing you opened. It isn't resold to five brokers."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- 6. Honest stats ---------- */}
       <section className="border-t border-border bg-surface">
         <div className="mx-auto max-w-page px-4 py-14 sm:px-6">
-          <h2 className="text-center text-display-sm">How it works</h2>
-          <div className="mt-8 grid gap-6 sm:grid-cols-3">
-            <Step
-              icon={Search}
-              n={1}
-              title="Search freely"
-              body="Browse every verified listing with full photos, price and area. No login, no phone-number popups."
-            />
-            <Step
-              icon={MessageCircle}
-              n={2}
-              title="Tap WhatsApp"
-              body="One tap opens WhatsApp with the listing details pre-filled. No forms, no waiting for a callback."
-            />
-            <Step
-              icon={Handshake}
-              n={3}
-              title="Talk directly"
-              body="Chat with the verified dealer directly, schedule a visit, and close - on your terms."
-            />
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+            <Stat value={String(home.stats.citiesLive)} label="cities live" />
+            <Stat value={String(home.stats.totalListings)} label="listings on the site" />
+            <Stat value="0" label="spam calls made" />
+            <Stat value="₹0" label="charged to dealers" />
           </div>
         </div>
       </section>
 
-      {/* ---------- Free tools ---------- */}
+      {/* ---------- 7. Free tools ---------- */}
       <section className="border-t border-border">
         <div className="mx-auto max-w-page px-4 py-14 sm:px-6">
           <h2 className="text-display-sm">Free tools to plan your purchase</h2>
           <p className="mt-2 max-w-2xl text-muted-foreground">
             Know the real cost before you buy — no login needed to start.
           </p>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <Link
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <ToolCard
               href="/tools/stamp-duty"
-              className="group flex items-start gap-3 rounded-card border border-border bg-surface p-5 shadow-card transition-[box-shadow,transform] hover:-translate-y-0.5 hover:shadow-lift"
-            >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink-50 text-ink-700">
-                <Landmark className="size-5" />
-              </span>
-              <span className="min-w-0">
-                <span className="flex items-center gap-1 font-semibold text-ink-950">
-                  Stamp duty calculator
-                  <ArrowRight className="size-4 text-clay-700 transition-transform group-hover:translate-x-0.5" />
-                </span>
-                <span className="mt-0.5 block text-sm text-muted-foreground">
-                  State-wise stamp duty + registration, with the women&apos;s concession.
-                </span>
-              </span>
-            </Link>
-            <Link
+              icon={Landmark}
+              title="Stamp duty calculator"
+              body="State-wise stamp duty and registration, with the women's concession."
+            />
+            <ToolCard
               href="/tools/emi-calculator"
-              className="group flex items-start gap-3 rounded-card border border-border bg-surface p-5 shadow-card transition-[box-shadow,transform] hover:-translate-y-0.5 hover:shadow-lift"
-            >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink-50 text-ink-700">
-                <Calculator className="size-5" />
-              </span>
-              <span className="min-w-0">
-                <span className="flex items-center gap-1 font-semibold text-ink-950">
-                  EMI calculator
-                  <ArrowRight className="size-4 text-clay-700 transition-transform group-hover:translate-x-0.5" />
-                </span>
-                <span className="mt-0.5 block text-sm text-muted-foreground">
-                  Monthly home-loan EMI, total interest and payable.
-                </span>
-              </span>
-            </Link>
+              icon={Calculator}
+              title="EMI calculator"
+              body="Monthly home-loan EMI, total interest and payable."
+            />
+            <ToolCard
+              href="/tools/property-checklist"
+              icon={ClipboardCheck}
+              title="Legal checklist"
+              body="The papers to check before you buy, state by state."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- 8. Dealer CTA (orange) ---------- */}
+      <section className="bg-gradient-to-br from-clay-500 to-clay-700 text-white">
+        <div className="mx-auto max-w-page px-4 py-16 sm:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-display-sm text-white">List your property, keep the lead</h2>
+            <p className="mx-auto mt-3 max-w-xl text-clay-50">
+              Put your flats, plots and houses in front of buyers who came to look, not to be
+              chased. Free to list, free to receive leads.
+            </p>
+            <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <DealerSignal icon={ShieldCheck} text="Every buyer's number is WhatsApp OTP verified" />
+              <DealerSignal icon={UserCheck} text="Each lead goes to one dealer only" />
+              <DealerSignal icon={IndianRupee} text="Listings and leads both free — no subscription" />
+            </div>
+            <div className="mt-8">
+              <Link
+                href="/dealer/login"
+                className="inline-flex items-center gap-2 rounded-control bg-white px-6 py-3 text-sm font-semibold text-clay-700 shadow-card transition-colors hover:bg-clay-50"
+              >
+                <Building2 className="size-4" />
+                List your property
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -187,27 +189,70 @@ export default async function HomePage() {
   );
 }
 
-function Step({
+function TrustPoint({
   icon: Icon,
-  n,
   title,
   body,
 }: {
   icon: React.ElementType;
-  n: number;
   title: string;
   body: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 text-center">
-      <div className="relative flex size-12 items-center justify-center rounded-full bg-ink-50 text-ink-700">
-        <Icon className="size-6" />
-        <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-clay-600 text-overline font-bold text-white">
-          {n}
-        </span>
-      </div>
-      <h3 className="text-base font-semibold text-ink-950">{title}</h3>
-      <p className="max-w-xs text-sm text-muted-foreground">{body}</p>
+    <div className="flex flex-col gap-2">
+      <span className="flex size-10 items-center justify-center rounded-full bg-white/10 text-clay-200">
+        <Icon className="size-5" />
+      </span>
+      <h3 className="text-base font-semibold text-white">{title}</h3>
+      <p className="text-sm text-ink-100">{body}</p>
     </div>
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="text-center">
+      <p className="text-display-sm tabular text-ink-950">{value}</p>
+      <p className="mt-1 text-meta text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function ToolCard({
+  href,
+  icon: Icon,
+  title,
+  body,
+}: {
+  href: string;
+  icon: React.ElementType;
+  title: string;
+  body: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-start gap-3 rounded-card border border-border bg-surface p-5 shadow-card transition-[box-shadow,transform] hover:-translate-y-0.5 hover:shadow-lift"
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink-50 text-ink-700">
+        <Icon className="size-5" />
+      </span>
+      <span className="min-w-0">
+        <span className="flex items-center gap-1 font-semibold text-ink-950">
+          {title}
+          <ArrowRight className="size-4 text-clay-700 transition-transform group-hover:translate-x-0.5" />
+        </span>
+        <span className="mt-0.5 block text-sm text-muted-foreground">{body}</span>
+      </span>
+    </Link>
+  );
+}
+
+function DealerSignal({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-meta text-clay-50">
+      <Icon className="size-4 shrink-0" />
+      {text}
+    </span>
   );
 }

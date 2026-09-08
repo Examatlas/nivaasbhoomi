@@ -60,8 +60,8 @@ export default async function DealerDashboardPage() {
           <div className="flex items-start gap-2">
             <BadgeCheck className="mt-0.5 size-5 shrink-0 text-clay-600" />
             <p>
-              <span className="font-semibold">Aapki listings tab live hongi jab hum aapke documents verify kar denge.</span>{" "}
-              Verification ke liye Verification page par documents upload karein.
+              <span className="font-semibold">Your listings go live after we check your documents.</span>{" "}
+              Upload them on the Verification page.
             </p>
           </div>
           <Link

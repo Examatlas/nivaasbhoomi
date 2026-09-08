@@ -30,6 +30,14 @@ const bodySchema = z.object({
     .max(200)
     .optional()
     .or(z.literal("")),
+  // The buyer's chosen home-page city (slug). Lowercase slug chars only.
+  preferredCitySlug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .max(80)
+    .regex(/^[a-z0-9-]+$/, "Invalid city.")
+    .optional(),
 });
 
 export const PATCH = withErrorHandling(async (req: NextRequest) => {
@@ -64,6 +72,9 @@ export const PATCH = withErrorHandling(async (req: NextRequest) => {
 
   if (name !== undefined) user.name = name;
   if (parsed.data.email !== undefined) user.email = email; // "" clears it
+  if (parsed.data.preferredCitySlug !== undefined) {
+    user.preferredCitySlug = parsed.data.preferredCitySlug;
+  }
 
   await user.save();
 

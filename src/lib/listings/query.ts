@@ -155,6 +155,7 @@ export async function fetchApprovedCards(params: {
       zenithNumber: dealer?.zenithNumber ?? null,
       refreshedAt: (l.lastRefreshedAt ?? l.createdAt ?? new Date()).toISOString(),
       whatsappNumber: PORTAL_WHATSAPP,
+      isSeed: Boolean(l.isSeed),
     } satisfies ListingCardData;
   });
 }
@@ -457,6 +458,7 @@ export async function getFeaturedListings(limit = 8): Promise<ListingCardData[]>
       zenithNumber: dealer?.zenithNumber ?? null,
       refreshedAt: (l.lastRefreshedAt ?? l.createdAt ?? new Date()).toISOString(),
       whatsappNumber: PORTAL_WHATSAPP,
+      isSeed: Boolean(l.isSeed),
     } satisfies ListingCardData;
   });
 }
@@ -672,6 +674,7 @@ export async function getCityListings(
       zenithNumber: dealer?.zenithNumber ?? null,
       refreshedAt: (l.lastRefreshedAt ?? l.createdAt ?? new Date()).toISOString(),
       whatsappNumber: PORTAL_WHATSAPP,
+      isSeed: Boolean(l.isSeed),
     } satisfies ListingCardData;
   });
 }
@@ -731,6 +734,7 @@ function toCard(
     zenithNumber: dealer?.zenithNumber ?? null,
     refreshedAt: ((doc.lastRefreshedAt as Date) ?? (doc.createdAt as Date) ?? new Date()).toISOString(),
     whatsappNumber: PORTAL_WHATSAPP,
+    isSeed: Boolean(doc.isSeed),
   } satisfies ListingCardData;
 }
 

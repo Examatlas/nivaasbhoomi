@@ -100,8 +100,8 @@ export function DealerRegistrationForm({
           {mode === "upgrade" ? "Become a dealer" : "Create your dealer profile"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Aapka number verify ho gaya hai. Apne business ki jaankari bharein — listings
-          verify hone ke baad live hongi.
+          Your number is verified. Add your business details — your listings go live
+          after we check them.
         </p>
       </div>
 
@@ -119,7 +119,7 @@ export function DealerRegistrationForm({
             value={nameValue}
             onChange={(e) => setNameValue(e.target.value)}
             maxLength={120}
-            placeholder="Aapka poora naam"
+            placeholder="Your full name"
             autoComplete="name"
           />
         </div>

@@ -72,6 +72,7 @@ export function PropertyCard({
     zenithConnected,
     zenithNumber,
     featured,
+    isSeed,
   } = listing;
 
   const href = `/property/${slug}`;
@@ -252,18 +253,24 @@ export function PropertyCard({
           </p>
         )}
 
-        {/* Single action. Pushed to the bottom so every card's CTA aligns. */}
+        {/* Single action. Pushed to the bottom so every card's CTA aligns.
+            Seed (display-only) listings have NO contact CTA — just a neutral
+            label, matching the detail page (B6). */}
         <div className="mt-auto pt-1">
-          <PropertyContactButton
-            listingId={id}
-            listingTitle={title}
-            listingSlug={slug}
-            mode={resolveContactMode({ zenithConnected })}
-            whatsappNumber={zenithNumber ?? undefined}
-            triggerLabel="Contact Us"
-            block
-            size="md"
-          />
+          {isSeed ? (
+            <p className="text-meta text-subtle-foreground">Demo listing — for reference only</p>
+          ) : (
+            <PropertyContactButton
+              listingId={id}
+              listingTitle={title}
+              listingSlug={slug}
+              mode={resolveContactMode({ zenithConnected })}
+              whatsappNumber={zenithNumber ?? undefined}
+              triggerLabel="Contact Us"
+              block
+              size="md"
+            />
+          )}
         </div>
       </div>
     </article>
