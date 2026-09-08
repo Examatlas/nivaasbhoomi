@@ -219,7 +219,14 @@ async function main() {
   // Direct driver insert (bypasses the submit-time validators that require
   // lat/lng etc.) — these are display-only placeholders, not dealer-filed listings.
   const res = await Listing.collection.insertMany(docs);
-  console.log(`\n✓ Inserted ${res.insertedCount} seed listing(s).\n`);
+  console.log(`\n✓ Inserted ${res.insertedCount} seed listing(s).`);
+
+  // The driver insert doesn't touch city.listingCount, so recompute the cached
+  // counters for the affected cities (fixes the admin "0 listings" display).
+  const { recountCities } = await import("@/lib/locations/recount");
+  const affectedCityIds = [...new Set(docs.map((d) => String(d.cityId)))];
+  const n = await recountCities(affectedCityIds);
+  console.log(`✓ Recounted ${n} city counter(s).\n`);
   await mongoose.disconnect();
   process.exit(0);
 }

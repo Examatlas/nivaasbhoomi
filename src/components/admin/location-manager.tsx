@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -144,43 +145,116 @@ function RequestsPanel() {
 // ---- Cities -----------------------------------------------------------------
 
 function CitiesPanel() {
+  const [reloadKey, setReloadKey] = useState(0);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+
   const endpoint = useCallback(
     ({ q, page, limit }: { q: string; page: number; limit: number }) =>
       `/api/admin/locations/cities?${qs({ q, page, limit })}`,
     [],
   );
 
+  async function activateRow(id: string, reload: () => void) {
+    setRowBusy(id);
+    try {
+      await apiFetch(`/api/admin/locations/cities/${id}/activate`, {
+        method: "POST",
+        body: JSON.stringify({ active: true }),
+      });
+      toast.success("City activated");
+      reload();
+    } catch (e) {
+      toast.error(e instanceof ApiClientError ? e.message : "Could not activate city.");
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
+  async function activateAll() {
+    setBulkBusy(true);
+    try {
+      const res = await apiFetch<{
+        activatedCount: number;
+        skipped: { slug: string }[];
+      }>("/api/admin/locations/cities/activate-all", { method: "POST" });
+      toast.success(
+        `Activated ${res.activatedCount} eligible cit${res.activatedCount === 1 ? "y" : "ies"}` +
+          (res.skipped.length ? ` — ${res.skipped.length} not eligible yet.` : "."),
+      );
+      setReloadKey((n) => n + 1);
+    } catch (e) {
+      toast.error(e instanceof ApiClientError ? e.message : "Bulk activate failed.");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   return (
-    <PaginatedPanel<CityRow>
-      endpoint={endpoint}
-      columns={["City", "Tier", "Listings", "Dealers", "Localities", "Status"]}
-      searchPlaceholder="Search cities…"
-      emptyLabel="No cities found."
-      renderRow={(c) => (
-        <tr key={c._id} className="hover:bg-surface-muted/40">
-          <td className="px-4 py-3 font-medium text-ink-950">
-            <Link href={`/admin/locations/cities/${c._id}`} className="hover:underline">
-              {c.name}
-            </Link>
-            <span className="ml-2 text-meta text-subtle-foreground">/{c.slug}</span>
-          </td>
-          <td className="px-4 py-3">
-            <Badge
-              tone={c.tier === 1 ? "ink" : c.tier === 2 ? "clay" : "neutral"}
-              size="sm"
-            >
-              Tier {c.tier}
-            </Badge>
-          </td>
-          <td className="tabular px-4 py-3 text-muted-foreground">{c.listingCount}</td>
-          <td className="tabular px-4 py-3 text-muted-foreground">{c.dealerCount}</td>
-          <td className="tabular px-4 py-3 text-muted-foreground">{c.localityCount}</td>
-          <td className="px-4 py-3">
-            <ActiveBadge active={c.isActive} />
-          </td>
-        </tr>
-      )}
-    />
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-meta text-muted-foreground">
+          Listings = approved (seed included, the activation basis). Real = excludes seed.
+        </p>
+        <Button size="sm" onClick={activateAll} disabled={bulkBusy}>
+          {bulkBusy && <Loader2 className="size-4 animate-spin" />} Activate all eligible cities
+        </Button>
+      </div>
+      <PaginatedPanel<CityRow>
+        endpoint={endpoint}
+        reloadKey={reloadKey}
+        columns={["City", "Tier", "Listings", "Real", "Dealers", "Localities", "Status", "Action"]}
+        searchPlaceholder="Search cities…"
+        emptyLabel="No cities found."
+        renderRow={(c, reload) => (
+          <tr key={c._id} className="hover:bg-surface-muted/40">
+            <td className="px-4 py-3 font-medium text-ink-950">
+              <Link href={`/admin/locations/cities/${c._id}`} className="hover:underline">
+                {c.name}
+              </Link>
+              <span className="ml-2 text-meta text-subtle-foreground">/{c.slug}</span>
+            </td>
+            <td className="px-4 py-3">
+              <Badge
+                tone={c.tier === 1 ? "ink" : c.tier === 2 ? "clay" : "neutral"}
+                size="sm"
+              >
+                Tier {c.tier}
+              </Badge>
+            </td>
+            <td className="tabular px-4 py-3 font-medium text-ink-900">{c.listingCount}</td>
+            <td className="tabular px-4 py-3 text-muted-foreground">{c.realListingCount}</td>
+            <td className="tabular px-4 py-3 text-muted-foreground">{c.dealerCount}</td>
+            <td className="tabular px-4 py-3 text-muted-foreground">{c.localityCount}</td>
+            <td className="px-4 py-3">
+              <ActiveBadge active={c.isActive} />
+            </td>
+            <td className="px-4 py-3">
+              {c.isActive ? (
+                <span className="text-meta text-subtle-foreground">—</span>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <Button
+                    size="sm"
+                    variant={c.canActivate ? "primary" : "outline"}
+                    onClick={() => activateRow(c._id, reload)}
+                    disabled={!c.canActivate || rowBusy === c._id}
+                    title={c.canActivate ? "Activate this city" : (c.activationHint ?? "")}
+                  >
+                    {rowBusy === c._id && <Loader2 className="size-4 animate-spin" />} Activate
+                  </Button>
+                  {!c.canActivate && c.activationHint && (
+                    <span className="text-overline text-subtle-foreground">
+                      {c.activationHint}
+                    </span>
+                  )}
+                </div>
+              )}
+            </td>
+          </tr>
+        )}
+      />
+    </div>
   );
 }
 

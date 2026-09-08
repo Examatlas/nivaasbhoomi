@@ -23,9 +23,16 @@ export interface CityRow {
   tier: number;
   isActive: boolean;
   stateId: string;
+  /** Approved listings, seed INCLUDED (the activation basis). Live count. */
   listingCount: number;
+  /** Approved listings, seed EXCLUDED (real, contactable). Live count. */
+  realListingCount: number;
   dealerCount: number;
   localityCount: number;
+  /** Meets the activation guard now (live). Drives the row Activate button. */
+  canActivate: boolean;
+  /** Why it can't be activated yet, e.g. "Needs 1 listing (has 0)". */
+  activationHint: string | null;
 }
 
 export interface LocalityRow {
