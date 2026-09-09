@@ -102,6 +102,36 @@ export function faqPageJsonLd(faqs: FaqEntry[]): JsonLdObject | null {
   };
 }
 
+// ---- HowTo ----
+
+export interface HowToStep {
+  name: string;
+  text: string;
+}
+
+/** HowTo (step-by-step guides like mutation/dakhil-kharij). Returns null when
+ *  there are no steps. */
+export function howToJsonLd(
+  name: string,
+  steps: HowToStep[],
+  description?: string,
+): JsonLdObject | null {
+  const valid = steps.filter((s) => s.name?.trim() && s.text?.trim());
+  if (valid.length === 0) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name,
+    ...(description ? { description } : {}),
+    step: valid.map((s, i) => ({
+      "@type": "HowToStep",
+      position: i + 1,
+      name: s.name,
+      text: s.text,
+    })),
+  };
+}
+
 // ---- ItemList ----
 
 export interface ListItem {

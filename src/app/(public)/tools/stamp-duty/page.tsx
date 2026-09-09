@@ -98,6 +98,18 @@ export default function StampDutyIndexPage() {
           </div>
         </section>
 
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold text-ink-950">Related tools</h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/tools/mutation-guide" className="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink-800 hover:border-clay-200 hover:bg-clay-50">
+              After registration: mutation (dakhil-kharij) guide
+            </Link>
+            <Link href="/tools/property-checklist" className="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink-800 hover:border-clay-200 hover:bg-clay-50">
+              Property legal checklist
+            </Link>
+          </div>
+        </section>
+
         <p className="mt-8 rounded-card border border-warning-100 bg-warning-50 px-4 py-3 text-meta text-warning-700">
           These are estimates for residential urban property. Actual stamp duty depends on the
           circle/guideline value, cesses and caps — confirm at your sub-registrar office.

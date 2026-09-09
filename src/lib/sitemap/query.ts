@@ -13,6 +13,7 @@ import { filterToSegment } from "@/lib/filters/segment";
 import { CITY_INDEX_MIN_LISTINGS } from "@/lib/config/activation";
 import { absoluteUrl } from "@/lib/seo/site";
 import { allStampDutyStates } from "@/data/stamp-duty-rates";
+import { allCntSptDistricts } from "@/data/cnt-spt-districts";
 
 /**
  * Sitemap data layer (DEV-SPEC.txt Section 10).
@@ -375,7 +376,9 @@ export function getStaticSitemapEntries(): SitemapEntry[] {
     { url: absoluteUrl("/tools/emi-calculator"), lastModified: now, changeFrequency: "monthly" },
     { url: absoluteUrl("/tools/stamp-duty"), lastModified: now, changeFrequency: "monthly" },
     { url: absoluteUrl("/tools/property-checklist"), lastModified: now, changeFrequency: "monthly" },
-    // One page per state for the stamp-duty and legal-checklist tools.
+    { url: absoluteUrl("/tools/cnt-spt-check"), lastModified: now, changeFrequency: "monthly" },
+    { url: absoluteUrl("/tools/mutation-guide"), lastModified: now, changeFrequency: "monthly" },
+    // One page per state for the stamp-duty, legal-checklist and mutation tools.
     ...allStampDutyStates().flatMap((s) => [
       {
         url: absoluteUrl(`/tools/stamp-duty/${s.slug}`),
@@ -387,7 +390,18 @@ export function getStaticSitemapEntries(): SitemapEntry[] {
         lastModified: now,
         changeFrequency: "monthly" as const,
       },
+      {
+        url: absoluteUrl(`/tools/mutation-guide/${s.slug}`),
+        lastModified: now,
+        changeFrequency: "monthly" as const,
+      },
     ]),
+    // One page per Jharkhand district for the CNT/SPT land checker.
+    ...allCntSptDistricts().map((d) => ({
+      url: absoluteUrl(`/tools/cnt-spt-check/${d.slug}`),
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+    })),
     { url: absoluteUrl("/about-us"), lastModified: now, changeFrequency: "monthly" },
     { url: absoluteUrl("/contact-us"), lastModified: now, changeFrequency: "monthly" },
     { url: absoluteUrl("/privacy-policy"), lastModified: now, changeFrequency: "yearly" },

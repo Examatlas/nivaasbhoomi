@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Home, Calculator, Landmark, ClipboardCheck, ArrowRight } from "lucide-react";
+import { Home, Calculator, Landmark, ClipboardCheck, ShieldAlert, ScrollText, ArrowRight } from "lucide-react";
 
 import { BRAND, absoluteUrl } from "@/lib/seo/site";
 
@@ -31,6 +31,18 @@ const TOOLS = [
     icon: ClipboardCheck,
     title: "Property legal checklist",
     body: "A printable, state-specific due-diligence checklist — documents to verify and red flags to watch before you buy. Includes rules like Jharkhand's CNT/SPT tribal land.",
+  },
+  {
+    href: "/tools/cnt-spt-check",
+    icon: ShieldAlert,
+    title: "CNT / SPT land check (Jharkhand)",
+    body: "Can you buy this land? See if a Jharkhand district is under the CNT or SPT Act, whether your buyer type is allowed, the permission needed, and the home-loan catch.",
+  },
+  {
+    href: "/tools/mutation-guide",
+    icon: ScrollText,
+    title: "Mutation (dakhil-kharij) guide",
+    body: "Get your name on the land record — step-by-step for Bihar, Jharkhand and UP: official portal, documents, timeline and what to do if it's rejected.",
   },
 ];
 

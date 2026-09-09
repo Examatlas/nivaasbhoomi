@@ -35,12 +35,14 @@ const ALL_STATUSES = [
   "new", "assigned", "delivered", "contacted", "site-visit-scheduled", "site-visit-done",
   "converted", "lost", "unmatched", "quota-exceeded", "unclaimed", "unassigned",
 ];
-const SOURCES = ["listing", "agent_profile", "whatsapp_click", "generic", "ad", "tool_stamp_duty", "tool_legal_checklist"];
+const SOURCES = ["listing", "agent_profile", "whatsapp_click", "generic", "ad", "tool_stamp_duty", "tool_legal_checklist", "tool_cnt_spt", "tool_mutation"];
 
 /** Friendly labels for sources (lead-magnet tools read nicely). */
 const SOURCE_LABELS: Record<string, string> = {
   tool_stamp_duty: "Stamp duty tool",
   tool_legal_checklist: "Legal checklist",
+  tool_cnt_spt: "CNT/SPT check",
+  tool_mutation: "Mutation guide",
 };
 function sourceLabel(source: string): string {
   return SOURCE_LABELS[source] ?? source;

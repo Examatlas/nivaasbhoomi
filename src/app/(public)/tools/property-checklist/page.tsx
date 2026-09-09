@@ -98,6 +98,18 @@ export default function ChecklistIndexPage() {
           </div>
         </section>
 
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold text-ink-950">Related tools</h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/tools/cnt-spt-check" className="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink-800 hover:border-clay-200 hover:bg-clay-50">
+              Jharkhand CNT / SPT land check
+            </Link>
+            <Link href="/tools/mutation-guide" className="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink-800 hover:border-clay-200 hover:bg-clay-50">
+              Mutation (dakhil-kharij) guide
+            </Link>
+          </div>
+        </section>
+
         <p className="mt-8 rounded-card border border-warning-100 bg-warning-50 px-4 py-3 text-meta text-warning-700">
           This is a general checklist, not legal advice. Before buying any property, consult a
           qualified property lawyer.
