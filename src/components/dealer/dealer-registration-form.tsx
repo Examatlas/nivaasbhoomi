@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CoverageEditor, type CoverageEntry } from "@/components/dealer/coverage-editor";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
+import { trackEvent } from "@/lib/analytics/track";
 import { hardNavigate } from "@/lib/auth/auth-nav";
 import { validateRegId, normalizeRegId, RERA_HELP } from "@/lib/validation/registration-ids";
 
@@ -70,6 +71,7 @@ export function DealerRegistrationForm({
 
     const coverageLocalities = entries.flatMap((x) => x.localities.map((l) => l.localityId));
     setBusy(true);
+    trackEvent("dealer_signup_start", { mode });
     try {
       await apiFetch(submitPath, {
         method: "POST",
@@ -84,6 +86,7 @@ export function DealerRegistrationForm({
           reraNumber: rera.trim() || undefined,
         }),
       });
+      trackEvent("dealer_signup_complete", { mode });
       // HARD navigation so the dashboard renders with the freshly-set dealer
       // session (pending banner, etc.). Keep the button spinning until unload.
       hardNavigate("/dealer/dashboard");

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics/track";
 
 interface CityOption {
   name: string;
@@ -30,6 +31,7 @@ export function HomeSearch({ cities }: { cities: CityOption[] }) {
   const goTo = (slug: string) => router.push(`/${slug}`);
   const submit = () => {
     const term = q.trim();
+    if (term) trackEvent("search", { query: term });
     // Exact city name wins; a partial that matches exactly one city goes there;
     // otherwise fall through to the site-wide search results view.
     const exact = cities.find((c) => c.name.toLowerCase() === term.toLowerCase());

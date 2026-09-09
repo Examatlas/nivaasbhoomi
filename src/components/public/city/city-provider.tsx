@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 
 import { useSession } from "@/components/auth/session-provider";
 import { readCookie } from "@/lib/auth/session-ui";
+import { trackEvent } from "@/lib/analytics/track";
 import {
   CITY_COOKIE,
   GEO_COOKIE,
@@ -90,6 +91,7 @@ export function CityProvider({
     (slug: string) => {
       const city = cities.find((c) => c.slug === slug);
       if (!city) return;
+      trackEvent("city_switch", { from: resolution?.city.slug ?? null, to: slug });
       writeCityCookie(slug);
       setResolution({ city, source: "selected", detectedName: null });
       if (me?.authed) {
@@ -102,7 +104,7 @@ export function CityProvider({
         }).catch(() => {});
       }
     },
-    [cities, me?.authed],
+    [cities, me?.authed, resolution?.city.slug],
   );
 
   return <Ctx.Provider value={{ cities, resolution, ready, setCity }}>{children}</Ctx.Provider>;

@@ -83,9 +83,9 @@ export default function PrivacyPolicyPage() {
         <p>
           We share data with the service providers that run the platform: MongoDB Atlas (database),
           Vercel (hosting), Cloudinary (image storage), Google Maps (location), Resend (email),
-          the WhatsApp Business Platform / Meta (messaging), and Zenith Code (optional WhatsApp
-          automation, where a dealer connects it). We may also disclose data to authorities where
-          the law requires it.
+          the WhatsApp Business Platform / Meta (messaging), Google Analytics (anonymous usage
+          analytics), and Zenith Code (optional WhatsApp automation, where a dealer connects it).
+          We may also disclose data to authorities where the law requires it.
         </p>
         <p>
           <strong>We do not sell your personal data, and we do not share it with advertisers.</strong>
@@ -94,8 +94,10 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection title="8. Cookies">
         <p>
-          We use cookies that are necessary for authentication and sessions, and basic analytics to
-          understand how the platform is used.
+          We use cookies that are necessary for authentication and sessions, and Google Analytics 4
+          to understand how the platform is used (which pages and tools are popular). Analytics
+          records only anonymous usage — page views, categories and event counts. We never send your
+          name, phone number or email to Google Analytics.
         </p>
       </LegalSection>
 

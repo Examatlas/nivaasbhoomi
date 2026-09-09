@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
+import { trackEvent } from "@/lib/analytics/track";
 import { formatRetryAfter } from "@/lib/auth/otp-retry";
 import { useSession } from "@/components/auth/session-provider";
 
@@ -34,6 +35,7 @@ export function SaveAlertButton({ criteria, label }: { criteria: AlertCriteriaIn
   async function create() {
     await apiFetch("/api/alerts", { method: "POST", body: JSON.stringify({ criteria }) });
     setPhase("done");
+    trackEvent("alert_create", { city: criteria.cityId, purpose: criteria.purpose });
   }
 
   async function onClick() {
@@ -58,6 +60,7 @@ export function SaveAlertButton({ criteria, label }: { criteria: AlertCriteriaIn
     try {
       await apiFetch("/api/auth/otp/send", { method: "POST", body: JSON.stringify({ phone: phone.trim() }) });
       setPhase("code");
+      trackEvent("otp_send", { context: "alert" });
     } catch (e) {
       if (e instanceof ApiClientError && e.code === "RATE_LIMITED") {
         const s = Number((e.details as { retryAfter?: number } | undefined)?.retryAfter);
@@ -76,8 +79,10 @@ export function SaveAlertButton({ criteria, label }: { criteria: AlertCriteriaIn
         method: "POST",
         body: JSON.stringify({ phone: phone.trim(), code: digits, role: "buyer" }),
       });
+      trackEvent("otp_verify_success", { context: "alert" });
       await create();
     } catch (e) {
+      trackEvent("otp_verify_fail", { context: "alert" });
       setError(e instanceof ApiClientError ? e.message : "Could not verify the code.");
     } finally {
       setBusy(false);

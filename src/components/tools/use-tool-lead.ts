@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import { formatRetryAfter } from "@/lib/auth/otp-retry";
 import { useSession } from "@/components/auth/session-provider";
+import { trackEvent } from "@/lib/analytics/track";
 
 /**
  * Reusable lead-magnet flow (shared by every tool). The buyer fills a tool and
@@ -39,6 +40,8 @@ export function useToolLead<O = Record<string, unknown>>(tool: string) {
       setResult(res.output);
       setDeduped(res.deduped);
       setPhase("done");
+      trackEvent("tool_use", { tool });
+      trackEvent("lead_submit", { source: `tool_${tool}` });
     },
     [tool],
   );
@@ -75,6 +78,7 @@ export function useToolLead<O = Record<string, unknown>>(tool: string) {
     try {
       await apiFetch("/api/auth/otp/send", { method: "POST", body: JSON.stringify({ phone }) });
       setPhase("code");
+      trackEvent("otp_send", { context: "tool", tool });
     } catch (e) {
       if (e instanceof ApiClientError && e.code === "RATE_LIMITED") {
         const s = Number((e.details as { retryAfter?: number } | undefined)?.retryAfter);
@@ -86,7 +90,7 @@ export function useToolLead<O = Record<string, unknown>>(tool: string) {
       setBusy(false);
       inFlight.current = false;
     }
-  }, []);
+  }, [tool]);
 
   const verifyCode = useCallback(
     async (phone: string, code: string) => {
@@ -100,16 +104,18 @@ export function useToolLead<O = Record<string, unknown>>(tool: string) {
           method: "POST",
           body: JSON.stringify({ phone, code, role: "buyer" }),
         });
+        trackEvent("otp_verify_success", { context: "tool", tool });
         // …then the now-authenticated request creates the lead + returns the result.
         await submitLead(pendingInput.current);
       } catch (e) {
+        trackEvent("otp_verify_fail", { context: "tool", tool });
         setError(e instanceof ApiClientError ? e.message : "Could not verify the code.");
       } finally {
         setBusy(false);
         inFlight.current = false;
       }
     },
-    [submitLead],
+    [submitLead, tool],
   );
 
   const backToForm = useCallback(() => {

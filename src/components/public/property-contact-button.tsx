@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import type { ContactMode } from "@/lib/leads/contact-mode";
+import { trackEvent } from "@/lib/analytics/track";
 
 /**
  * The single call-to-action on a listing. GATED: only a signed-in buyer can
@@ -127,6 +128,10 @@ function WhatsAppButton({
         data?: { waUrl?: string; quotaExhausted?: boolean };
       };
       const waUrl = json?.data?.waUrl;
+      if (waUrl) {
+        trackEvent("whatsapp_click", { listingId, dealerId });
+        trackEvent("lead_submit", { source: "whatsapp_click" });
+      }
       if (waUrl && win) win.location.href = waUrl;
       else if (waUrl) window.open(waUrl, "_blank", "noopener,noreferrer");
       else {
@@ -224,6 +229,7 @@ function ContactDialog({
         return;
       }
       setDone(true);
+      trackEvent("lead_submit", { source: dealerId ? "agent_profile" : "listing_contact" });
     } catch {
       setError("Network error. Please try again.");
     } finally {

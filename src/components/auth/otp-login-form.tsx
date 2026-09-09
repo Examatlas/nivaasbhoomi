@@ -11,6 +11,7 @@ import { apiFetch, ApiClientError } from "@/lib/api/client";
 import { formatRetryAfter } from "@/lib/auth/otp-retry";
 import { safeInternalPath, canSubmitOtp, type VerifyResponse } from "@/lib/auth/otp-verify-nav";
 import { hardNavigate } from "@/lib/auth/auth-nav";
+import { trackEvent } from "@/lib/analytics/track";
 
 const RESEND_SECONDS = 30;
 
@@ -73,6 +74,7 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
       setDigits(Array(6).fill(""));
       setCooldown(RESEND_SECONDS);
       setTimeout(() => boxes.current[0]?.focus(), 50);
+      trackEvent("otp_send", { context: role });
     } catch (err) {
       const limited = rateLimit(err);
       if (limited) {
@@ -120,8 +122,10 @@ export function OtpLoginForm({ role }: { role: "buyer" | "dealer" }) {
         // a HARD navigation so the destination renders with the new session — no
         // stale header, and the spinner ends when the page unloads.
         verified.current = true;
+        trackEvent("otp_verify_success", { context: role });
         hardNavigate(dest);
       } catch (err) {
+        trackEvent("otp_verify_fail", { context: role });
         inFlight.current = false; // allow another attempt with a new code
         const limited = rateLimit(err);
         setError(limited ? limited.message : err instanceof ApiClientError ? err.message : "Could not verify the code.");

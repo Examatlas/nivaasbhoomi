@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
+    "@next/third-parties": "16.3.4",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.11.0",

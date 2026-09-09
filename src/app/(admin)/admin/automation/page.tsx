@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getAutomationSettingsView } from "@/lib/settings/automation";
 import { absoluteUrl } from "@/lib/seo/site";
 import { AutomationSettingsForm } from "@/components/admin/automation-settings-form";
+import { WhatsAppHealthCard } from "@/components/admin/whatsapp-health-card";
 
 export const metadata: Metadata = { title: "Admin — Automation" };
 export const dynamic = "force-dynamic";
@@ -26,6 +27,8 @@ export default async function AdminAutomationPage() {
         </div>
 
         <aside className="flex flex-col gap-4">
+          <WhatsAppHealthCard />
+
           <section className="rounded-card border border-border bg-surface p-5 text-sm">
             <h2 className="mb-2 font-semibold text-ink-950">Lead push (inbound)</h2>
             <p className="text-muted-foreground">
@@ -43,10 +46,12 @@ export default async function AdminAutomationPage() {
             </p>
           </section>
 
-          <section className="rounded-card border border-warning-100 bg-warning-50 p-5 text-meta text-warning-700">
-            Outbound send via Zenith uses an <b>assumed</b> request shape (the Zenith send
-            API couldn&apos;t be read). Confirm it against Zenith&apos;s docs before switching
-            the provider to Zenith for production sends.
+          <section className="rounded-card border border-border bg-surface p-5 text-meta text-muted-foreground">
+            <b className="text-ink-900">Outbound transport.</b> The login OTP uses Zenith&apos;s
+            confirmed template API with an automatic Meta fallback (set{" "}
+            <code>WHATSAPP_PROVIDER=zenith</code>). Multi-variable business templates (lead
+            alerts, expiry warnings, reviews) always send via Meta — Zenith&apos;s template
+            endpoint only accepts an OTP code.
           </section>
         </aside>
       </div>

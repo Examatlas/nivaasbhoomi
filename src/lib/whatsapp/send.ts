@@ -5,7 +5,8 @@ import {
   type SendResult,
 } from "@/lib/whatsapp/client";
 import { zenithSendText, zenithSendTemplate } from "@/lib/whatsapp/zenith-client";
-import type { TemplateName, TEMPLATES } from "@/lib/whatsapp/templates";
+import { whatsAppProvider, isZenithEligible } from "@/lib/whatsapp/provider";
+import { TEMPLATES, type TemplateName } from "@/lib/whatsapp/templates";
 
 /**
  * Provider-aware sender for NivaasBhoomi's BUSINESS messages - the lead-related
@@ -30,8 +31,14 @@ export async function sendBusinessTemplate<N extends TemplateName>(
   name: N,
   params: Parameters<(typeof TEMPLATES)[N]["build"]>[0],
 ): Promise<SendResult> {
-  const { provider } = await getAutomationSettings();
-  return provider === "zenith"
-    ? zenithSendTemplate(to, name, params)
-    : metaSendTemplate(to, name, params);
+  // Transport decision lives in ONE place: provider.isZenithEligible. Zenith's
+  // template endpoint accepts only OTP-shape (code + customerName), so every
+  // multi-variable business template (lead_assigned, property_alert,
+  // listing_expiry_warning, review_request, …) is NOT eligible and always sends
+  // via Meta. Only the login OTP is Zenith-eligible, and that path lives in
+  // lib/auth/otp-whatsapp (Zenith-primary + Meta fallback).
+  if (whatsAppProvider() === "zenith" && isZenithEligible(TEMPLATES[name].name)) {
+    return zenithSendTemplate(to, name, params); // no business template qualifies today
+  }
+  return metaSendTemplate(to, name, params);
 }

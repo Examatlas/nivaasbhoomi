@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { fontVariables } from "@/lib/fonts";
 import { Toaster } from "@/components/ui/toast";
+import { Analytics } from "@/components/analytics/analytics";
 import { SITE_URL } from "@/lib/seo/site";
 
 export const metadata: Metadata = {
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-dvh antialiased">
         {children}
         <Toaster />
+        <Analytics />
       </body>
     </html>
   );
