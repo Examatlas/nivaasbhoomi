@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db/connect";
 import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
+import { State } from "@/lib/db/models/State";
 import { CITY_ACTIVATION } from "@/lib/config/activation";
 
 /**
@@ -151,10 +152,12 @@ export async function activateCity(
   const check = await canActivateCity(cityId);
   if (!check.ok) throw new CityActivationError(check);
 
-  await City.updateOne(
-    { _id: new mongoose.Types.ObjectId(String(cityId)) },
-    { $set: { isActive: true } },
-  );
+  const _id = new mongoose.Types.ObjectId(String(cityId));
+  await City.updateOne({ _id }, { $set: { isActive: true } });
+  // A state is active iff it has >=1 active city — keep it in sync so no manual
+  // step is ever forgotten (a state with an active city but isActive=false).
+  const city = await City.findById(_id, { stateId: 1 }).lean();
+  if (city?.stateId) await syncStateActivation(city.stateId);
   return check;
 }
 
@@ -163,10 +166,47 @@ export async function deactivateCity(
   cityId: string | mongoose.Types.ObjectId,
 ): Promise<void> {
   await connectDB();
-  await City.updateOne(
-    { _id: new mongoose.Types.ObjectId(String(cityId)) },
-    { $set: { isActive: false } },
+  const _id = new mongoose.Types.ObjectId(String(cityId));
+  const city = await City.findById(_id, { stateId: 1 }).lean();
+  await City.updateOne({ _id }, { $set: { isActive: false } });
+  if (city?.stateId) await syncStateActivation(city.stateId);
+}
+
+/**
+ * Keep a state's isActive flag in sync with its cities: active iff it has at
+ * least one active city. Called after any city (de)activation. Returns the new
+ * state flag.
+ */
+export async function syncStateActivation(
+  stateId: string | mongoose.Types.ObjectId,
+): Promise<boolean> {
+  await connectDB();
+  const _id = new mongoose.Types.ObjectId(String(stateId));
+  const activeCities = await City.countDocuments({ stateId: _id, isActive: true });
+  const isActive = activeCities > 0;
+  await State.updateOne({ _id }, { $set: { isActive } });
+  return isActive;
+}
+
+/**
+ * Backfill: recompute every state's isActive from its cities (active iff it has
+ * an active city). Use once after enabling the auto-sync, or any time state
+ * flags may have drifted. Returns how many states now read active.
+ */
+export async function syncAllStateActivation(): Promise<{ total: number; active: number }> {
+  await connectDB();
+  const activeStateIds = new Set(
+    (await City.distinct("stateId", { isActive: true })).map((id) => String(id)),
   );
+  const states = await State.find({}, { _id: 1 }).lean();
+  const ops = states.map((s) => ({
+    updateOne: {
+      filter: { _id: s._id },
+      update: { $set: { isActive: activeStateIds.has(String(s._id)) } },
+    },
+  }));
+  if (ops.length) await State.bulkWrite(ops);
+  return { total: states.length, active: activeStateIds.size };
 }
 
 // ---- Locality automatic activation ------------------------------------------

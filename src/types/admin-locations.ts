@@ -14,6 +14,10 @@ export interface StateRow {
   slug: string;
   code: string;
   isActive: boolean;
+  /** Live count of active cities in this state. */
+  activeCityCount: number;
+  /** Live count of all cities in this state. */
+  cityCount: number;
 }
 
 export interface CityRow {
@@ -42,7 +46,11 @@ export interface LocalityRow {
   status: "approved" | "pending";
   isActive: boolean;
   cityId: string;
+  cityName: string;
+  /** Approved listings, seed INCLUDED. Live count. */
   listingCount: number;
+  /** Approved listings, seed EXCLUDED (real). Live count. */
+  realListingCount: number;
   pincodes: string[];
 }
 

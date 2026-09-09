@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { connectDB } from "@/lib/db/connect";
 import { State } from "@/lib/db/models/State";
+import { City } from "@/lib/db/models/City";
 import { ok, withErrorHandling } from "@/lib/api/response";
 import { requireAdmin } from "@/lib/auth/middleware";
 import { parseListQuery, paginated, escapeRegExp } from "@/lib/api/pagination";
@@ -29,15 +30,34 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     State.countDocuments(filter),
   ]);
 
+  // Live city counts per state (active + total) — the coverage the admin needs.
+  const stateIds = items.map((s) => s._id);
+  const cityAgg = await City.aggregate<{ _id: unknown; total: number; active: number }>([
+    { $match: { stateId: { $in: stateIds } } },
+    {
+      $group: {
+        _id: "$stateId",
+        total: { $sum: 1 },
+        active: { $sum: { $cond: [{ $eq: ["$isActive", true] }, 1, 0] } },
+      },
+    },
+  ]);
+  const cityCounts = new Map(cityAgg.map((a) => [String(a._id), a]));
+
   return ok(
     paginated(
-      items.map((s) => ({
-        _id: String(s._id),
-        name: s.name,
-        slug: s.slug,
-        code: s.code,
-        isActive: s.isActive,
-      })),
+      items.map((s) => {
+        const c = cityCounts.get(String(s._id));
+        return {
+          _id: String(s._id),
+          name: s.name,
+          slug: s.slug,
+          code: s.code,
+          isActive: s.isActive,
+          activeCityCount: c?.active ?? 0,
+          cityCount: c?.total ?? 0,
+        };
+      }),
       total,
       query,
     ),
