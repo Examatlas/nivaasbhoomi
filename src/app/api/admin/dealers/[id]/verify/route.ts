@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { after } from "next/server";
 import mongoose from "mongoose";
 import { z } from "zod";
 
@@ -11,6 +12,7 @@ import {
   recalculateCounters,
   recalculateLocalityActivation,
 } from "@/lib/locations/activation";
+import { notifyDealer } from "@/lib/notifications/dealer-events";
 
 /** Pull a (now Tier-0) dealer's live listings back to 'pending' and recompute
  *  the affected localities/cities. Returns how many were unpublished. */
@@ -78,6 +80,9 @@ export const POST = withErrorHandling(
     const dealer = await Dealer.findById(id);
     if (!dealer) return fail("NOT_FOUND", "Dealer not found.");
 
+    // Tier BEFORE this action — used to detect the 0 → ≥1 "verified" crossing.
+    const prevTier = dealer.verificationTier ?? 0;
+
     dealer.documents ??= {};
     for (const key of [
       "pan",
@@ -108,6 +113,23 @@ export const POST = withErrorHandling(
     let unpublished = 0;
     if ((dealer.verificationTier ?? 0) < 1) {
       unpublished = await unpublishLiveListings(String(dealer._id));
+    }
+
+    // Dealer just crossed Tier 0 → verified: notify them (best-effort, after the
+    // response, so a WhatsApp hiccup never affects this action).
+    if (prevTier < 1 && (dealer.verificationTier ?? 0) >= 1) {
+      const dealerId = String(dealer._id);
+      const dealerName = dealer.name;
+      const dealerPhone = dealer.phone;
+      after(() =>
+        notifyDealer({
+          event: "dealer_approved",
+          dealerId,
+          dealerName,
+          dealerPhone,
+          entityId: dealerId,
+        }),
+      );
     }
 
     return ok({

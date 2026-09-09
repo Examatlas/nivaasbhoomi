@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { after } from "next/server";
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db/connect";
@@ -10,6 +11,7 @@ import {
   recalculateCounters,
   recalculateLocalityActivation,
 } from "@/lib/locations/activation";
+import { notifyDealer } from "@/lib/notifications/dealer-events";
 
 /**
  * POST /api/admin/listings/[id]/approve   [admin]   (Sections 13, 15)
@@ -38,7 +40,7 @@ export const POST = withErrorHandling(
     }
 
     const dealer = mongoose.isValidObjectId(listing.dealerId)
-      ? await Dealer.findById(listing.dealerId, { verificationTier: 1 }).lean()
+      ? await Dealer.findById(listing.dealerId, { verificationTier: 1, name: 1, phone: 1 }).lean()
       : null;
     if (!dealer || (dealer.verificationTier ?? 0) < 1) {
       return fail(
@@ -55,6 +57,25 @@ export const POST = withErrorHandling(
       recalculateCounters(listing.cityId!),
       recalculateLocalityActivation(listing.localityId!),
     ]);
+
+    // Notify the dealer their listing is live (best-effort, after the response).
+    const listingId = String(listing._id);
+    const dealerId = String(dealer._id);
+    const dealerName = dealer.name;
+    const dealerPhone = dealer.phone;
+    const listingTitle = listing.title;
+    const listingSlug = listing.slug;
+    after(() =>
+      notifyDealer({
+        event: "listing_approved",
+        dealerId,
+        dealerName,
+        dealerPhone,
+        entityId: listingId,
+        listingTitle,
+        listingSlug,
+      }),
+    );
 
     return ok({ status: "approved", counters, localityActivation });
   },

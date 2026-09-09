@@ -14,6 +14,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
+import { NotificationStatus } from "@/components/admin/notification-status";
 import type { AdminDocView } from "@/lib/dealers/admin";
 
 const NO_OVERRIDE = "none";
@@ -46,6 +47,7 @@ export function AdminVerifyPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [notifKey, setNotifKey] = useState(0);
 
   async function save() {
     setBusy(true);
@@ -67,6 +69,10 @@ export function AdminVerifyPanel({
             : ""),
       );
       router.refresh();
+      // dealer_approved is sent AFTER the response (non-blocking) — refresh the
+      // indicator now and again once it has had time to land.
+      setNotifKey((k) => k + 1);
+      setTimeout(() => setNotifKey((k) => k + 1), 3000);
     } catch (e) {
       setError(e instanceof ApiClientError ? e.message : "Could not save.");
     } finally {
@@ -148,11 +154,12 @@ export function AdminVerifyPanel({
         rows={2}
       />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button onClick={save} disabled={busy}>
           {busy ? <Loader2 className="size-4 animate-spin" /> : null}
           Save verification
         </Button>
+        <NotificationStatus entityId={dealerId} refreshKey={notifKey} />
         {result && <span className="text-meta text-success-700">{result}</span>}
       </div>
       {error && <p className="text-meta text-danger-700">{error}</p>}

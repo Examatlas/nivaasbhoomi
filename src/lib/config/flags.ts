@@ -52,3 +52,14 @@ export function authMethod(): AuthMethod {
   if (v === "sms" || v === "whatsapp") return v;
   return "password";
 }
+
+/**
+ * Dealer lifecycle WhatsApp notifications (dealer_approved, listing_approved,
+ * listing_rejected). ON by default. Set DEALER_NOTIFICATIONS_ENABLED=false to
+ * silence all three instantly — without a deploy — if something misbehaves
+ * (e.g. a template gets paused by Meta). Admin actions are unaffected either
+ * way; notifications are best-effort.
+ */
+export function dealerNotificationsEnabled(): boolean {
+  return process.env.DEALER_NOTIFICATIONS_ENABLED !== "false";
+}

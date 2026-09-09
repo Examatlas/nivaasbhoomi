@@ -20,6 +20,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { VerificationBadge } from "@/components/public/verification-badge";
+import { NotificationStatus } from "@/components/admin/notification-status";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import {
   formatListingPrice,
@@ -46,6 +47,7 @@ export function ListingReview({ id }: { id: string }) {
   const [working, setWorking] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [notifKey, setNotifKey] = useState(0);
 
   const load = () => {
     setLoading(true);
@@ -73,6 +75,10 @@ export function ListingReview({ id }: { id: string }) {
       });
       if (okMsg) toast.success(okMsg);
       load();
+      // The dealer WhatsApp notification is sent AFTER the response (non-blocking),
+      // so refresh the indicator now and again shortly after it lands.
+      setNotifKey((k) => k + 1);
+      setTimeout(() => setNotifKey((k) => k + 1), 3000);
     } catch (e) {
       toast.error(e instanceof ApiClientError ? e.message : "Action failed");
     } finally {
@@ -170,9 +176,12 @@ export function ListingReview({ id }: { id: string }) {
           <ShieldCheck />{" "}
           {badges.photosVerified ? "Photos verified ✓" : "Mark photos verified"}
         </Button>
-        <Button asChild variant="ghost" size="sm" className="ml-auto">
-          <Link href={`/admin/locations/cities/${l.cityId}`}>City activation →</Link>
-        </Button>
+        <div className="ml-auto flex items-center gap-3">
+          <NotificationStatus entityId={id} refreshKey={notifKey} />
+          <Button asChild variant="ghost" size="sm">
+            <Link href={`/admin/locations/cities/${l.cityId}`}>City activation →</Link>
+          </Button>
+        </div>
       </Card>
 
       {/* Gallery */}

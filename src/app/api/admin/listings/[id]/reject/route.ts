@@ -1,15 +1,18 @@
 import type { NextRequest } from "next/server";
+import { after } from "next/server";
 import mongoose from "mongoose";
 import { z } from "zod";
 
 import { connectDB } from "@/lib/db/connect";
 import { Listing } from "@/lib/db/models/Listing";
+import { Dealer } from "@/lib/db/models/Dealer";
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
 import { requireAdmin } from "@/lib/auth/middleware";
 import {
   recalculateCounters,
   recalculateLocalityActivation,
 } from "@/lib/locations/activation";
+import { notifyDealer } from "@/lib/notifications/dealer-events";
 
 /**
  * POST /api/admin/listings/[id]/reject   [admin]   (Section 15)
@@ -58,6 +61,30 @@ export const POST = withErrorHandling(
         recalculateCounters(listing.cityId!),
         recalculateLocalityActivation(listing.localityId!),
       ]);
+    }
+
+    // Notify the dealer with the reason (best-effort, after the response).
+    const dealer = mongoose.isValidObjectId(listing.dealerId)
+      ? await Dealer.findById(listing.dealerId, { name: 1, phone: 1 }).lean()
+      : null;
+    if (dealer) {
+      const listingId = String(listing._id);
+      const dealerId = String(dealer._id);
+      const dealerName = dealer.name;
+      const dealerPhone = dealer.phone;
+      const listingTitle = listing.title;
+      const reason = parsed.data.reason;
+      after(() =>
+        notifyDealer({
+          event: "listing_rejected",
+          dealerId,
+          dealerName,
+          dealerPhone,
+          entityId: listingId,
+          listingTitle,
+          reason,
+        }),
+      );
     }
 
     return ok({ status: "rejected" });
