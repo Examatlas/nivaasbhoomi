@@ -25,8 +25,9 @@ const leadSchema = new Schema(
       required: true,
       validate: {
         validator: (v: string) =>
-          ["listing", "generic", "ad", "agent_profile", "whatsapp_click"].includes(v) ||
-          /^tool_[a-z0-9_]+$/.test(v),
+          ["listing", "generic", "ad", "agent_profile", "whatsapp_click", "whatsapp_agent"].includes(
+            v,
+          ) || /^tool_[a-z0-9_]+$/.test(v),
         message: (props: { value: string }) => `${props.value} is not a valid lead source`,
       },
     },

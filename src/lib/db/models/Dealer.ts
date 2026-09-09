@@ -142,6 +142,15 @@ const dealerSchema = new Schema(
     // exactly one dealer (enforced by the partial-unique index below).
     zenithOrgId: { type: String, default: null },
 
+    // ---- Agent API key (P3) — the dealer's Zenith AI agent authenticates with
+    // this to read ONLY this dealer's data. We store a SHA-256 HASH (never the
+    // plaintext), plus the last 4 chars for display. Regenerating replaces the
+    // hash, so the old key dies instantly. Indexed (sparse-unique) below.
+    agentApiKeyHash: { type: String, default: null },
+    agentApiKeyLast4: { type: String, default: null },
+    agentApiKeyCreatedAt: { type: Date, default: null },
+    agentApiKeyLastUsedAt: { type: Date, default: null },
+
     // ---- Public profile (Phase 2+) — slug infra ----
     // Old slugs kept so they 301-redirect to the current one (never 404).
     slugHistory: { type: [String], default: [] },
@@ -247,6 +256,12 @@ dealerSchema.index(
 );
 // Link to the buyer User this dealer was upgraded from (present only after link).
 dealerSchema.index({ userId: 1 }, { sparse: true });
+// Agent API key lookup: hash → dealer. Sparse-unique so two dealers can never
+// share a key and dealers without a key don't collide on null.
+dealerSchema.index(
+  { agentApiKeyHash: 1 },
+  { unique: true, partialFilterExpression: { agentApiKeyHash: { $type: "string" } } },
+);
 dealerSchema.index({ coverageCities: 1, status: 1 });
 dealerSchema.index({ coverageLocalities: 1, verificationTier: -1, rating: -1 });
 // Resolve an old slug -> its dealer for the 301 redirect (never 404).

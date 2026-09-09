@@ -5,6 +5,8 @@ import { ArrowLeft } from "lucide-react";
 
 import { getDealerVerification } from "@/lib/dealers/admin";
 import { getDealerActivity } from "@/lib/admin/users";
+import { getAgentKeyInfo } from "@/lib/agent/admin";
+import { DealerAgentKey } from "@/components/admin/dealer-agent-key";
 import { AdminVerifyPanel } from "@/components/admin/admin-verify-panel";
 import { AdminDealerEditor } from "@/components/admin/admin-dealer-editor";
 import { sanitizeAbout } from "@/lib/security/sanitize";
@@ -39,9 +41,10 @@ function fmtDate(iso: string): string {
 
 export default async function AdminDealerVerifyPage({ params }: PageProps<"/admin/dealers/[id]">) {
   const { id } = await params;
-  const [dealer, activity] = await Promise.all([
+  const [dealer, activity, agentKey] = await Promise.all([
     getDealerVerification(id),
     getDealerActivity(id),
+    getAgentKeyInfo(id),
   ]);
   if (!dealer) notFound();
 
@@ -122,6 +125,8 @@ export default async function AdminDealerVerifyPage({ params }: PageProps<"/admi
               receives no new leads.
             </div>
           )}
+
+          {agentKey && <DealerAgentKey dealerId={dealer.id} info={agentKey} />}
         </div>
       </div>
 

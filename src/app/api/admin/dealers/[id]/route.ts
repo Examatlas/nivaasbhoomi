@@ -49,6 +49,8 @@ const bodySchema = z.object({
   email: z.string().trim().toLowerCase().email().max(200).optional().or(z.literal("")),
   status: z.enum(["active", "paused", "banned", "pending"]).optional(),
   slug: z.string().trim().toLowerCase().min(1).max(80).optional(),
+  // Bound Zenith org/account id (P3). "" clears it.
+  zenithOrgId: z.string().trim().max(120).optional().or(z.literal("")),
   // Toggle the verified flag on private verification documents, by index.
   docVerifications: z
     .array(z.object({ index: z.number().int().min(0), verified: z.boolean() }))
@@ -144,6 +146,12 @@ export const PATCH = withErrorHandling(
       return fail("DUPLICATE", "That email is already in use by another Dealer or User.");
     }
 
+    // zenithOrgId is partial-unique — a non-empty value must not collide.
+    if (b.zenithOrgId) {
+      const clash = await Dealer.exists({ zenithOrgId: b.zenithOrgId, _id: { $ne: dealer._id } });
+      if (clash) return fail("DUPLICATE", "That Zenith org id is already bound to another dealer.");
+    }
+
     const oldSlug = dealer.slug ?? null;
 
     // Slug: admin override — validate format + availability, but bypass the
@@ -171,6 +179,7 @@ export const PATCH = withErrorHandling(
     set("businessName", b.businessName);
     set("email", b.email);
     set("status", b.status);
+    if (b.zenithOrgId !== undefined) dealer.zenithOrgId = b.zenithOrgId || null;
 
     // Public profile
     set("tagline", b.tagline);
