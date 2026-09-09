@@ -30,11 +30,17 @@ test("whatsAppProvider: zenith only when explicitly set, else meta", () => {
   withProvider("garbage", () => assert.equal(whatsAppProvider(), "meta"));
 });
 
-test("isZenithEligible: only the OTP template (code+customerName shape)", () => {
+test("isZenithEligible: OTP + every registered multi-variable template", () => {
   assert.equal(isZenithEligible("login_otp"), true);
-  assert.equal(isZenithEligible("property_alert"), false);
-  assert.equal(isZenithEligible("lead_assigned"), false);
-  assert.equal(isZenithEligible("listing_expiry_warning"), false);
+  // Multi-variable templates now go via Zenith (bodyParams/buttonParams).
+  assert.equal(isZenithEligible("property_alert"), true);
+  assert.equal(isZenithEligible("lead_assigned"), true);
+  assert.equal(isZenithEligible("listing_expiry_warning"), true);
+  assert.equal(isZenithEligible("dealer_approved"), true);
+  assert.equal(isZenithEligible("listing_approved"), true);
+  assert.equal(isZenithEligible("listing_rejected"), true);
+  // An unknown template name is not eligible.
+  assert.equal(isZenithEligible("totally_unknown_template"), false);
 });
 
 test("phone always digits-only — a '+' never reaches Zenith", () => {

@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db/connect";
 import { Conversation } from "@/lib/db/models/Conversation";
-import { sendText } from "@/lib/whatsapp/client";
+import { sendBusinessText } from "@/lib/whatsapp/send";
 import {
   parseListingRef,
   buildListingContext,
@@ -140,7 +140,9 @@ export async function processInboundMessage(
     }
 
     // (g) Send the reply (free-form: we're inside the 24h window) and log it.
-    const sent = await sendText(evt.from, ai.reply);
+    // Routes via Zenith's free-form endpoint when WHATSAPP_PROVIDER=zenith,
+    // falling back to Meta on a Zenith 5xx/timeout.
+    const sent = await sendBusinessText(evt.from, ai.reply);
     await Conversation.updateOne(
       { phone: evt.from },
       {

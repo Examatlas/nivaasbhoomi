@@ -138,3 +138,31 @@ export async function sendZenithText(args: {
   const customerName = sanitizeCustomerName(args.customerName); // never empty
   return zenithPost("/whatsapp", { to, message, customerName });
 }
+
+/**
+ * Send a MULTI-VARIABLE approved template via Zenith — the confirmed contract
+ * (empirically discovered): the same /whatsapp/template endpoint, but with
+ * `bodyParams` (ordered strings) and optional `buttonParams`
+ * ([{ index, type:"url", value }]) instead of the OTP-only `code`.
+ *
+ * The body is pre-built + validated by templates.toZenithParams (length + button
+ * checks) BEFORE this is called, so here we only guard `to` and post it.
+ */
+export async function sendZenithBusinessTemplate(
+  to: string,
+  body: {
+    template: string;
+    language: string;
+    bodyParams: string[];
+    buttonParams?: { index: number; type: "url"; value: string }[];
+  },
+): Promise<ZenithResult> {
+  const toDigitsVal = requireField("to", toDigits(to));
+  return zenithPost("/whatsapp/template", {
+    to: toDigitsVal,
+    template: body.template,
+    language: body.language,
+    bodyParams: body.bodyParams,
+    ...(body.buttonParams ? { buttonParams: body.buttonParams } : {}),
+  });
+}

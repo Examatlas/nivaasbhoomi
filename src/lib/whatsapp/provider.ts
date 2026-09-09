@@ -1,5 +1,6 @@
 import { connectDB } from "@/lib/db/connect";
 import { WhatsAppSendLog } from "@/lib/db/models/WhatsAppSendLog";
+import { TEMPLATES } from "@/lib/whatsapp/templates";
 
 /**
  * WhatsApp transport provider selection, the Zenith→Meta fallback orchestration,
@@ -17,16 +18,19 @@ export function whatsAppProvider(): WaProvider {
 /**
  * ⚠️ THE ONE DECISION PLACE — which templates may use Zenith.
  *
- * Zenith's /whatsapp/template endpoint accepts ONLY `code` + `customerName`, so
- * a template can go via Zenith only if its single variable is an OTP code.
- * `login_otp` qualifies. Every other template — property_alert (4 vars),
+ * Zenith's /whatsapp/template endpoint now supports MULTI-VARIABLE templates
+ * (confirmed contract: `bodyParams` + optional `buttonParams`), so every
+ * template in our registry is expressible via Zenith — dealer_approved,
+ * listing_approved (URL button), listing_rejected, property_alert (URL button),
  * lead_assigned, listing_expiry_warning, review_request, site_visit_reminder,
- * followup_nudge, and any future dealer_rejected (reason) — has extra variables
- * and MUST go via Meta.
+ * followup_nudge. The login OTP uses the `code`+`customerName` shape and is
+ * eligible too. Meta remains only as the 5xx/timeout fallback.
  */
 export function isZenithEligible(templateName: string): boolean {
   const otpTemplate = process.env.ZENITHCODE_TEMPLATE_NAME ?? "login_otp";
-  return templateName === otpTemplate || templateName === "login_otp";
+  if (templateName === otpTemplate || templateName === "login_otp") return true;
+  // Every registered business template can be sent via bodyParams/buttonParams.
+  return Object.values(TEMPLATES).some((t) => t.name === templateName);
 }
 
 export interface OtpAttempt {
@@ -86,6 +90,10 @@ export async function recordWhatsAppSend(entry: {
   messageId?: string;
   error?: string;
   fellBack?: boolean;
+  // Dealer-lifecycle notifications only (Phase 1) — for dedup + admin indicator.
+  dealerId?: string;
+  event?: string;
+  entityId?: string;
 }): Promise<void> {
   const line = JSON.stringify({
     tag: "whatsapp_send",
@@ -111,6 +119,9 @@ export async function recordWhatsAppSend(entry: {
       messageId: entry.messageId,
       error: entry.error,
       fellBack: Boolean(entry.fellBack),
+      ...(entry.dealerId ? { dealerId: entry.dealerId } : {}),
+      ...(entry.event ? { event: entry.event } : {}),
+      ...(entry.entityId ? { entityId: entry.entityId } : {}),
     });
   } catch {
     /* best-effort: analytics/logging must never break a send */
