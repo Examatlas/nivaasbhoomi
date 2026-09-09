@@ -1,4 +1,3 @@
-import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
@@ -6,27 +5,24 @@ import { resolve } from "node:path";
  *
  * Next.js auto-loads .env.local, but a plain `tsx script.ts` process does not,
  * so connectDB would see no MONGODB_URI. Importing this module first fills
- * process.env from .env.local then .env (without overwriting anything already
- * set in the real environment). Minimal parser - no dependency - handling
- * KEY=value, comments, blank lines and optional surrounding quotes.
+ * process.env from .env.local then .env.
+ *
+ * We use Node's built-in `process.loadEnvFile` — the same parser behind
+ * `node --env-file`. It keeps the semantics we want:
+ *   - a var already set in the REAL environment is never overwritten;
+ *   - .env.local wins over .env (loaded first, and the second load can't
+ *     overwrite an already-set var).
+ * It also parses quoting correctly, unlike the previous hand-rolled parser,
+ * which left the wrapping quote on values containing special characters (e.g. a
+ * Mongo URI), breaking them. No extra dependency.
  */
 function loadFile(path: string) {
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    if (!key || process.env[key] !== undefined) continue; // real env wins
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    process.env[key] = value;
+  try {
+    process.loadEnvFile(path);
+  } catch {
+    // Missing file (ENOENT) is expected — .env / .env.local are optional.
+    // Any other parse error is also non-fatal here: the script's own checks
+    // (e.g. "MONGODB_URI is not set") give a clearer message than crashing on import.
   }
 }
 
