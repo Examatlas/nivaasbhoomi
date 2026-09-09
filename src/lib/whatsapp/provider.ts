@@ -56,8 +56,13 @@ export async function orchestrateOtpSend(opts: {
     const z = await sendZenith();
     if (z.ok) return { result: z, via: "zenith", fellBack: false };
 
+    // 4xx normally means the message can't be delivered anywhere (bad template /
+    // number / auth), so falling back to Meta is pointless — EXCEPT 422, which
+    // means Zenith rejected the REQUEST SHAPE (e.g. a field it validates but Meta
+    // doesn't). A different provider can still deliver it, so 422 DOES fall back.
     const is4xx = z.status != null && z.status >= 400 && z.status < 500;
-    if (is4xx) return { result: z, via: "zenith", fellBack: false }; // deliberately no fallback
+    const isValidation = z.status === 422;
+    if (is4xx && !isValidation) return { result: z, via: "zenith", fellBack: false };
 
     onFallback?.(z.error ?? `status ${z.status ?? "network"}`);
     const m = await sendMeta();

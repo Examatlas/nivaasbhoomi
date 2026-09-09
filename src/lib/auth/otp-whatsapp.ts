@@ -87,7 +87,17 @@ export async function sendOtpTemplate(canonicalPhone: string, code: string): Pro
     provider: whatsAppProvider(),
     zenithReady: zenithConfigured(),
     sendZenith: async () => {
-      const z = await sendZenithTemplate({ to: canonicalPhone, code });
+      let z;
+      try {
+        z = await sendZenithTemplate({ to: canonicalPhone, code });
+      } catch (e) {
+        // A required field was empty — the adapter threw before calling Zenith.
+        // Treat as transient (no status) so login falls back to Meta, and log
+        // the clear field-named reason.
+        const msg = e instanceof Error ? e.message : "Zenith adapter error";
+        console.warn("[whatsapp] Zenith OTP adapter error:", msg);
+        return { ok: false, error: msg };
+      }
       // On failure, log Zenith's FULL response body (status + text) for triage.
       if (!z.ok) {
         console.warn(
@@ -95,7 +105,17 @@ export async function sendOtpTemplate(canonicalPhone: string, code: string): Pro
           JSON.stringify({ status: z.status, error: z.error, body: z.bodyText, timedOut: z.timedOut }),
         );
       }
-      return { ok: z.ok, status: z.status, messageId: z.messageId, error: z.error };
+      // VISIBILITY: carry Zenith's response BODY up the stack (not just
+      // "Zenith <status>"), so the route's `[otp] send FAILED` log AND the
+      // WhatsAppSendLog row capture the real reason (e.g. "Invalid API key",
+      // a template/language rejection). Server-side only — the client still
+      // gets the generic message.
+      return {
+        ok: z.ok,
+        status: z.status,
+        messageId: z.messageId,
+        error: z.ok ? undefined : [z.error, z.bodyText].filter(Boolean).join(" — "),
+      };
     },
     sendMeta: async () => {
       metaResult = await sendOtpViaMeta(canonicalPhone, code);

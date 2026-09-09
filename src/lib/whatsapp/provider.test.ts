@@ -2,7 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { whatsAppProvider, isZenithEligible, orchestrateOtpSend, type OtpAttempt } from "@/lib/whatsapp/provider";
-import { toDigits } from "@/lib/whatsapp/zenith-otp";
+import {
+  toDigits,
+  sanitizeCustomerName,
+  sendZenithTemplate,
+  DEFAULT_CUSTOMER_NAME,
+} from "@/lib/whatsapp/zenith-otp";
 
 const env = process.env as Record<string, string | undefined>;
 
@@ -36,6 +41,26 @@ test("phone always digits-only — a '+' never reaches Zenith", () => {
   assert.equal(toDigits("+919288487841"), "919288487841");
   assert.equal(toDigits("91 92884 87841"), "919288487841");
   assert.equal(toDigits("919288487841"), "919288487841");
+});
+
+test("customerName is never empty — blank/whitespace → fallback constant", () => {
+  assert.equal(sanitizeCustomerName(""), DEFAULT_CUSTOMER_NAME);
+  assert.equal(sanitizeCustomerName("   "), DEFAULT_CUSTOMER_NAME);
+  assert.equal(sanitizeCustomerName(undefined), DEFAULT_CUSTOMER_NAME);
+  assert.equal(sanitizeCustomerName(null), DEFAULT_CUSTOMER_NAME);
+  assert.equal(sanitizeCustomerName("  Ravi  "), "Ravi");
+  assert.ok(DEFAULT_CUSTOMER_NAME.length >= 1);
+});
+
+test("adapter guards required fields — throws (no blind call) naming the field", async () => {
+  await assert.rejects(
+    () => sendZenithTemplate({ to: "", code: "123456" }),
+    /required field "to"/,
+  );
+  await assert.rejects(
+    () => sendZenithTemplate({ to: "919288487841", code: "" }),
+    /required field "code"/,
+  );
 });
 
 // ---- orchestrateOtpSend (the fallback logic) ----
@@ -134,7 +159,24 @@ test("Zenith timeout/network (no status) → falls back to Meta", async () => {
   assert.equal(out.fellBack, true);
 });
 
-test("Zenith 4xx → does NOT fall back (Meta never called)", async () => {
+test("Zenith 422 (validation) → DOES fall back to Meta", async () => {
+  let metaCalled = false;
+  const out = await orchestrateOtpSend({
+    provider: "zenith",
+    zenithReady: true,
+    sendZenith: async () => ({ ok: false, status: 422, error: "Zenith 422" }),
+    sendMeta: async () => {
+      metaCalled = true;
+      return OK;
+    },
+  });
+  assert.equal(metaCalled, true);
+  assert.equal(out.via, "meta_fallback");
+  assert.equal(out.fellBack, true);
+  assert.equal(out.result.ok, true);
+});
+
+test("Zenith 4xx (non-422) → does NOT fall back (Meta never called)", async () => {
   let metaCalled = false;
   const out = await orchestrateOtpSend({
     provider: "zenith",

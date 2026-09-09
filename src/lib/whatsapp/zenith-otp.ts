@@ -34,9 +34,35 @@ export function zenithConfigured(): boolean {
   return Boolean(process.env.ZENITHCODE_API_KEY);
 }
 
+/**
+ * Zenith's template endpoint rejects an empty `customerName` with a 422
+ * ("Too small: expected string to have >=1 characters"). At dealer/buyer login
+ * the user record doesn't exist yet, so the name is blank — we substitute this
+ * single fallback so the request is always valid. One constant, not scattered.
+ */
+export const DEFAULT_CUSTOMER_NAME = "Customer";
+
+/** Trim a name; empty / whitespace-only → the fallback. Never returns "". */
+export function sanitizeCustomerName(name?: string | null): string {
+  const n = (name ?? "").trim();
+  return n.length > 0 ? n : DEFAULT_CUSTOMER_NAME;
+}
+
 /** Defensive: strip everything but digits — a "+" must never reach Zenith. */
 export function toDigits(phone: string): string {
   return (phone ?? "").replace(/\D/g, "");
+}
+
+/**
+ * Guard a required Zenith field: trim, and if empty throw a CLEAR internal error
+ * that names the field — so we never make a blind upstream call that 422s with
+ * a cryptic message. The caller (otp-whatsapp) catches this and falls back to
+ * Meta, so login still works.
+ */
+function requireField(field: string, value: string): string {
+  const v = (value ?? "").trim();
+  if (!v) throw new Error(`Zenith request is missing required field "${field}".`);
+  return v;
 }
 
 async function zenithPost(path: string, body: Record<string, unknown>): Promise<ZenithResult> {
@@ -85,30 +111,30 @@ async function zenithPost(path: string, body: Record<string, unknown>): Promise<
   }
 }
 
-/** Send an approved template (OTP-shape: code + customerName). */
-export function sendZenithTemplate(args: {
+/** Send an approved template (OTP-shape: code + customerName). Every required
+ *  field is validated + sanitized BEFORE the call; a missing one throws a clear
+ *  error naming the field instead of a blind 422. */
+export async function sendZenithTemplate(args: {
   to: string;
   code: string;
   customerName?: string;
 }): Promise<ZenithResult> {
-  return zenithPost("/whatsapp/template", {
-    to: toDigits(args.to),
-    template: process.env.ZENITHCODE_TEMPLATE_NAME ?? "login_otp",
-    language: process.env.ZENITHCODE_TEMPLATE_LANG ?? "en_US",
-    code: args.code,
-    customerName: args.customerName ?? "",
-  });
+  const to = requireField("to", toDigits(args.to));
+  const template = requireField("template", process.env.ZENITHCODE_TEMPLATE_NAME ?? "login_otp");
+  const language = requireField("language", process.env.ZENITHCODE_TEMPLATE_LANG ?? "en_US");
+  const code = requireField("code", args.code);
+  const customerName = sanitizeCustomerName(args.customerName); // never empty
+  return zenithPost("/whatsapp/template", { to, template, language, code, customerName });
 }
 
 /** Free-form message (inside the 24h service window). */
-export function sendZenithText(args: {
+export async function sendZenithText(args: {
   to: string;
   message: string;
   customerName?: string;
 }): Promise<ZenithResult> {
-  return zenithPost("/whatsapp", {
-    to: toDigits(args.to),
-    message: args.message,
-    customerName: args.customerName ?? "",
-  });
+  const to = requireField("to", toDigits(args.to));
+  const message = requireField("message", args.message);
+  const customerName = sanitizeCustomerName(args.customerName); // never empty
+  return zenithPost("/whatsapp", { to, message, customerName });
 }
