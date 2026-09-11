@@ -30,6 +30,7 @@ const TYPES = [
   { value: "office", label: "Offices" },
   { value: "pg", label: "PG" },
   { value: "warehouse", label: "Warehouses" },
+  { value: "farmhouse", label: "Farm Houses" },
 ];
 const BHKS = [
   { value: "1rk", label: "1 RK" },
@@ -57,6 +58,7 @@ const TYPE_TO_PLURAL: Record<string, string> = {
   office: "offices",
   pg: "pgs",
   warehouse: "warehouses",
+  farmhouse: "farm-houses",
 };
 
 export function CityFilters({

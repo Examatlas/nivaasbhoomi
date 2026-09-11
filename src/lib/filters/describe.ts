@@ -15,6 +15,7 @@ const TYPE_PLURAL: Record<string, string> = {
   office: "Offices",
   pg: "PGs",
   warehouse: "Warehouses",
+  farmhouse: "Farm Houses",
 };
 
 export function propertyTypePlural(type: string): string {

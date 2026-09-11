@@ -17,6 +17,7 @@ const TYPE_TO_SLUG: Record<string, string> = {
   office: "offices",
   pg: "pgs",
   warehouse: "warehouses",
+  farmhouse: "farm-houses",
 };
 
 const BHK_TO_TOKEN: Record<string, string> = {

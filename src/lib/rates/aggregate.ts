@@ -11,10 +11,12 @@ import {
  * unit-tested. The cron job feeds it grouped listings and upserts the result.
  */
 
-export type RatePropertyType = "flat" | "plot" | "house" | "commercial";
+export type RatePropertyType = "flat" | "plot" | "house" | "commercial" | "farmhouse";
 export type RatePurpose = "buy" | "rent";
 
-/** Map a Listing.propertyType to one of the 4 rate buckets (null = skip). */
+/** Map a Listing.propertyType to one of the rate buckets (null = skip).
+ *  farmhouse is its OWN bucket — never mixed into house/plot, since farm-house
+ *  per-sqft rates differ sharply from residential/plot rates. */
 export function toRatePropertyType(listingType: string): RatePropertyType | null {
   switch (listingType) {
     case "flat":
@@ -29,6 +31,8 @@ export function toRatePropertyType(listingType: string): RatePropertyType | null
     case "office":
     case "warehouse":
       return "commercial";
+    case "farmhouse":
+      return "farmhouse";
     default:
       return null;
   }

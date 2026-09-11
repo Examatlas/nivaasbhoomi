@@ -107,6 +107,7 @@ const PROPERTY_TYPE_LABELS: Record<string, string> = {
   office: "Office",
   pg: "PG",
   warehouse: "Warehouse",
+  farmhouse: "Farm House",
 };
 
 export function formatPropertyType(type: string): string {

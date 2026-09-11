@@ -18,7 +18,8 @@ export type PropertyType =
   | "commercial-shop"
   | "office"
   | "pg"
-  | "warehouse";
+  | "warehouse"
+  | "farmhouse";
 
 export type Furnishing = "furnished" | "semi-furnished" | "unfurnished";
 

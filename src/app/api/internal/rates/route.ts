@@ -28,8 +28,8 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   if (!mongoose.Types.ObjectId.isValid(localityId)) {
     return fail("VALIDATION_ERROR", "A valid localityId is required.");
   }
-  if (!["flat", "plot", "house", "commercial"].includes(propertyType)) {
-    return fail("VALIDATION_ERROR", "propertyType must be flat|plot|house|commercial.");
+  if (!["flat", "plot", "house", "commercial", "farmhouse"].includes(propertyType)) {
+    return fail("VALIDATION_ERROR", "propertyType must be flat|plot|house|commercial|farmhouse.");
   }
   if (!["buy", "rent"].includes(purpose)) {
     return fail("VALIDATION_ERROR", "purpose must be buy|rent.");
@@ -38,7 +38,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   await connectDB();
   const rate = await LocalityRate.findOne({
     localityId: new mongoose.Types.ObjectId(localityId),
-    propertyType: propertyType as "flat" | "plot" | "house" | "commercial",
+    propertyType: propertyType as "flat" | "plot" | "house" | "commercial" | "farmhouse",
     purpose: purpose as "buy" | "rent",
   }).lean();
 

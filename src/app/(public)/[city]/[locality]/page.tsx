@@ -153,27 +153,36 @@ export default async function LocalityPage({ params }: PageProps<"/[city]/[local
         </header>
 
         {/* Rate range */}
-        {(hasSale || hasRent) && (
-          <div className="mb-5 flex flex-wrap gap-3">
-            {hasSale && (
-              <RateCard
-                label="Sale price range"
-                value={`${formatPrice(rate.saleMin!)} – ${formatPrice(rate.saleMax!)}`}
-                sub={
-                  rate.avgPricePerSqft
-                    ? `avg ₹${rate.avgPricePerSqft.toLocaleString("en-IN")}/sq.ft.`
-                    : undefined
-                }
-              />
-            )}
-            {hasRent && (
-              <RateCard
-                label="Rent range"
-                value={`${formatRent(rate.rentMin!)} – ${formatRent(rate.rentMax!)} /mo`}
-              />
-            )}
-          </div>
-        )}
+        <div className="mb-5">
+          {hasSale || hasRent ? (
+            <>
+              <div className="flex flex-wrap gap-3">
+                {hasSale && (
+                  <RateCard
+                    label="Sale price range"
+                    value={`${formatPrice(rate.saleMin!)} – ${formatPrice(rate.saleMax!)}`}
+                    sub={
+                      rate.avgPricePerSqft
+                        ? `avg ₹${rate.avgPricePerSqft.toLocaleString("en-IN")}/sq.ft.`
+                        : undefined
+                    }
+                  />
+                )}
+                {hasRent && (
+                  <RateCard
+                    label="Rent range"
+                    value={`${formatRent(rate.rentMin!)} – ${formatRent(rate.rentMax!)} /mo`}
+                  />
+                )}
+              </div>
+              <p className="mt-2 text-meta text-muted-foreground">
+                Indicative rates. Actual prices may vary.
+              </p>
+            </>
+          ) : (
+            <p className="text-meta text-muted-foreground">Not enough data yet.</p>
+          )}
+        </div>
 
         {/* Filters */}
         <div className="mb-6">

@@ -29,7 +29,7 @@ import { Locality } from "@/lib/db/models/Locality";
 import { slugify } from "@/lib/utils/slug";
 import { nanoidLower } from "@/lib/utils/id";
 
-const PROPERTY_TYPES = ["flat", "independent-house", "villa", "plot", "commercial-shop", "office", "pg", "warehouse"];
+const PROPERTY_TYPES = ["flat", "independent-house", "villa", "plot", "commercial-shop", "office", "pg", "warehouse", "farmhouse"];
 const BHKS = ["1rk", "1", "2", "3", "4", "5plus"];
 const PLACEHOLDER = "REPLACE_WITH_CLOUDINARY_URL";
 

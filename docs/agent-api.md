@@ -100,7 +100,7 @@ dealer behind the key — never a request parameter.
 | --- | --- | --- |
 | `city` | string | City **slug** (e.g. `pune`). Unknown slug → empty result. |
 | `locality` | string | Locality **slug** within `city`. Requires `city`. |
-| `type` | string | Property type (e.g. `flat`, `plot`, `house`, `commercial`). |
+| `type` | string | Property type (Listing value): `flat`, `independent-house`, `villa`, `plot`, `commercial-shop`, `office`, `pg`, `warehouse`, `farmhouse`. |
 | `purpose` | string | `sale` or `rent`. |
 | `budget_min` | number | Min price. On `sale` uses expected price; on `rent` uses monthly rent. |
 | `budget_max` | number | Max price (same field as above). |
@@ -256,7 +256,7 @@ Function-calling JSON schemas for a Zenith agent. The agent stores the dealer's
     "properties": {
       "city": { "type": "string", "description": "City slug, e.g. \"pune\". Lowercase." },
       "locality": { "type": "string", "description": "Locality slug within the city, e.g. \"baner\". Requires city." },
-      "type": { "type": "string", "description": "Property type: flat, plot, house, or commercial." },
+      "type": { "type": "string", "description": "Property type: flat, independent-house, villa, plot, commercial-shop, office, pg, warehouse, or farmhouse." },
       "purpose": { "type": "string", "enum": ["sale", "rent"], "description": "Whether the buyer wants to buy or rent." },
       "budget_min": { "type": "number", "description": "Minimum price in INR. For rent this is monthly rent." },
       "budget_max": { "type": "number", "description": "Maximum price in INR. For rent this is monthly rent." },

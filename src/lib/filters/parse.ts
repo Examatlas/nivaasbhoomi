@@ -41,6 +41,7 @@ const PROPERTY_TYPE_BY_SLUG: Record<string, string> = {
   pgs: "pg",
   pg: "pg",
   warehouses: "warehouse",
+  "farm-houses": "farmhouse",
 };
 
 /** URL bhk token -> Listing.bhk enum value ('1rk','1'..'4','5plus'). */
@@ -56,7 +57,7 @@ const BHK_BY_SLUG: Record<string, string> = {
 
 // Regex fragments (kept as source strings so we can compose them).
 const TYPE =
-  "(flats|plots|villas|independent-houses|commercial-shops|shops|offices|pgs|warehouses)";
+  "(flats|plots|villas|independent-houses|commercial-shops|shops|offices|pgs|warehouses|farm-houses)";
 const BHK = "(1-rk|1-bhk|2-bhk|3-bhk|4-bhk|5-bhk|5-plus-bhk)";
 const FURN = "(furnished|semi-furnished|unfurnished)";
 const PURPOSE = "for-(sale|rent)";

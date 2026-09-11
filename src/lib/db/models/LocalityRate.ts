@@ -11,7 +11,7 @@ const localityRateSchema = new Schema(
     cityId: { type: Types.ObjectId, ref: "City", required: true },
     stateId: { type: Types.ObjectId, ref: "State", default: null },
 
-    propertyType: { type: String, enum: ["flat", "plot", "house", "commercial"], required: true },
+    propertyType: { type: String, enum: ["flat", "plot", "house", "commercial", "farmhouse"], required: true },
     purpose: { type: String, enum: ["buy", "rent"], required: true },
 
     sampleCount: { type: Number, default: 0 },
