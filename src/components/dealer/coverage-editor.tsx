@@ -3,25 +3,9 @@
 import { useEffect, useState } from "react";
 import { Plus, X, MapPin, Building2 } from "lucide-react";
 
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { SearchSelect, type LocationOption } from "@/components/shared/location-picker";
 import { apiFetch } from "@/lib/api/client";
-
-interface Opt {
-  _id: string;
-  name: string;
-}
-interface LocalityOpt extends Opt {
-  pincode?: string | null;
-}
 
 export interface CoverageEntry {
   cityId: string;
@@ -37,13 +21,11 @@ export interface CoverageValue {
 }
 
 /**
- * Coverage editor (DEV-SPEC.txt Section 4): pick state -> city, multi-select the
- * localities served in that city, and Add. Coverage is the base for lead routing
- * later, so it's shown as clear, removable chips grouped by city and is fully
- * editable afterwards. A city can be covered broadly (no specific localities) or
- * narrowed to chosen localities.
- *
- * Controlled: the parent owns the derived { coverageCities, coverageLocalities }.
+ * Coverage editor (DEV-SPEC.txt Section 4): pick state -> city, then SEARCH and
+ * add the localities served in that city, and Add. All three levels use the
+ * shared searchable picker (SearchSelect) so a metro's hundreds of localities
+ * are searchable, not a giant scroll. Coverage shows as removable chips grouped
+ * by city. Controlled: the parent owns { coverageCities, coverageLocalities }.
  */
 export function CoverageEditor({
   entries,
@@ -52,17 +34,17 @@ export function CoverageEditor({
   entries: CoverageEntry[];
   onChange: (entries: CoverageEntry[], value: CoverageValue) => void;
 }) {
-  const [states, setStates] = useState<Opt[]>([]);
-  const [cities, setCities] = useState<Opt[]>([]);
-  const [localities, setLocalities] = useState<LocalityOpt[]>([]);
+  const [states, setStates] = useState<LocationOption[]>([]);
+  const [cities, setCities] = useState<LocationOption[]>([]);
   const [stateId, setStateId] = useState("");
   const [cityId, setCityId] = useState("");
   const [cityName, setCityName] = useState("");
-  const [checked, setChecked] = useState<Record<string, { name: string; pincode?: string | null }>>({}); // id -> {name, pincode}
+  // Localities queued to add to the current city (id -> {name, pincode}).
+  const [pending, setPending] = useState<Record<string, { name: string; pincode?: string | null }>>({});
 
   useEffect(() => {
-    apiFetch<Opt[]>("/api/locations/states")
-      .then(setStates)
+    apiFetch<{ _id: string; name: string }[]>("/api/locations/states")
+      .then((r) => setStates(r.map((s) => ({ id: s._id, name: s.name }))))
       .catch(() => setStates([]));
   }, []);
 
@@ -72,33 +54,20 @@ export function CoverageEditor({
       setCities([]);
       return;
     }
-    apiFetch<Opt[]>(`/api/locations/cities?stateId=${stateId}`)
-      .then(setCities)
+    apiFetch<{ _id: string; name: string }[]>(`/api/locations/cities?stateId=${stateId}`)
+      .then((r) => setCities(r.map((c) => ({ id: c._id, name: c.name }))))
       .catch(() => setCities([]));
   }, [stateId]);
 
-  useEffect(() => {
-    if (!cityId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLocalities([]);
-      return;
-    }
-    apiFetch<LocalityOpt[]>(`/api/locations/localities?cityId=${cityId}`)
-      .then(setLocalities)
-      .catch(() => setLocalities([]));
-  }, [cityId]);
-
   function emit(next: CoverageEntry[]) {
     const coverageCities = next.map((e) => e.cityId);
-    const coverageLocalities = next.flatMap((e) =>
-      e.localities.map((l) => l.localityId),
-    );
+    const coverageLocalities = next.flatMap((e) => e.localities.map((l) => l.localityId));
     onChange(next, { coverageCities, coverageLocalities });
   }
 
   function addCoverage() {
     if (!cityId) return;
-    const localitiesToAdd = Object.entries(checked).map(([localityId, v]) => ({
+    const localitiesToAdd = Object.entries(pending).map(([localityId, v]) => ({
       localityId,
       name: v.name,
       pincode: v.pincode,
@@ -106,20 +75,17 @@ export function CoverageEditor({
     const existing = entries.find((e) => e.cityId === cityId);
     let next: CoverageEntry[];
     if (existing) {
-      // Merge localities into the existing city entry (dedup).
       const seen = new Set(existing.localities.map((l) => l.localityId));
       const merged = [
         ...existing.localities,
         ...localitiesToAdd.filter((l) => !seen.has(l.localityId)),
       ];
-      next = entries.map((e) =>
-        e.cityId === cityId ? { ...e, localities: merged } : e,
-      );
+      next = entries.map((e) => (e.cityId === cityId ? { ...e, localities: merged } : e));
     } else {
       next = [...entries, { cityId, cityName, localities: localitiesToAdd }];
     }
     emit(next);
-    setChecked({});
+    setPending({});
   }
 
   function removeCity(id: string) {
@@ -135,94 +101,89 @@ export function CoverageEditor({
     );
   }
 
+  async function searchLocalities(q: string): Promise<LocationOption[]> {
+    if (!cityId) return [];
+    const rows = await apiFetch<{ _id: string; name: string; pincode: string | null }[]>(
+      `/api/locations/localities?cityId=${cityId}&q=${encodeURIComponent(q)}`,
+    );
+    return rows.map((l) => ({ id: l._id, name: l.name, hint: l.pincode }));
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-card border border-border bg-surface p-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label>State</Label>
-            <Select
-              value={stateId || undefined}
-              onValueChange={(v) => {
-                setStateId(v);
-                setCityId("");
-                setCityName("");
-                setChecked({});
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select state" />
-              </SelectTrigger>
-              <SelectContent>
-                {states.map((s) => (
-                  <SelectItem key={s._id} value={s._id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>City</Label>
-            <Select
-              value={cityId || undefined}
-              onValueChange={(v) => {
-                setCityId(v);
-                setCityName(cities.find((c) => c._id === v)?.name ?? "");
-                setChecked({});
-              }}
-              disabled={!stateId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={stateId ? "Select city" : "Pick a state first"} />
-              </SelectTrigger>
-              <SelectContent>
-                {cities.map((c) => (
-                  <SelectItem key={c._id} value={c._id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <SearchSelect
+            label="State"
+            placeholder="Select state"
+            mode="client"
+            clientOptions={states}
+            selectedLabel={states.find((s) => s.id === stateId)?.name ?? null}
+            onSelect={(s) => {
+              setStateId(s.id);
+              setCityId("");
+              setCityName("");
+              setPending({});
+            }}
+          />
+          <SearchSelect
+            label="City / District"
+            placeholder={stateId ? "Select city" : "Pick a state first"}
+            disabled={!stateId}
+            mode="client"
+            clientOptions={cities}
+            selectedLabel={cities.find((c) => c.id === cityId)?.name ?? null}
+            onSelect={(c) => {
+              setCityId(c.id);
+              setCityName(c.name);
+              setPending({});
+            }}
+          />
         </div>
 
         {cityId && (
-          <div className="mt-3">
-            <Label>Localities served in {cityName} (optional)</Label>
-            {localities.length === 0 ? (
-              <p className="mt-1 text-meta text-muted-foreground">
-                No approved localities here yet - you can still cover the whole city.
-              </p>
-            ) : (
-              <div className="mt-2 grid max-h-48 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">
-                {localities.map((l) => (
-                  <label
-                    key={l._id}
-                    className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-sm hover:bg-surface-muted"
+          <div className="mt-3 flex flex-col gap-2">
+            <SearchSelect
+              label={`Localities served in ${cityName} (optional)`}
+              placeholder="Search localities to add"
+              mode="server"
+              onServerSearch={searchLocalities}
+              selectedLabel={null}
+              onSelect={(o) =>
+                setPending((prev) => ({ ...prev, [o.id]: { name: o.name, pincode: o.hint ?? null } }))
+              }
+            />
+            {Object.keys(pending).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(pending).map(([id, v]) => (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 rounded-full border border-clay-200 bg-clay-50 px-2.5 py-1 text-meta text-clay-800"
                   >
-                    <Checkbox
-                      checked={Boolean(checked[l._id])}
-                      onCheckedChange={(c) =>
-                        setChecked((prev) => {
+                    <MapPin className="size-3" />
+                    {v.name}
+                    {v.pincode ? <span className="text-clay-600">({v.pincode})</span> : null}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPending((prev) => {
                           const next = { ...prev };
-                          if (c) next[l._id] = { name: l.name, pincode: l.pincode };
-                          else delete next[l._id];
+                          delete next[id];
                           return next;
                         })
                       }
-                    />
-                    <span>
-                      {l.name}
-                      {l.pincode ? (
-                        <span className="ml-1 text-muted-foreground">({l.pincode})</span>
-                      ) : null}
-                    </span>
-                  </label>
+                      aria-label={`Remove ${v.name}`}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
                 ))}
               </div>
             )}
-            <Button size="sm" className="mt-3" onClick={addCoverage}>
+            <p className="text-meta text-muted-foreground">
+              Leave localities empty to cover the whole city.
+            </p>
+            <Button size="sm" className="mt-1 self-start" onClick={addCoverage}>
               <Plus className="size-4" /> Add {cityName} to coverage
             </Button>
           </div>
@@ -259,9 +220,7 @@ export function CoverageEditor({
                     >
                       <MapPin className="size-3 text-clay-500" />
                       {l.name}
-                      {l.pincode ? (
-                        <span className="text-muted-foreground">({l.pincode})</span>
-                      ) : null}
+                      {l.pincode ? <span className="text-muted-foreground">({l.pincode})</span> : null}
                       <button
                         type="button"
                         onClick={() => removeLocality(e.cityId, l.localityId)}

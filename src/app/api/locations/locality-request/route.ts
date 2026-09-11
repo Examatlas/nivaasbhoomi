@@ -72,6 +72,23 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     return ok({ localityId: String(existing._id), existing: true });
   }
 
+  // Rate limit: a dealer may raise at most 5 NEW locality requests per 24h
+  // (dedup hits above don't count — they created nothing). Prevents spam.
+  const DAILY_LIMIT = 5;
+  if (auth.identity.dealerId) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recent = await Locality.countDocuments({
+      requestedBy: new mongoose.Types.ObjectId(auth.identity.dealerId),
+      createdAt: { $gte: since },
+    });
+    if (recent >= DAILY_LIMIT) {
+      return fail(
+        "RATE_LIMITED",
+        `You can request at most ${DAILY_LIMIT} new localities per day. Please try again tomorrow.`,
+      );
+    }
+  }
+
   // Otherwise generate a slug that is unique within this city (suffixing on the
   // rare chance a different name already holds the base slug).
   const existingSlugs = new Set(

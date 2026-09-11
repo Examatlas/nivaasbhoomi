@@ -68,6 +68,12 @@ localitySchema.index({ cityId: 1, slug: 1 }, { unique: true }); // scoped unique
 // "adalahatu-2" - the class of bug that duplicated the whole collection once.
 localitySchema.index({ cityId: 1, name: 1 }, { unique: true });
 localitySchema.index({ cityId: 1, isActive: 1 }); // active-locality lookups
+// Pincode search within a city (the picker's q can match a pincode). Name search
+// rides the city-scoped { cityId, name } index above (cityId bounds the regex).
+localitySchema.index({ cityId: 1, pincodes: 1 });
+// Dealer locality-request rate limit counts a requester's recent requests.
+// Sparse: only dealer-requested localities carry requestedBy.
+localitySchema.index({ requestedBy: 1, createdAt: -1 }, { sparse: true });
 
 export type LocalityDoc = InferSchemaType<typeof localitySchema>;
 

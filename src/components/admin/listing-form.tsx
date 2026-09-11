@@ -22,9 +22,9 @@ import { ImageUploader } from "@/components/shared/image-uploader";
 import { MapPicker } from "@/components/shared/map-picker";
 import { PriceInput } from "@/components/ui/price-input";
 import {
-  CascadingLocation,
+  LocationPicker,
   type LocationValue,
-} from "@/components/admin/cascading-location";
+} from "@/components/shared/location-picker";
 import { DealerPicker } from "@/components/admin/dealer-picker";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import { listingFolder } from "@/lib/media/transforms";
@@ -234,7 +234,12 @@ export function ListingForm() {
       </Section>
 
       <Section title="Location">
-        <CascadingLocation value={loc} onChange={setLoc} onCityCenter={setMapCenter} />
+        <LocationPicker
+          value={loc}
+          onChange={setLoc}
+          onCityCenter={setMapCenter}
+          allowLocalityRequest={false}
+        />
         <div className="flex flex-col gap-1.5">
           <Label required>
             Map location{" "}

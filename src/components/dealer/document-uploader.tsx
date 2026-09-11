@@ -6,13 +6,7 @@ import { CheckCircle2, Clock, Upload, Loader2, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+import { SearchSelect } from "@/components/shared/location-picker";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import {
@@ -153,21 +147,15 @@ export function DocumentUploader({
                 {isRera && <p className="text-meta text-muted-foreground">{RERA_HELP}</p>}
               </div>
               {isRera && (
-                <div className="flex flex-col gap-1.5">
-                  <Label required>RERA state</Label>
-                  <Select value={stateId || undefined} onValueChange={setStateId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {states.map((s) => (
-                        <SelectItem key={s._id} value={s._id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <SearchSelect
+                  label="RERA state"
+                  required
+                  placeholder="Select state"
+                  mode="client"
+                  clientOptions={states.map((s) => ({ id: s._id, name: s.name }))}
+                  selectedLabel={states.find((s) => s._id === stateId)?.name ?? null}
+                  onSelect={(s) => setStateId(s.id)}
+                />
               )}
             </div>
           )}
@@ -180,7 +168,6 @@ export function DocumentUploader({
               setJustSaved(false);
             }}
             maxCount={1}
-            minCount={0}
           />
 
           {error && <p className="text-meta text-danger-700">{error}</p>}

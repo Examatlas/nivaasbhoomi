@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller, type Control, type UseFormRegisterReturn } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import { Loader2, Check, ChevronLeft, ChevronRight, Plus, AlertCircle, ArrowRight } from "lucide-react";
+import { Loader2, Check, ChevronLeft, ChevronRight, AlertCircle, ArrowRight } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,7 @@ import {
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { PriceInput } from "@/components/ui/price-input";
 import { MapPicker } from "@/components/shared/map-picker";
-import { CascadingLocation, type LocationValue } from "@/components/admin/cascading-location";
+import { LocationPicker, type LocationValue } from "@/components/shared/location-picker";
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import { listingFolder } from "@/lib/media/transforms";
 import { formatListingPrice } from "@/lib/utils/price";
@@ -46,6 +46,7 @@ const PROPERTY_TYPES = [
   { value: "office", label: "Office" },
   { value: "pg", label: "PG" },
   { value: "warehouse", label: "Warehouse" },
+  { value: "farmhouse", label: "Farm House" },
 ];
 const BHKS = [
   { value: "1rk", label: "1 RK" },
@@ -194,11 +195,6 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
   const [preferredTenant, setPreferredTenant] = useState<string[]>(initial?.preferredTenant ?? []);
 
   // Locality request (pending).
-  const [reqOpen, setReqOpen] = useState(false);
-  const [reqName, setReqName] = useState("");
-  const [reqPincode, setReqPincode] = useState("");
-  const [requested, setRequested] = useState<{ id: string; name: string } | null>(null);
-  const [reqBusy, setReqBusy] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -211,7 +207,11 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
   const propertyType = watch("propertyType");
   const possessionStatus = watch("possessionStatus");
   const isPlot = propertyType === "plot";
-  const effectiveLocalityId = requested?.id ?? loc.localityId;
+  // The selected locality id — when the built-in "request locality" flow creates
+  // a new (pending) locality, LocationPicker sets it here via onChange, and the
+  // server files the listing as "pending-location" because that locality is
+  // still status:"pending".
+  const effectiveLocalityId = loc.localityId;
 
   // Live values needed to validate (RHF fields).
   const wTitle = watch("title");
@@ -260,11 +260,11 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
         list.push({ step: 5, fieldId: "field-reraStateId", label: "Under-construction: RERA state is required" });
       }
     }
-    if (photos.length < 3) {
+    if (photos.length < 1) {
       list.push({
         step: 6,
         fieldId: "field-photos",
-        label: `At least 3 photos are required (${photos.length}/3)`,
+        label: "Add at least 1 photo",
       });
     }
     return list;
@@ -435,36 +435,6 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
     if (res) router.push("/dealer/listings?submitted=1");
   }
 
-  async function requestLocality() {
-    if (!loc.cityId || reqName.trim().length < 2) {
-      setError("Pick a city and enter the locality name.");
-      return;
-    }
-    setReqBusy(true);
-    setError(null);
-    try {
-      const res = await apiFetch<{ localityId: string; existing: boolean }>(
-        "/api/locations/locality-request",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            cityId: loc.cityId,
-            name: reqName.trim(),
-            ...(reqPincode.trim() ? { pincode: reqPincode.trim() } : {}),
-            ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
-          }),
-        },
-      );
-      setRequested({ id: res.localityId, name: reqName.trim() });
-      setLoc((l) => ({ ...l, localityId: "" }));
-      setReqOpen(false);
-    } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Could not request locality.");
-    } finally {
-      setReqBusy(false);
-    }
-  }
-
   const folder = useMemo(
     () => listingFolder(loc.cityId || "misc", effectiveLocalityId || "misc"),
     [loc.cityId, effectiveLocalityId],
@@ -570,57 +540,13 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
         {step === 1 && (
           <div className="flex flex-col gap-4">
             <div id="field-locality">
-              <CascadingLocation
-                value={loc}
-                onChange={(v) => {
-                  setRequested(null);
-                  setLoc(v);
-                }}
-                onCityCenter={setMapCenter}
-              />
+              <LocationPicker value={loc} onChange={setLoc} onCityCenter={setMapCenter} />
             </div>
-
-            {/* Request new locality */}
-            {requested ? (
-              <div className="rounded-card border border-warning-100 bg-warning-50 px-3 py-2 text-meta text-warning-700">
-                Requested locality <b>{requested.name}</b> — pending admin approval. Your
-                listing will be filed as “pending-location” until it&apos;s approved.
-                <button type="button" className="ml-2 underline" onClick={() => setRequested(null)}>
-                  undo
-                </button>
-              </div>
-            ) : (
-              <div>
-                {!reqOpen ? (
-                  <button
-                    type="button"
-                    className="text-meta font-medium text-clay-700 hover:underline"
-                    onClick={() => setReqOpen(true)}
-                    disabled={!loc.cityId}
-                  >
-                    + Can&apos;t find your locality? Request it
-                  </button>
-                ) : (
-                  <div className="rounded-card border border-border bg-surface-muted p-3">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="New locality name">
-                        <Input value={reqName} onChange={(e) => setReqName(e.target.value)} placeholder="Locality name" />
-                      </Field>
-                      <Field label="Pincode (optional)">
-                        <Input value={reqPincode} onChange={(e) => setReqPincode(e.target.value)} placeholder="6-digit pincode" maxLength={6} />
-                      </Field>
-                    </div>
-                    <div className="mt-2 flex gap-2">
-                      <Button size="sm" onClick={requestLocality} disabled={reqBusy}>
-                        {reqBusy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-                        Request locality
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setReqOpen(false)}>Cancel</Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <p className="text-meta text-muted-foreground">
+              Can&apos;t find your locality? Use “Request to add” in the locality box. New
+              areas are reviewed by an admin — your listing stays “pending-location” until
+              it&apos;s approved.
+            </p>
 
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label="Sub-locality"><Input {...register("subLocality")} /></Field>
@@ -797,7 +723,6 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
               onChange={setPhotos}
               coverIndex={coverIndex}
               onCoverChange={setCoverIndex}
-              minCount={3}
               maxCount={15}
             />
             {fieldErrors.photos && <p className="text-meta text-danger-700">{fieldErrors.photos}</p>}
@@ -809,7 +734,6 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
           <Review
             values={getValues()}
             loc={loc}
-            requested={requested}
             coords={coords}
             photos={photos}
             amenities={amenities}
@@ -982,7 +906,6 @@ function ReraStateSelect({
 function Review({
   values,
   loc,
-  requested,
   coords,
   photos,
   amenities,
@@ -991,7 +914,6 @@ function Review({
 }: {
   values: FormValues;
   loc: LocationValue;
-  requested: { id: string; name: string } | null;
   coords: { lat: number; lng: number } | null;
   photos: UploadedImage[];
   amenities: string[];
@@ -1005,7 +927,7 @@ function Review({
     ["Purpose", values.purpose === "sale" ? "For sale" : "For rent"],
     ["Type", values.propertyType],
     ["Title", values.title],
-    ["Locality", requested ? `${requested.name} (pending)` : loc.localityId ? "Selected" : undefined],
+    ["Locality", loc.localityId ? "Selected" : undefined],
     ["Map pin", coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : undefined],
     ["Price", priceLabel ? `${priceLabel.primary}${priceLabel.suffix ? " " + priceLabel.suffix : ""}` : undefined],
     ["Photos", `${photos.length}`],
