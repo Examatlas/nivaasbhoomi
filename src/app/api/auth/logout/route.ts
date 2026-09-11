@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ok, withErrorHandling } from "@/lib/api/response";
 import {
   ADMIN_COOKIE,
+  STAFF_COOKIE,
   DEALER_COOKIE,
   USER_COOKIE,
   clearCookieOptions,
@@ -19,6 +20,7 @@ export const runtime = "nodejs";
 export const POST = withErrorHandling(async () => {
   const store = await cookies();
   store.set(ADMIN_COOKIE, "", clearCookieOptions());
+  store.set(STAFF_COOKIE, "", clearCookieOptions());
   store.set(DEALER_COOKIE, "", clearCookieOptions());
   store.set(USER_COOKIE, "", clearCookieOptions());
   // Flip the (non-httpOnly) header hint to logged-out so the header shows

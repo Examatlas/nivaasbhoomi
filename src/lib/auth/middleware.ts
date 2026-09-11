@@ -2,7 +2,9 @@ import { cookies } from "next/headers";
 
 import { fail } from "@/lib/api/response";
 import { verifySession } from "@/lib/auth/jwt";
-import { ADMIN_COOKIE, DEALER_COOKIE, USER_COOKIE } from "@/lib/auth/cookie";
+import { ADMIN_COOKIE, STAFF_COOKIE, DEALER_COOKIE, USER_COOKIE } from "@/lib/auth/cookie";
+import { connectDB } from "@/lib/db/connect";
+import { Staff } from "@/lib/db/models/Staff";
 
 /**
  * Server-side auth guards for route handlers (DEV-SPEC.txt Section 8).
@@ -30,6 +32,11 @@ export interface DealerIdentity {
   role: "dealer";
 }
 
+export interface StaffIdentity {
+  staffId: string;
+  role: "staff";
+}
+
 export interface UserIdentity {
   userId: string;
   role: "user";
@@ -49,6 +56,31 @@ export async function requireAdmin(): Promise<Guarded<AdminIdentity>> {
   const identity = await getAdminSession();
   if (!identity) {
     return { error: fail("UNAUTHORIZED", "Admin authentication required.") };
+  }
+  return { identity };
+}
+
+/**
+ * Verified STAFF identity, or null. Beyond signature/expiry, this re-reads the
+ * Staff record every request and rejects when the account is inactive OR its
+ * tokenVersion no longer matches the token's `tv` — so deactivating a staff
+ * (which bumps tokenVersion) invalidates every live session immediately.
+ */
+export async function getStaffSession(): Promise<StaffIdentity | null> {
+  const token = (await cookies()).get(STAFF_COOKIE)?.value;
+  const claims = await verifySession(token);
+  if (!claims || claims.role !== "staff" || !claims.staffId) return null;
+  await connectDB();
+  const staff = await Staff.findById(claims.staffId, { status: 1, tokenVersion: 1 }).lean();
+  if (!staff || staff.status !== "active") return null;
+  if ((staff.tokenVersion ?? 0) !== claims.tv) return null; // revoked / bumped
+  return { staffId: claims.staffId, role: "staff" };
+}
+
+export async function requireStaff(): Promise<Guarded<StaffIdentity>> {
+  const identity = await getStaffSession();
+  if (!identity) {
+    return { error: fail("UNAUTHORIZED", "Staff sign-in required.") };
   }
   return { identity };
 }
@@ -90,11 +122,13 @@ export async function requireUser(): Promise<Guarded<UserIdentity>> {
  * Returns the role so callers can shape the upload folder if needed.
  */
 export async function requireUploader(): Promise<
-  Guarded<AdminIdentity | DealerIdentity>
+  Guarded<AdminIdentity | DealerIdentity | StaffIdentity>
 > {
   const admin = await getAdminSession();
   if (admin) return { identity: admin };
   const dealer = await getDealerSession();
   if (dealer) return { identity: dealer };
+  const staff = await getStaffSession();
+  if (staff) return { identity: staff };
   return { error: fail("UNAUTHORIZED", "Authentication required to upload.") };
 }

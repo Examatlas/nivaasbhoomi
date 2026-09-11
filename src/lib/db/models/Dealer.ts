@@ -78,6 +78,10 @@ const dealerSchema = new Schema(
     verificationNotes: { type: String }, // admin internal
     verifiedAt: { type: Date },
     verifiedBy: { type: Types.ObjectId },
+    // Staff member who onboarded this dealer (null for admin/self-signup). The
+    // basis for staff scoping — a staff sees only dealers they onboarded (∪
+    // approved AccessRequests).
+    onboardedBy: { type: Types.ObjectId, ref: "Staff", default: null },
 
     // rating
     rating: { type: Number, default: 0 },
@@ -266,6 +270,7 @@ dealerSchema.index({ coverageCities: 1, status: 1 });
 dealerSchema.index({ coverageLocalities: 1, verificationTier: -1, rating: -1 });
 // Resolve an old slug -> its dealer for the 301 redirect (never 404).
 dealerSchema.index({ slugHistory: 1 });
+dealerSchema.index({ onboardedBy: 1 }, { sparse: true }); // staff scoping
 // One Zenith account -> one dealer. A PARTIAL unique index (only where
 // zenithOrgId is a string) rather than a plain sparse unique index, because a
 // sparse unique index still collides on explicit null values (disconnect sets

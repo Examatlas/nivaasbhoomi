@@ -11,11 +11,23 @@ import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
-export type Role = "admin" | "dealer" | "user";
+export type Role = "admin" | "dealer" | "user" | "staff";
 
 export interface AdminClaims extends JWTPayload {
   role: "admin";
   adminId: string;
+}
+
+/**
+ * Staff (employee) session. `tv` is the account's tokenVersion at sign-in time;
+ * requireStaff re-reads the Staff record each request and rejects when the
+ * account is inactive or `tv` no longer matches — so deactivating a staff (which
+ * bumps tokenVersion) kills every live session immediately.
+ */
+export interface StaffClaims extends JWTPayload {
+  role: "staff";
+  staffId: string;
+  tv: number;
 }
 
 export interface DealerClaims extends JWTPayload {
@@ -35,7 +47,7 @@ export interface UserClaims extends JWTPayload {
   dealerId?: string;
 }
 
-export type SessionClaims = AdminClaims | DealerClaims | UserClaims;
+export type SessionClaims = AdminClaims | DealerClaims | UserClaims | StaffClaims;
 
 function secretKey(): Uint8Array {
   const secret = process.env.JWT_SECRET;
@@ -63,7 +75,12 @@ export async function verifySession(
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey(), { algorithms: ["HS256"] });
-    if (payload.role !== "admin" && payload.role !== "dealer" && payload.role !== "user")
+    if (
+      payload.role !== "admin" &&
+      payload.role !== "dealer" &&
+      payload.role !== "user" &&
+      payload.role !== "staff"
+    )
       return null;
     return payload as SessionClaims;
   } catch {

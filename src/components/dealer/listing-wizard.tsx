@@ -126,7 +126,38 @@ export interface ListingWizardInitial extends Partial<FormValues> {
   preferredTenant?: string[];
 }
 
-export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
+/**
+ * Host-specific behaviour. The default (dealer) autosaves drafts to
+ * /api/listings and submits for admin review. Staff reuse the same wizard but
+ * publish directly for a fixed, in-scope dealer (no draft round-trips).
+ */
+export interface ListingWizardConfig {
+  createEndpoint: string;
+  extraPayload?: Record<string, unknown>;
+  supportsDraft: boolean;
+  doneHref: string;
+  submitLabel: string;
+  reviewNote: string;
+  reviewReadyNote: string;
+}
+
+const DEALER_CONFIG: ListingWizardConfig = {
+  createEndpoint: "/api/listings",
+  supportsDraft: true,
+  doneHref: "/dealer/listings?submitted=1",
+  submitLabel: "Submit for review",
+  reviewNote:
+    "Review the essentials. On submit, your listing goes to admin review (status “pending”). It goes live once approved and you’re verified (Tier 1+).",
+  reviewReadyNote: "Everything looks good — you can submit for review.",
+};
+
+export function ListingWizard({
+  initial,
+  config = DEALER_CONFIG,
+}: {
+  initial?: ListingWizardInitial;
+  config?: ListingWizardConfig;
+}) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [draftId, setDraftId] = useState<string | null>(initial?.id ?? null);
@@ -381,15 +412,25 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
   async function persist(submit: boolean): Promise<{ id: string; status: string; slug: string | null } | null> {
     setError(null);
     setFieldErrors({});
-    const body = JSON.stringify({ ...buildPayload(), submit });
     try {
+      // Staff (no-draft) hosts publish in a single POST to their own endpoint,
+      // with the dealer fixed server-side via extraPayload. No `submit` flag and
+      // no PATCH-by-draft round trips.
+      if (!config.supportsDraft) {
+        const res = await apiFetch<{ _id: string; status: string; slug: string | null }>(
+          config.createEndpoint,
+          { method: "POST", body: JSON.stringify({ ...buildPayload(), ...config.extraPayload }) },
+        );
+        return { id: res._id, status: res.status, slug: res.slug };
+      }
+      const body = JSON.stringify({ ...buildPayload(), submit });
       const res = draftId
         ? await apiFetch<{ id: string; status: string; slug: string | null }>(
             `/api/listings/${draftId}`,
             { method: "PATCH", body },
           )
         : await apiFetch<{ id: string; status: string; slug: string | null }>(
-            "/api/listings",
+            config.createEndpoint,
             { method: "POST", body },
           );
       setDraftId(res.id);
@@ -407,9 +448,11 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
   }
 
   async function next() {
-    setBusy(true);
-    await persist(false); // autosave draft on every step forward
-    setBusy(false);
+    if (config.supportsDraft) {
+      setBusy(true);
+      await persist(false); // autosave draft on every step forward
+      setBusy(false);
+    }
     setStep((s) => Math.min(STEPS.length - 1, s + 1));
   }
   function prev() {
@@ -432,7 +475,7 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
     setBusy(true);
     const res = await persist(true);
     setBusy(false);
-    if (res) router.push("/dealer/listings?submitted=1");
+    if (res) router.push(config.doneHref);
   }
 
   const folder = useMemo(
@@ -738,6 +781,8 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
             photos={photos}
             amenities={amenities}
             issues={issues}
+            note={config.reviewNote}
+            readyNote={config.reviewReadyNote}
             onFix={(it) => goToField(it.step, it.fieldId)}
           />
         )}
@@ -751,18 +796,20 @@ export function ListingWizard({ initial }: { initial?: ListingWizardInitial }) {
           <ChevronLeft className="size-4" /> Back
         </Button>
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="ghost" onClick={saveDraft} disabled={busy}>
-            Save draft & exit
-          </Button>
+          {config.supportsDraft && (
+            <Button variant="ghost" onClick={saveDraft} disabled={busy}>
+              Save draft & exit
+            </Button>
+          )}
           {step < STEPS.length - 1 ? (
             <Button onClick={next} disabled={busy}>
               {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-              Save & continue <ChevronRight className="size-4" />
+              {config.supportsDraft ? "Save & continue" : "Continue"} <ChevronRight className="size-4" />
             </Button>
           ) : (
             <Button onClick={submitListing} disabled={busy} size="lg">
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-              Submit for review
+              {config.submitLabel}
             </Button>
           )}
         </div>
@@ -910,6 +957,8 @@ function Review({
   photos,
   amenities,
   issues,
+  note,
+  readyNote,
   onFix,
 }: {
   values: FormValues;
@@ -918,6 +967,8 @@ function Review({
   photos: UploadedImage[];
   amenities: string[];
   issues: Issue[];
+  note: string;
+  readyNote: string;
   onFix: (issue: Issue) => void;
 }) {
   const price =
@@ -935,10 +986,7 @@ function Review({
   ];
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        Review the essentials. On submit, your listing goes to admin review
-        (status “pending”). It goes live once approved and you&apos;re verified (Tier 1+).
-      </p>
+      <p className="text-sm text-muted-foreground">{note}</p>
       <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
         {rows.map(([k, v]) => (
           <div key={k} className="flex justify-between gap-3 border-b border-border py-1.5 text-sm">
@@ -972,7 +1020,7 @@ function Review({
         </div>
       ) : (
         <p className="inline-flex items-center gap-2 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-sm font-medium text-success-700">
-          <Check className="size-4" /> Everything looks good — you can submit for review.
+          <Check className="size-4" /> {readyNote}
         </p>
       )}
     </div>

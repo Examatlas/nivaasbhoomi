@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { verifySession } from "@/lib/auth/jwt";
-import { ADMIN_COOKIE, DEALER_COOKIE } from "@/lib/auth/cookie";
+import { ADMIN_COOKIE, DEALER_COOKIE, STAFF_COOKIE } from "@/lib/auth/cookie";
 import { dealerLoginEnabled } from "@/lib/config/flags";
 import { GEO_COOKIE, encodeGeo } from "@/lib/locations/geo";
 
@@ -25,9 +25,10 @@ export const config = {
     "/admin/:path*",
     "/api/admin/:path*",
     "/dealer/:path*",
+    "/staff/:path*",
     // Public content pages — geo cookie only, no gating. Excludes api, assets,
-    // and the admin/dealer paths handled above.
-    "/((?!api|_next/static|_next/image|favicon.ico|admin|dealer|.*\\.).*)",
+    // and the admin/dealer/staff paths handled above.
+    "/((?!api|_next/static|_next/image|favicon.ico|admin|dealer|staff|.*\\.).*)",
   ],
 };
 
@@ -36,6 +37,9 @@ export async function proxy(req: NextRequest) {
 
   if (pathname.startsWith("/dealer")) {
     return gateDealer(req, pathname);
+  }
+  if (pathname.startsWith("/staff")) {
+    return gateStaff(req, pathname);
   }
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
     return gateAdmin(req, pathname);
@@ -111,6 +115,29 @@ async function gateDealer(req: NextRequest, pathname: string) {
   if (isDealer) return NextResponse.next();
 
   const loginUrl = new URL("/dealer/login", req.url);
+  loginUrl.searchParams.set("next", pathname);
+  return NextResponse.redirect(loginUrl);
+}
+
+async function gateStaff(req: NextRequest, pathname: string) {
+  const claims = await verifySession(req.cookies.get(STAFF_COOKIE)?.value);
+  const isStaff = claims?.role === "staff";
+
+  // The login page is public. Send an already-authenticated staff onward.
+  // NOTE: this only proves a valid, unexpired token — not that the account is
+  // still active. Deactivation bumps tokenVersion; requireStaff re-reads the
+  // Staff record per request and rejects a stale `tv`, so a killed session
+  // cannot reach any /api/staff/* data even while its page cookie survives.
+  if (pathname === "/staff/login") {
+    if (isStaff) {
+      return NextResponse.redirect(new URL("/staff", req.url));
+    }
+    return NextResponse.next();
+  }
+
+  if (isStaff) return NextResponse.next();
+
+  const loginUrl = new URL("/staff/login", req.url);
   loginUrl.searchParams.set("next", pathname);
   return NextResponse.redirect(loginUrl);
 }
