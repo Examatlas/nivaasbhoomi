@@ -19,6 +19,7 @@ const photo = z.object({
   publicId: z.string().min(1),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
+  isLowResolution: z.boolean().optional(),
 });
 
 const PROPERTY_TYPES = [
@@ -30,6 +31,7 @@ const PROPERTY_TYPES = [
   "office",
   "pg",
   "warehouse",
+  "farmhouse",
 ] as const;
 
 const BHK = ["1rk", "1", "2", "3", "4", "5plus"] as const;
@@ -112,7 +114,7 @@ export const listingInputSchema = z
     approvedBy: z.array(z.string()).optional(),
 
     // media
-    photos: z.array(photo).min(3, "At least 3 photos are required."),
+    photos: z.array(photo).min(1, "Add at least 1 photo."),
     coverPhotoIndex: z.number().int().min(0).optional(),
 
     // SEO

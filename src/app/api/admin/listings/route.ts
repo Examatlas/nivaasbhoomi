@@ -73,7 +73,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     cityId: mongoose.Types.ObjectId;
     localityId: mongoose.Types.ObjectId;
     dealerId: mongoose.Types.ObjectId;
-    photos?: { url: string }[];
+    photos?: { url: string; width?: number; height?: number; isLowResolution?: boolean }[];
     coverPhotoIndex?: number;
     createdAt?: Date;
     expiresAt?: Date;
@@ -126,6 +126,15 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     paginated(
       items.map((l) => {
         const cover = l.photos?.[l.coverPhotoIndex ?? 0] ?? l.photos?.[0];
+        // Smallest photo's shorter side (a fast quality signal for reviewers),
+        // and whether any photo is tagged low-resolution.
+        const dims = (l.photos ?? [])
+          .map((p) => Math.min(p.width ?? 0, p.height ?? 0))
+          .filter((n) => n > 0);
+        const minResolution = dims.length ? Math.min(...dims) : null;
+        const hasLowRes =
+          (l.photos ?? []).some((p) => p.isLowResolution) ||
+          (minResolution != null && minResolution < 800);
         return {
           _id: String(l._id),
           title: l.title,
@@ -139,6 +148,8 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
           dealerName: dealerName.get(String(l.dealerId)) ?? "—",
           coverUrl: cover?.url ?? null,
           photoCount: l.photos?.length ?? 0,
+          minResolution,
+          hasLowRes,
           createdAt: l.createdAt,
           expiresAt: l.expiresAt,
           isSeed: Boolean(l.isSeed),

@@ -23,6 +23,7 @@ const photo = z.object({
   publicId: z.string().min(1),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
+  isLowResolution: z.boolean().optional(),
 });
 
 const media = z
@@ -39,6 +40,7 @@ export const PROPERTY_TYPES = [
   "office",
   "pg",
   "warehouse",
+  "farmhouse",
 ] as const;
 
 export const BHK_VALUES = ["1rk", "1", "2", "3", "4", "5plus"] as const;

@@ -1,59 +1,31 @@
 import { apiFetch } from "@/lib/api/client";
-import { UPLOAD_RULES, type SignedUpload, type UploadedImage } from "@/types/media";
+import { UPLOAD_RULES, isLowResolution, type SignedUpload, type UploadedImage } from "@/types/media";
+import { compressImage } from "@/lib/media/compress";
 
 /**
  * Browser-side helpers for the direct-to-Cloudinary upload flow (Section 14).
- * The file is validated locally, then sent straight to Cloudinary using a
- * server-signed set of params - it never passes through our own server.
+ * The file is validated locally, COMPRESSED in the browser (resize + JPEG), then
+ * sent straight to Cloudinary using a server-signed set of params — it never
+ * passes through our own server.
+ *
+ * There is NO minimum-resolution gate: any readable image uploads. A
+ * low-resolution image is merely TAGGED (isLowResolution) for the dealer/admin.
  */
 
 export interface ValidationResult {
   ok: boolean;
-  width?: number;
-  height?: number;
   error?: string;
 }
 
-/** Read a file's pixel dimensions in the browser. */
-function readDimensions(file: File): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Could not read the image."));
-    };
-    img.src = url;
-  });
-}
-
-/** Enforce the Section 14 rules: type, size, and minimum width, before upload. */
-export async function validateImage(file: File): Promise<ValidationResult> {
+/** Type + generous size check only (compression handles large phone photos). */
+export function validateImage(file: File): ValidationResult {
   if (!UPLOAD_RULES.acceptedTypes.includes(file.type as never)) {
     return { ok: false, error: "Only JPG, PNG or WebP images are allowed." };
   }
   if (file.size > UPLOAD_RULES.maxBytes) {
-    return { ok: false, error: "Image is larger than 5 MB." };
+    return { ok: false, error: "That image is unusually large. Please pick another photo." };
   }
-  let dims: { width: number; height: number };
-  try {
-    dims = await readDimensions(file);
-  } catch {
-    return { ok: false, error: "That file is not a readable image." };
-  }
-  if (dims.width < UPLOAD_RULES.minWidth) {
-    return {
-      ok: false,
-      width: dims.width,
-      height: dims.height,
-      error: `Image must be at least ${UPLOAD_RULES.minWidth}px wide (this is ${dims.width}px).`,
-    };
-  }
-  return { ok: true, ...dims };
+  return { ok: true };
 }
 
 interface CloudinaryUploadResponse {
@@ -63,21 +35,32 @@ interface CloudinaryUploadResponse {
   height: number;
 }
 
+export type UploadPhase = "compressing" | "uploading";
+
 /**
- * Validate, get a signature, and upload one file directly to Cloudinary.
- * Returns the stored image descriptor, or throws with a user-facing message.
+ * Validate, compress, sign, and upload one file directly to Cloudinary.
+ * `onPhase` reports progress so the UI never looks stuck. Returns the stored
+ * image descriptor (incl. an isLowResolution tag), or throws a user-facing error.
  */
-export async function uploadImage(file: File, folder: string): Promise<UploadedImage> {
-  const check = await validateImage(file);
+export async function uploadImage(
+  file: File,
+  folder: string,
+  onPhase?: (phase: UploadPhase) => void,
+): Promise<UploadedImage> {
+  const check = validateImage(file);
   if (!check.ok) throw new Error(check.error ?? "Invalid image.");
 
+  onPhase?.("compressing");
+  const { file: toUpload } = await compressImage(file);
+
+  onPhase?.("uploading");
   const signed = await apiFetch<SignedUpload>("/api/upload/signature", {
     method: "POST",
     body: JSON.stringify({ folder, resourceType: "image" }),
   });
 
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", toUpload);
   form.append("api_key", signed.apiKey);
   form.append("timestamp", String(signed.timestamp));
   form.append("signature", signed.signature);
@@ -90,16 +73,18 @@ export async function uploadImage(file: File, folder: string): Promise<UploadedI
       const err = (await res.json()) as { error?: { message?: string } };
       if (err.error?.message) message = err.error.message;
     } catch {
-      // keep the generic message
+      /* keep the generic message */
     }
     throw new Error(message);
   }
 
   const data = (await res.json()) as CloudinaryUploadResponse;
+  // Cloudinary returns the stored (compressed) dimensions — the source of truth.
   return {
     url: data.secure_url,
     publicId: data.public_id,
     width: data.width,
     height: data.height,
+    isLowResolution: isLowResolution(data.width, data.height),
   };
 }

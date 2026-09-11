@@ -173,6 +173,7 @@ export async function getMyListingForEdit(
       publicId: p.publicId ?? "",
       width: p.width ?? 1200,
       height: p.height ?? 900,
+      isLowResolution: p.isLowResolution ?? false,
     })),
     coverPhotoIndex: l.coverPhotoIndex ?? 0,
   };

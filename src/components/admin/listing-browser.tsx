@@ -132,6 +132,18 @@ export function ListingBrowser() {
                   {l.bhk ? `${formatBhk(l.bhk)} · ` : ""}
                   {formatPropertyType(l.propertyType)} · {l.purpose}
                 </div>
+                {/* Review aid: photo count, smallest resolution, low-res flag. */}
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-meta text-muted-foreground">
+                  <span>
+                    {l.photoCount} photo{l.photoCount === 1 ? "" : "s"}
+                    {l.minResolution != null ? ` · ${l.minResolution}px min` : ""}
+                  </span>
+                  {l.hasLowRes && (
+                    <Badge tone="warning" size="sm">
+                      Low resolution
+                    </Badge>
+                  )}
+                </div>
               </td>
               <td className="px-4 py-2.5 text-muted-foreground">{l.dealerName}</td>
               <td className="px-4 py-2.5 text-muted-foreground">{l.cityName}</td>

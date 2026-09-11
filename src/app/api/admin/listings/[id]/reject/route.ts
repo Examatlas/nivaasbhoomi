@@ -13,17 +13,21 @@ import {
   recalculateLocalityActivation,
 } from "@/lib/locations/activation";
 import { notifyDealer } from "@/lib/notifications/dealer-events";
+import { buildRejectReason, REJECT_REASON_VALUES } from "@/lib/listings/reject-reasons";
 
 /**
  * POST /api/admin/listings/[id]/reject   [admin]   (Section 15)
- *   body: { reason }   - rejection reason is REQUIRED.
+ *   body: { reasons?: string[], note?: string }
  *
- * Sets status 'rejected' and stores the reason. If the listing was previously
- * approved, the city/locality are recalculated so a rejected listing stops
- * counting toward activation.
+ * Structured rejection: the admin picks one or more reason checkboxes and/or a
+ * free-text note. At least one is required. The selected reason labels + note
+ * are joined into ONE full reason string, stored UNTRUNCATED on the listing; the
+ * WhatsApp copy is truncated to 200 chars downstream (sanitizeTemplateParam).
+ * If the listing was previously approved, the city/locality are recalculated.
  */
 const bodySchema = z.object({
-  reason: z.string().trim().min(3, "A rejection reason is required.").max(500),
+  reasons: z.array(z.string()).max(20).optional(),
+  note: z.string().trim().max(1000).optional(),
 });
 
 export const POST = withErrorHandling(
@@ -44,8 +48,16 @@ export const POST = withErrorHandling(
     }
     const parsed = bodySchema.safeParse(json);
     if (!parsed.success) {
-      return fail("VALIDATION_ERROR", "A rejection reason is required.");
+      return fail("VALIDATION_ERROR", "Invalid rejection request.");
     }
+
+    // Keep only known reason values; require at least one reason OR a note.
+    const reasons = (parsed.data.reasons ?? []).filter((v) => REJECT_REASON_VALUES.includes(v));
+    const note = parsed.data.note ?? "";
+    if (reasons.length === 0 && !note.trim()) {
+      return fail("VALIDATION_ERROR", "Select at least one reason or add a note.");
+    }
+    const fullReason = buildRejectReason(reasons, note);
 
     await connectDB();
     const listing = await Listing.findById(id);
@@ -53,7 +65,8 @@ export const POST = withErrorHandling(
 
     const wasApproved = listing.status === "approved";
     listing.status = "rejected";
-    listing.rejectionReason = parsed.data.reason;
+    // Full reason stored untruncated; only the WhatsApp copy is truncated.
+    listing.rejectionReason = fullReason;
     await listing.save();
 
     if (wasApproved) {
@@ -73,7 +86,7 @@ export const POST = withErrorHandling(
       const dealerName = dealer.name;
       const dealerPhone = dealer.phone;
       const listingTitle = listing.title;
-      const reason = parsed.data.reason;
+      const reason = fullReason; // notifyDealer truncates for WhatsApp
       after(() =>
         notifyDealer({
           event: "listing_rejected",

@@ -132,7 +132,6 @@ export function DealerProfileForm({
             value={photo}
             onChange={setPhoto}
             maxCount={1}
-            minCount={0}
           />
         </div>
       </section>

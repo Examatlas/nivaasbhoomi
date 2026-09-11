@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { REJECT_REASONS } from "@/lib/listings/reject-reasons";
 import {
   Dialog,
   DialogContent,
@@ -46,8 +48,10 @@ export function ListingReview({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [reason, setReason] = useState("");
+  const [reasons, setReasons] = useState<string[]>([]);
+  const [note, setNote] = useState("");
   const [notifKey, setNotifKey] = useState(0);
+  const canReject = reasons.length > 0 || note.trim().length > 0;
 
   const load = () => {
     setLoading(true);
@@ -337,26 +341,45 @@ export function ListingReview({ id }: { id: string }) {
           <DialogHeader>
             <DialogTitle>Reject this listing?</DialogTitle>
             <DialogDescription>
-              A reason is required and stored on the listing.
+              Pick one or more reasons and/or add a note. At least one is required — the
+              dealer sees the full reason and can edit and resubmit.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="flex flex-col gap-2">
+            {REJECT_REASONS.map((r) => (
+              <label key={r.value} className="flex cursor-pointer items-center gap-2 text-sm">
+                <Checkbox
+                  checked={reasons.includes(r.value)}
+                  onCheckedChange={(c) =>
+                    setReasons((prev) =>
+                      c ? [...prev, r.value] : prev.filter((v) => v !== r.value),
+                    )
+                  }
+                />
+                {r.label}
+              </label>
+            ))}
+          </div>
           <Textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
             rows={3}
-            placeholder="e.g. Photos don't match the description."
+            placeholder="Add any specific detail for the dealer"
           />
+
           <DialogFooter>
             <Button variant="ghost" onClick={() => setRejectOpen(false)}>
               Cancel
             </Button>
             <Button
               variant="danger"
-              disabled={reason.trim().length < 3 || working}
+              disabled={!canReject || working}
               onClick={async () => {
-                await action("reject", { reason }, "Listing rejected");
+                await action("reject", { reasons, note }, "Listing rejected");
                 setRejectOpen(false);
-                setReason("");
+                setReasons([]);
+                setNote("");
               }}
             >
               Reject listing

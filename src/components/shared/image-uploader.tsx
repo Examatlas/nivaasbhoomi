@@ -8,6 +8,9 @@ import { cn } from "@/lib/utils/cn";
 import { uploadImage } from "@/lib/media/upload-client";
 import { UPLOAD_RULES, type UploadedImage } from "@/types/media";
 
+/** Listings with this many photos get the "more enquiries" nudge threshold. */
+const RECOMMENDED_PHOTOS = 3;
+
 /**
  * Reusable direct-to-Cloudinary image uploader (DEV-SPEC.txt Section 14).
  *
@@ -28,7 +31,6 @@ export interface ImageUploaderProps {
   coverIndex?: number;
   onCoverChange?: (index: number) => void;
   maxCount?: number;
-  minCount?: number;
   disabled?: boolean;
 }
 
@@ -39,12 +41,12 @@ export function ImageUploader({
   coverIndex = 0,
   onCoverChange,
   maxCount = 15,
-  minCount = 3,
   disabled = false,
 }: ImageUploaderProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
+  const [phaseLabel, setPhaseLabel] = useState("Uploading…");
   const [errors, setErrors] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const dragIndex = useRef<number | null>(null);
@@ -67,7 +69,11 @@ export function ImageUploader({
     await Promise.all(
       allowed.map(async (file) => {
         try {
-          uploaded.push(await uploadImage(file, folder));
+          uploaded.push(
+            await uploadImage(file, folder, (phase) =>
+              setPhaseLabel(phase === "compressing" ? "Optimising photos…" : "Uploading…"),
+            ),
+          );
         } catch (err) {
           newErrors.push(err instanceof Error ? err.message : "Upload failed.");
         } finally {
@@ -135,7 +141,7 @@ export function ImageUploader({
             Drag photos here, or click to upload
           </p>
           <p className="mt-0.5 text-meta text-muted-foreground">
-            JPG, PNG or WebP · min {UPLOAD_RULES.minWidth}px wide · up to 5 MB ·{" "}
+            JPG, PNG or WebP · any size — we optimise it for you ·{" "}
             {value.length}/{maxCount} added
           </p>
         </div>
@@ -154,9 +160,20 @@ export function ImageUploader({
         />
       </label>
 
-      {value.length > 0 && value.length < minCount && (
+      {/* Soft nudge (never blocks submit): more photos → more enquiries. Only in
+          multi-photo (listing) contexts — not on single logo/banner/doc uploaders. */}
+      {maxCount >= RECOMMENDED_PHOTOS && value.length > 0 && value.length < RECOMMENDED_PHOTOS && (
+        <p className="text-meta text-muted-foreground">
+          Listings with {RECOMMENDED_PHOTOS} or more photos get more enquiries and rank
+          better in search.
+        </p>
+      )}
+
+      {/* Low-resolution helper (dealer/admin only). */}
+      {value.some((v) => v.isLowResolution) && (
         <p className="text-meta text-warning-700">
-          Add at least {minCount} photos before submitting.
+          Some photos are low quality. Take a fresh photo from your phone camera instead of
+          forwarding it from WhatsApp.
         </p>
       )}
 
@@ -216,6 +233,13 @@ export function ImageUploader({
                   </span>
                 )}
 
+                {/* Low-resolution tag — dealer/admin only, never rendered to buyers. */}
+                {img.isLowResolution && (
+                  <span className="absolute right-1.5 bottom-1.5 rounded-full bg-warning-600/90 px-1.5 py-0.5 text-overline font-semibold text-white">
+                    Low res
+                  </span>
+                )}
+
                 <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                   {!isCover && onCoverChange && (
                     <button
@@ -243,9 +267,10 @@ export function ImageUploader({
           {Array.from({ length: uploadingCount }).map((_, i) => (
             <li
               key={`uploading-${i}`}
-              className="flex aspect-[4/3] items-center justify-center rounded-media border border-border bg-surface-muted"
+              className="flex aspect-[4/3] flex-col items-center justify-center gap-1.5 rounded-media border border-border bg-surface-muted"
             >
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              <span className="text-overline text-muted-foreground">{phaseLabel}</span>
             </li>
           ))}
         </ul>

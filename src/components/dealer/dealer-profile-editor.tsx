@@ -148,11 +148,11 @@ export function DealerProfileEditor({ dealer }: { dealer: MyDealer }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label>Logo</Label>
-            <ImageUploader folder="dealers" value={logo} onChange={setLogo} maxCount={1} minCount={0} />
+            <ImageUploader folder="dealers" value={logo} onChange={setLogo} maxCount={1} />
           </div>
           <div>
             <Label>Banner</Label>
-            <ImageUploader folder="dealers" value={banner} onChange={setBanner} maxCount={1} minCount={0} />
+            <ImageUploader folder="dealers" value={banner} onChange={setBanner} maxCount={1} />
           </div>
         </div>
       </Section>

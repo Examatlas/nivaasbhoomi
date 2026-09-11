@@ -18,6 +18,7 @@ export const PROPERTY_TYPES = [
   { value: "office", label: "Office" },
   { value: "pg", label: "PG" },
   { value: "warehouse", label: "Warehouse" },
+  { value: "farmhouse", label: "Farm House" },
 ] as const;
 
 export const BHK_OPTIONS = [
@@ -42,6 +43,10 @@ export interface ListingRow {
   dealerName: string;
   coverUrl: string | null;
   photoCount: number;
+  /** Smallest photo's shorter side (px), or null when no photos/dimensions. */
+  minResolution: number | null;
+  /** true if any photo is low-resolution (dealer/admin signal, not shown to buyers). */
+  hasLowRes: boolean;
   createdAt?: string;
   expiresAt?: string;
   isSeed?: boolean;

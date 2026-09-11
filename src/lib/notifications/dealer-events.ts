@@ -38,15 +38,23 @@ export interface NotifyDealerInput {
 
 /**
  * Make a value safe for a Meta template parameter: no newlines/tabs (Meta
- * rejects them), collapse runs of whitespace, trim, and cap the length. Used for
- * every param, and especially the admin-supplied rejection reason.
+ * rejects them), collapse runs of whitespace, trim, and cap the length. When it
+ * exceeds `max`, truncate cleanly at a WORD boundary and append an ellipsis
+ * (never cut a word mid-way). Used for every param, and especially the
+ * admin-supplied rejection reason (stored in full in the DB; only the WhatsApp
+ * copy is truncated).
  */
 export function sanitizeTemplateParam(value: string | null | undefined, max = 200): string {
-  return (value ?? "")
+  const clean = (value ?? "")
     .replace(/[\r\n\t]+/g, " ")
     .replace(/\s{2,}/g, " ")
-    .trim()
-    .slice(0, max);
+    .trim();
+  if (clean.length <= max) return clean;
+  const ELLIPSIS = "…";
+  const cut = clean.slice(0, max - ELLIPSIS.length);
+  const lastSpace = cut.lastIndexOf(" ");
+  const base = lastSpace > 0 ? cut.slice(0, lastSpace) : cut;
+  return base.trimEnd() + ELLIPSIS;
 }
 
 /** True if this (event, entityId) already has a DELIVERED notification in 24h.

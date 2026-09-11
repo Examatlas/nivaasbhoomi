@@ -42,3 +42,5 @@ next-env.d.ts
 
 # Keep the example env committed
 !.env.example
+
+.vercel

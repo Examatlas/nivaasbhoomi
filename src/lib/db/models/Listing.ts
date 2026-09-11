@@ -37,6 +37,8 @@ const photoSchema = new Schema(
     publicId: { type: String },
     width: { type: Number },
     height: { type: Number },
+    // Dealer/admin-only quality tag (shorter side < 800px). Never shown to buyers.
+    isLowResolution: { type: Boolean },
   },
   { _id: false },
 );
@@ -59,6 +61,7 @@ const listingSchema = new Schema(
         "office",
         "pg",
         "warehouse",
+        "farmhouse",
       ],
       required: true,
     },
@@ -281,8 +284,8 @@ listingSchema.pre("validate", async function () {
         this.description,
       );
     }
-    if (!this.photos || this.photos.length < 3) {
-      this.invalidate("photos", "At least 3 photos are required.", this.photos);
+    if (!this.photos || this.photos.length < 1) {
+      this.invalidate("photos", "Add at least 1 photo.", this.photos);
     }
     if (this.purpose === "sale" && !this.expectedPrice) {
       this.invalidate("expectedPrice", "expectedPrice is required for a sale listing.");
