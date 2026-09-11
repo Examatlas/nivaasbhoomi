@@ -22,7 +22,7 @@ import { BRAND } from "@/lib/seo/site";
  */
 
 export interface AuditActor {
-  actorType: "system" | "admin" | "dealer";
+  actorType: "system" | "admin" | "dealer" | "staff";
   actorId?: string;
 }
 
@@ -78,9 +78,20 @@ export async function logAudit(entry: {
     | "lead.auto-assign"
     | "lead.admin-assign"
     | "lead.admin-override-reassign"
-    | "lead.status-change";
+    | "lead.status-change"
+    | "dealer.admin-convert"
+    | "dealer.quota-adjust"
+    | "dealer.onboard"
+    | "dealer.verify"
+    | "listing.edit"
+    | "listing.publish"
+    | "staff.create"
+    | "staff.deactivate"
+    | "access.request"
+    | "access.review";
   actor: AuditActor;
-  leadId: string;
+  leadId?: string;
+  listingId?: string;
   dealerId?: string;
   prevDealerId?: string;
   reason?: string;
@@ -92,13 +103,14 @@ export async function logAudit(entry: {
       actorType: entry.actor.actorType,
       actorId: entry.actor.actorId,
       leadId: entry.leadId,
+      listingId: entry.listingId,
       dealerId: entry.dealerId,
       prevDealerId: entry.prevDealerId,
       reason: entry.reason,
       metadata: entry.metadata,
     });
   } catch {
-    /* audit is best-effort - never break the assignment on a log failure */
+    /* audit is best-effort - never break the caller on a log failure */
   }
 }
 

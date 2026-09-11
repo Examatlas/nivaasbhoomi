@@ -183,6 +183,10 @@ const listingSchema = new Schema(
       lowercase: true,
       trim: true,
     },
+    // Old slugs kept forever so an admin slug change 301-redirects (indexed
+    // Google URLs / WhatsApp-shared links must never 404). Sitemap + canonical
+    // only ever use the current `slug`.
+    previousSlugs: { type: [String], default: [] },
     status: {
       type: String,
       enum: [
@@ -324,6 +328,8 @@ listingSchema.index(
   { slug: 1 },
   { unique: true, partialFilterExpression: { slug: { $type: "string" } } },
 );
+// Old-slug → current-slug 301 lookups (admin slug edits).
+listingSchema.index({ previousSlugs: 1 });
 listingSchema.index({ dealerId: 1, status: 1 });
 listingSchema.index({ status: 1, expiresAt: 1 }); // expiry cron
 listingSchema.index({ cityId: 1, status: 1, createdAt: -1 }); // city page

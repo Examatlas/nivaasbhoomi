@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import mongoose from "mongoose";
 
 import { ListingReview } from "@/components/admin/listing-review";
+import { ListingSeoEditor } from "@/components/admin/listing-seo-editor";
 import { SeedToggle } from "@/components/admin/seed-toggle";
 import { connectDB } from "@/lib/db/connect";
 import { Listing } from "@/lib/db/models/Listing";
@@ -30,6 +31,7 @@ export default async function AdminListingDetailPage({
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <SeedToggle listingId={id} initialIsSeed={isSeed} initialExpiresAt={seedExpiresAt} />
       <ListingReview id={id} />
+      <ListingSeoEditor id={id} />
     </div>
   );
 }

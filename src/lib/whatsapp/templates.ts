@@ -209,6 +209,22 @@ export const listingRejected: TemplateDef<ListingRejectedParams> = {
   build: ({ dealerName, listingTitle, reason }) => body(dealerName, listingTitle, reason),
 };
 
+// ---- listing_updated (utility) — an admin/staff edited the dealer's listing ----
+// "Hi {{1}}, your listing “{{2}}” was updated by our team: {{3}}."
+export interface ListingUpdatedParams {
+  dealerName: string;
+  listingTitle: string;
+  changeSummary: string;
+}
+export const listingUpdated: TemplateDef<ListingUpdatedParams> = {
+  name: "listing_updated",
+  category: "utility",
+  language: "en",
+  bodyVarCount: 3,
+  build: ({ dealerName, listingTitle, changeSummary }) =>
+    body(dealerName, listingTitle, changeSummary),
+};
+
 /** All templates keyed by name, for the client + admin tooling. */
 export const TEMPLATES = {
   lead_assigned: leadAssigned,
@@ -220,6 +236,7 @@ export const TEMPLATES = {
   dealer_approved: dealerApproved,
   listing_approved: listingApproved,
   listing_rejected: listingRejected,
+  listing_updated: listingUpdated,
 } as const;
 
 export type TemplateName = keyof typeof TEMPLATES;

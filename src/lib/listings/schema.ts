@@ -188,3 +188,19 @@ export const listingInputSchema = z
   });
 
 export type ListingInput = z.infer<typeof listingInputSchema>;
+
+/**
+ * Admin SEO edit — a PARTIAL schema so the admin can update just the fields they
+ * touch (title, description, SEO meta). Slug is handled separately by the route
+ * (it drives the 301-redirect history). Empty meta strings clear the field.
+ */
+export const listingAdminEditSchema = z.object({
+  title: z.string().trim().min(5).max(160).optional(),
+  description: z
+    .string()
+    .trim()
+    .min(100, "Description must be at least 100 characters.")
+    .optional(),
+  metaTitle: z.string().trim().max(200).optional(),
+  metaDescription: z.string().trim().max(400).optional(),
+});

@@ -11,6 +11,17 @@ test("toZenithParams: dealer_approved → 1 bodyParam, no button, lang en", () =
   assert.equal(b.buttonParams, undefined);
 });
 
+test("toZenithParams: listing_updated → 3 bodyParams (name, title, summary)", () => {
+  const b = toZenithParams("listing_updated", {
+    dealerName: "Sujit",
+    listingTitle: "2 BHK in Baner",
+    changeSummary: "Title, description updated.",
+  });
+  assert.equal(b.template, "listing_updated");
+  assert.deepEqual(b.bodyParams, ["Sujit", "2 BHK in Baner", "Title, description updated."]);
+  assert.equal(b.buttonParams, undefined);
+});
+
 test("toZenithParams: listing_rejected → 3 bodyParams in order", () => {
   const b = toZenithParams("listing_rejected", {
     dealerName: "Sujit",

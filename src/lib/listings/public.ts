@@ -19,6 +19,7 @@ import type { ListingPurpose, PropertyType, Furnishing } from "@/types/listing";
  */
 export type PublicListingResult =
   | { kind: "ok"; listing: PublicListingDetail }
+  | { kind: "moved"; to: string }
   | { kind: "expired"; localityPath: string }
   | { kind: "deleted" }
   | { kind: "not-found" };
@@ -29,7 +30,16 @@ export async function getPublicListing(slug: string): Promise<PublicListingResul
   await connectDB();
 
   const l = await Listing.findOne({ slug }).lean();
-  if (!l) return { kind: "not-found" };
+  if (!l) {
+    // The slug may be an OLD slug after an admin edit — 301 to the current one
+    // (loop-safe: match previousSlugs but exclude the current slug).
+    const moved = await Listing.findOne(
+      { previousSlugs: slug, slug: { $ne: slug }, status: "approved" },
+      { slug: 1 },
+    ).lean();
+    if (moved?.slug) return { kind: "moved", to: `/property/${moved.slug}` };
+    return { kind: "not-found" };
+  }
 
   if (l.status === "deleted") return { kind: "deleted" };
 

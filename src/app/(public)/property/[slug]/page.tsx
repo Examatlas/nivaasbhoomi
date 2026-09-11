@@ -100,6 +100,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
   const result = await load(slug);
 
   // Section 9 visibility rules.
+  if (result.kind === "moved") permanentRedirect(result.to); // old slug → current (301)
   if (result.kind === "expired") permanentRedirect(result.localityPath);
   if (result.kind === "deleted") notFound(); // TODO: a route handler could serve a true 410
   if (result.kind !== "ok") notFound();

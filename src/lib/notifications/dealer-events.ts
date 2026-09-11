@@ -20,7 +20,11 @@ import { dealerNotificationsEnabled } from "@/lib/config/flags";
  *   - missing/invalid dealer phone → skip + log, silently.
  */
 
-export type DealerNotifyEvent = "dealer_approved" | "listing_approved" | "listing_rejected";
+export type DealerNotifyEvent =
+  | "dealer_approved"
+  | "listing_approved"
+  | "listing_rejected"
+  | "listing_updated";
 
 const DEDUP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -34,6 +38,7 @@ export interface NotifyDealerInput {
   listingTitle?: string | null;
   listingSlug?: string | null;
   reason?: string | null; // listing_rejected only
+  changeSummary?: string | null; // listing_updated only
 }
 
 /**
@@ -72,7 +77,8 @@ async function alreadyNotified(event: DealerNotifyEvent, entityId: string): Prom
 function buildSend(input: NotifyDealerInput):
   | { template: "dealer_approved"; params: { dealerName: string } }
   | { template: "listing_approved"; params: { dealerName: string; listingTitle: string; listingSlug: string } }
-  | { template: "listing_rejected"; params: { dealerName: string; listingTitle: string; reason: string } } {
+  | { template: "listing_rejected"; params: { dealerName: string; listingTitle: string; reason: string } }
+  | { template: "listing_updated"; params: { dealerName: string; listingTitle: string; changeSummary: string } } {
   const dealerName = sanitizeTemplateParam(input.dealerName, 60) || "there";
   switch (input.event) {
     case "dealer_approved":
@@ -94,6 +100,15 @@ function buildSend(input: NotifyDealerInput):
           dealerName,
           listingTitle: sanitizeTemplateParam(input.listingTitle, 100) || "your listing",
           reason: sanitizeTemplateParam(input.reason, 200) || "Please review and resubmit.",
+        },
+      };
+    case "listing_updated":
+      return {
+        template: "listing_updated",
+        params: {
+          dealerName,
+          listingTitle: sanitizeTemplateParam(input.listingTitle, 100) || "your listing",
+          changeSummary: sanitizeTemplateParam(input.changeSummary, 200) || "Details were updated.",
         },
       };
   }
