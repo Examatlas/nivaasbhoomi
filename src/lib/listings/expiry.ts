@@ -7,6 +7,7 @@ import {
   recalculateCounters,
   recalculateLocalityActivation,
 } from "@/lib/locations/activation";
+import { revalidateListingPublicPaths } from "@/lib/listings/revalidate";
 import { sendBusinessTemplate } from "@/lib/whatsapp/send";
 
 /**
@@ -37,7 +38,7 @@ export async function runExpiry(now: Date = new Date()): Promise<ExpiryResult> {
   // ---- 1. Expire overdue approved listings ----
   const overdue = await Listing.find(
     { status: "approved", expiresAt: { $lt: now } },
-    { _id: 1, cityId: 1, localityId: 1 },
+    { _id: 1, slug: 1, cityId: 1, localityId: 1 },
   ).lean();
 
   const affectedLocalities = new Set<string>();
@@ -50,6 +51,19 @@ export async function runExpiry(now: Date = new Date()): Promise<ExpiryResult> {
     for (const l of overdue) {
       if (l.localityId) affectedLocalities.add(String(l.localityId));
       if (l.cityId) affectedCities.add(String(l.cityId));
+    }
+
+    // Invalidate each expired listing's public ISR pages so its detail page 404s
+    // at once (and its card drops from city/locality/home) instead of lingering
+    // in the ISR cache. Best-effort and per-listing: revalidateListingPublicPaths
+    // never throws, so one failure can't halt the bulk expiry. Only runs when
+    // something actually expired (this whole block is gated on overdue.length).
+    for (const l of overdue) {
+      await revalidateListingPublicPaths({
+        slug: l.slug,
+        cityId: l.cityId,
+        localityId: l.localityId,
+      });
     }
   }
 
