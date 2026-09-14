@@ -12,6 +12,7 @@ import {
   recalculateCounters,
   recalculateLocalityActivation,
 } from "@/lib/locations/activation";
+import { revalidateListingPublicPaths } from "@/lib/listings/revalidate";
 import { notifyDealer } from "@/lib/notifications/dealer-events";
 import { buildRejectReason, REJECT_REASON_VALUES } from "@/lib/listings/reject-reasons";
 
@@ -74,6 +75,13 @@ export const POST = withErrorHandling(
         recalculateCounters(listing.cityId!),
         recalculateLocalityActivation(listing.localityId!),
       ]);
+      // Was live, now unpublished: drop it from the ISR cache so the detail page
+      // 404s and its card disappears from city/locality/home immediately.
+      await revalidateListingPublicPaths({
+        slug: listing.slug,
+        cityId: listing.cityId,
+        localityId: listing.localityId,
+      });
     }
 
     // Notify the dealer with the reason (best-effort, after the response).

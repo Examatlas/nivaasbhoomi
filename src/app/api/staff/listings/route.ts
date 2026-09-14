@@ -9,6 +9,7 @@ import { Dealer } from "@/lib/db/models/Dealer";
 import { Locality } from "@/lib/db/models/Locality";
 import { listingInputSchema } from "@/lib/listings/schema";
 import { accessibleDealerIds, staffCanAccessDealer } from "@/lib/staff/scope";
+import { revalidateListingPublicPaths } from "@/lib/listings/revalidate";
 import { logAudit } from "@/lib/leads/assign";
 import {
   recalculateCounters,
@@ -91,6 +92,12 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
       recalculateCounters(listing.cityId!),
       recalculateLocalityActivation(listing.localityId!),
     ]);
+    // Live immediately: invalidate the ISR cache for its public pages.
+    await revalidateListingPublicPaths({
+      slug: listing.slug,
+      cityId: listing.cityId,
+      localityId: listing.localityId,
+    });
     await logAudit({
       action: "listing.publish",
       actor: { actorType: "staff", actorId: auth.identity.staffId },

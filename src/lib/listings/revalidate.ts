@@ -7,6 +7,57 @@ import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
 
 /**
+ * Revalidate the public ISR pages a SINGLE listing appears on, so a lifecycle
+ * change (approve / publish / reject / delete / expire) or an edit reflects
+ * immediately instead of waiting out the 3600s ISR window. Without this, a page
+ * that was cached while the listing didn't resolve (e.g. requested while still
+ * pending) keeps serving that stale response — the /property/<slug> stuck-404
+ * bug (a cached notFound() never invalidated on approval).
+ *
+ * Covers:
+ *   - /property/<slug>            the detail page (+ <previousSlug> on a slug change)
+ *   - /<citySlug>                 the city page card grid
+ *   - /<citySlug>/<localitySlug>  the locality page
+ *   - /                           the home "featured" grid
+ *
+ * Combinatorial filter pages (/<city>/<locality>/<filter>) are not enumerable
+ * and self-heal within the ISR window (mirrors revalidateDealerPublicPages).
+ *
+ * Best-effort: any failure is logged, never thrown into the caller's mutation
+ * flow. Call it from a route handler (or server action) — revalidatePath needs
+ * a request context.
+ */
+export async function revalidateListingPublicPaths(input: {
+  slug?: string | null;
+  previousSlug?: string | null;
+  cityId?: unknown;
+  localityId?: unknown;
+}): Promise<void> {
+  try {
+    const paths = new Set<string>(["/"]);
+    if (input.slug) paths.add(`/property/${input.slug}`);
+    // On a slug change the OLD url must 301/refresh too, not linger as a live page.
+    if (input.previousSlug && input.previousSlug !== input.slug) {
+      paths.add(`/property/${input.previousSlug}`);
+    }
+
+    if (input.cityId || input.localityId) {
+      await connectDB();
+      const [city, locality] = await Promise.all([
+        input.cityId ? City.findById(input.cityId, { slug: 1 }).lean() : null,
+        input.localityId ? Locality.findById(input.localityId, { slug: 1 }).lean() : null,
+      ]);
+      if (city?.slug) paths.add(`/${city.slug}`);
+      if (city?.slug && locality?.slug) paths.add(`/${city.slug}/${locality.slug}`);
+    }
+
+    for (const p of paths) revalidatePath(p);
+  } catch (e) {
+    console.error("[revalidate] revalidateListingPublicPaths failed:", e);
+  }
+}
+
+/**
  * After a dealer's Zenith connection changes, revalidate the public pages that
  * render their listing cards / detail so the WhatsApp-vs-Contact-Us button
  * doesn't stay stale for the ISR TTL. Covers: home, the dealer's property detail

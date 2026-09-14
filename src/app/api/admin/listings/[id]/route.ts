@@ -1,6 +1,5 @@
 import type { NextRequest } from "next/server";
 import { after } from "next/server";
-import { revalidatePath } from "next/cache";
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db/connect";
@@ -12,6 +11,7 @@ import { State } from "@/lib/db/models/State";
 import { ok, fail, withErrorHandling } from "@/lib/api/response";
 import { requireAdmin } from "@/lib/auth/middleware";
 import { listingAdminEditSchema } from "@/lib/listings/schema";
+import { revalidateListingPublicPaths } from "@/lib/listings/revalidate";
 import {
   recalculateCounters,
   recalculateLocalityActivation,
@@ -232,9 +232,15 @@ export const PATCH = withErrorHandling(
       }
     }
 
-    // Revalidate public pages: the current slug always; the old slug on a change.
-    if (listing.slug) revalidatePath(`/property/${listing.slug}`);
-    if (oldSlug) revalidatePath(`/property/${oldSlug}`);
+    // Revalidate public pages: the current slug always; the old slug on a change
+    // (so the old /property/<slug> refreshes into its 301), plus the city /
+    // locality / home cards that show this listing.
+    await revalidateListingPublicPaths({
+      slug: listing.slug,
+      previousSlug: oldSlug,
+      cityId: listing.cityId,
+      localityId: listing.localityId,
+    });
 
     // If the listing is live, its edited fields may change counters/activation.
     if (listing.status === "approved") {

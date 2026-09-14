@@ -11,6 +11,7 @@ import {
   recalculateCounters,
   recalculateLocalityActivation,
 } from "@/lib/locations/activation";
+import { revalidateListingPublicPaths } from "@/lib/listings/revalidate";
 import { notifyDealer } from "@/lib/notifications/dealer-events";
 
 /**
@@ -57,6 +58,15 @@ export const POST = withErrorHandling(
       recalculateCounters(listing.cityId!),
       recalculateLocalityActivation(listing.localityId!),
     ]);
+
+    // Going live: invalidate the ISR cache for this listing's public pages so
+    // the detail page (and its city/locality/home cards) reflect it at once —
+    // clears any stale notFound() cached while it was pending.
+    await revalidateListingPublicPaths({
+      slug: listing.slug,
+      cityId: listing.cityId,
+      localityId: listing.localityId,
+    });
 
     // Notify the dealer their listing is live (best-effort, after the response).
     const listingId = String(listing._id);

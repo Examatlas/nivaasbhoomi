@@ -14,6 +14,7 @@ import {
   recalculateCounters,
   recalculateLocalityActivation,
 } from "@/lib/locations/activation";
+import { revalidateListingPublicPaths } from "@/lib/listings/revalidate";
 
 /**
  * GET  /api/admin/listings   [admin] - searchable, paginated, filterable browser
@@ -197,12 +198,18 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   try {
     const listing = await Listing.create(data);
 
-    // If filed directly as approved, refresh the affected counters/activation.
+    // If filed directly as approved, refresh the affected counters/activation
+    // and invalidate the listing's public ISR pages so it's reachable at once.
     if (listing.status === "approved") {
       await Promise.all([
         recalculateCounters(listing.cityId!),
         recalculateLocalityActivation(listing.localityId!),
       ]);
+      await revalidateListingPublicPaths({
+        slug: listing.slug,
+        cityId: listing.cityId,
+        localityId: listing.localityId,
+      });
     }
 
     return ok({ _id: String(listing._id), slug: listing.slug, status: listing.status });

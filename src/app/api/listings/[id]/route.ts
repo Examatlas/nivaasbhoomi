@@ -11,6 +11,7 @@ import {
   resolveSubmitStatus,
   mongooseFieldErrors,
 } from "@/lib/listings/dealer-write";
+import { revalidateListingPublicPaths } from "@/lib/listings/revalidate";
 
 /**
  * PATCH  /api/listings/[id]   [dealer auth, owner]
@@ -71,6 +72,17 @@ export const PATCH = withErrorHandling(
       throw err;
     }
 
+    // If the edited listing is live, refresh its public ISR pages so the change
+    // shows at once. (Drafts/pending have no public page — skip to avoid churn
+    // on every wizard autosave step.)
+    if (listing.status === "approved") {
+      await revalidateListingPublicPaths({
+        slug: listing.slug,
+        cityId: listing.cityId,
+        localityId: listing.localityId,
+      });
+    }
+
     return ok({ id: String(listing._id), status: listing.status, slug: listing.slug ?? null });
   },
 );
@@ -85,17 +97,30 @@ export const DELETE = withErrorHandling(
       return fail("NOT_FOUND", "Listing not found.");
     }
     await connectDB();
-    // Soft delete via updateOne so the model's submit-time validators don't run
-    // on an incomplete draft being removed. Scoped by dealerId for ownership.
-    const res = await Listing.updateOne(
+    // Soft delete via findOneAndUpdate so the model's submit-time validators
+    // don't run on an incomplete draft being removed. Scoped by dealerId for
+    // ownership. Returns the PRE-update doc so we know if it was live + its
+    // slug/city/locality for cache invalidation.
+    const prev = await Listing.findOneAndUpdate(
       {
         _id: id,
         dealerId: new mongoose.Types.ObjectId(auth.identity.dealerId),
         status: { $ne: "deleted" },
       },
       { $set: { status: "deleted" } },
-    );
-    if (res.matchedCount === 0) return fail("NOT_FOUND", "Listing not found.");
+      { projection: { status: 1, slug: 1, cityId: 1, localityId: 1 } },
+    ).lean();
+    if (!prev) return fail("NOT_FOUND", "Listing not found.");
+
+    // If it was live, drop it from the ISR cache so the detail page 404s and its
+    // card disappears from city/locality/home immediately.
+    if (prev.status === "approved") {
+      await revalidateListingPublicPaths({
+        slug: prev.slug,
+        cityId: prev.cityId,
+        localityId: prev.localityId,
+      });
+    }
     return ok({ id, status: "deleted" });
   },
 );
