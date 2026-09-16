@@ -6,7 +6,12 @@ import { Home } from "lucide-react";
 import { BRAND, absoluteUrl } from "@/lib/seo/site";
 import { breadcrumbJsonLd, faqPageJsonLd } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/shared/json-ld";
-import { allStampDutyStates, getStateStampDuty, type StateStampDuty } from "@/data/stamp-duty-rates";
+import {
+  allStampDutyStates,
+  getStateStampDuty,
+  statesWithRates,
+  type StateStampDuty,
+} from "@/data/stamp-duty-rates";
 import { StampDutyLeadTool } from "@/components/tools/stamp-duty-lead-tool";
 
 export const revalidate = 86400;
@@ -60,10 +65,12 @@ export async function generateMetadata(
   if (!s) return {};
   const canonical = absoluteUrl(`/tools/stamp-duty/${s.slug}`);
   const desc = s.stampDuty
-    ? `${s.name} stamp duty is about ${s.stampDuty.male}% (male) / ${s.stampDuty.female}% (female) plus ${s.registrationPct}% registration. Calculate your exact cost for any property value.`
-    : `Stamp duty and registration rates for ${s.name} — calculator and official portal link.`;
+    ? `Stamp duty in ${s.name} is ${s.stampDuty.male}% (male) / ${s.stampDuty.female}% (female) plus ${s.registrationPct}% registration charges. Calculate the exact stamp duty and registration charges in ${s.name} for any property value.`
+    : `Stamp duty and registration charges in ${s.name} — calculator and official portal link.`;
   return {
-    title: { absolute: `${s.name} Stamp Duty Calculator — 2026 Rates | ${BRAND}` },
+    // Targets the real search queries: "<state> stamp duty", "stamp duty rate in
+    // <state>", "stamp duty and registration charges in <state>".
+    title: { absolute: `${s.name} Stamp Duty & Registration Charges — 2026 Rates | ${BRAND}` },
     description: desc,
     alternates: { canonical },
   };
@@ -77,6 +84,8 @@ export default async function StampDutyStatePage({ params }: PageProps<"/tools/s
 
   const faqs = stateFaqs(s);
   const faqLd = faqPageJsonLd(faqs);
+  // Internal links to the other verified state pages (SEO cross-linking).
+  const others = statesWithRates().filter((x) => x.slug !== s.slug);
 
   return (
     <>
@@ -131,6 +140,30 @@ export default async function StampDutyStatePage({ params }: PageProps<"/tools/s
             ))}
           </dl>
         </section>
+
+        {/* Internal links to other states' stamp-duty pages (SEO). */}
+        {others.length > 0 && (
+          <section className="mt-10 max-w-2xl">
+            <h2 className="text-lg font-semibold text-ink-950">Stamp duty in other states</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {others.map((o) => (
+                <Link
+                  key={o.slug}
+                  href={`/tools/stamp-duty/${o.slug}`}
+                  className="rounded-control border border-border bg-surface px-3 py-1.5 text-sm text-ink-800 hover:border-clay-200 hover:bg-clay-50"
+                >
+                  {o.name}
+                </Link>
+              ))}
+              <Link
+                href="/tools/stamp-duty"
+                className="rounded-control border border-border bg-surface px-3 py-1.5 text-sm font-medium text-clay-700 hover:bg-clay-50"
+              >
+                All states &rarr;
+              </Link>
+            </div>
+          </section>
+        )}
 
         <p className="mt-8 rounded-card border border-warning-100 bg-warning-50 px-4 py-3 text-meta text-warning-700">
           Estimate for residential urban property. Actual charges depend on the circle/guideline

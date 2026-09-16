@@ -116,13 +116,18 @@ export const STAMP_DUTY_BY_SLUG: Record<string, StateStampDuty> = {
     lastUpdated: "2026-01-01", source: "https://registration.kerala.gov.in/",
   },
   bihar: {
-    // The 6.3% / 5.7% figures are aggregator-derived; the official portal
-    // (bhumijankari.bihar.gov.in) publishes no rate table, so we do NOT show a
-    // number until it can be confirmed on the official / eNibandhan portal.
+    // VERIFIED against the official rate table published by the Bihar Dept. of
+    // Prohibition, Excise & Registration (nibandhan.bihar.gov.in — "TABLE OF
+    // STAMP DUTY & REGISTRATION FEE", Article 23 Conveyance). Bihar's rate keys
+    // off the transfer DIRECTION, not just the buyer: male→female 5.7% + 1.9%,
+    // female→male 6.3% + 2.1%, any other case 6% + 2%. Buyer-gender alone can't
+    // express the female→male case, so a female buyer gets the 5.7% concession
+    // and male/joint use the 6% "any other case"; registration is shown at the
+    // standard 2% (the note carries the exact per-direction figures).
     slug: "bihar", name: "Bihar", code: "BR",
-    stampDuty: null, registrationPct: null,
-    note: "Rate data is being confirmed against the official Bihar registration (eNibandhan) portal.",
-    lastUpdated: "2026-01-01", source: "https://bhumijankari.bihar.gov.in/",
+    stampDuty: { male: 6, female: 5.7, joint: 6 }, registrationPct: 2,
+    note: "Official Bihar rates (Article 23) depend on the transfer direction: a sale from a male owner to a woman buyer is 5.7% stamp duty + 1.9% registration, woman to man is 6.3% + 2.1%, and any other case (including joint ownership) is 6% + 2%. Charged on the higher of the sale price or the Minimum Value Register (MVR). A 1% rebate (up to ₹2,000) applies to stamp duty paid through online registration. This calculator shows the women's stamp-duty concession with the standard 2% registration.",
+    lastUpdated: "2026-09-16", source: "https://nibandhan.bihar.gov.in/",
   },
   "andhra-pradesh": {
     slug: "andhra-pradesh", name: "Andhra Pradesh", code: "AP",
@@ -165,10 +170,17 @@ export const STAMP_DUTY_BY_SLUG: Record<string, StateStampDuty> = {
 
   // ---- Verification pending: sources genuinely conflict → shown as "coming soon" ----
   "madhya-pradesh": {
+    // Checked against the official MPIGR "Stamp Duty & Registration Fee Chart"
+    // (Conveyance): 5% principal stamp duty + 3% MUNICIPAL duty (urban) OR 1%
+    // JANPAD duty (rural) + 0.5% upkar (10% of principal) + 3% registration. The
+    // total is area-dependent (~8.5% urban vs ~6.5% rural) and can't be reduced
+    // to one honest number in this buyer-category model — so we keep it "coming
+    // soon" rather than show a misleading single rate (the widely-quoted "7.5%"
+    // matches neither official area figure).
     slug: "madhya-pradesh", name: "Madhya Pradesh", code: "MP",
     stampDuty: null, registrationPct: null,
-    note: "Rate data is being verified against the official SAMPADA / MPIGR portal.",
-    lastUpdated: "2026-01-01", source: "https://www.mpigr.gov.in/",
+    note: "Madhya Pradesh's rate depends on the local body: the official MPIGR chart charges 5% principal stamp duty plus a 3% municipal duty in urban areas (or 1% janpad duty in rural areas), a 0.5% upkar cess and 3% registration — so the total varies by location. We're finalising an area-wise view and will publish it rather than show a single misleading figure.",
+    lastUpdated: "2026-09-16", source: "https://www.mpigr.gov.in/",
   },
   goa: {
     slug: "goa", name: "Goa", code: "GA",
