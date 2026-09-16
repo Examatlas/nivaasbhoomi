@@ -21,20 +21,91 @@ export interface StampDutyRates {
   joint: number;
 }
 
+/** A full rate set (stamp duty by buyer + registration) for one area type. */
+export interface AreaRate {
+  stampDuty: StampDutyRates;
+  registrationPct: number;
+}
+
 export interface StateStampDuty {
   slug: string;
   name: string;
   code: string;
-  /** null = not reliably verified yet → calculator shows "coming soon". */
+  /** Flat rate — used when the state does NOT vary by area (the common case).
+   *  null = not reliably verified yet → calculator shows "coming soon". */
   stampDuty: StampDutyRates | null;
-  /** Registration charge % (null only when the whole entry is unverified). */
+  /** Registration charge % for the flat case (null only when unverified). */
   registrationPct: number | null;
+  /**
+   * Present ONLY when the rate genuinely differs by urban vs rural (e.g. Madhya
+   * Pradesh's municipal vs janpad duty). When set it takes precedence over the
+   * flat `stampDuty`/`registrationPct`, and the calculator treats the Area
+   * selector as significant. Left undefined for the states where area makes no
+   * difference — there the Area field is hidden.
+   */
+  areas?: { urban: AreaRate; rural: AreaRate };
   /** Human note shown under the result (caps, cesses, slab caveats). */
   note?: string;
   /** Registration cap, shown as context (not applied to the estimate). */
   registrationCap?: string;
+  /**
+   * Optional page-level caveat callout — used when a widely-quoted but
+   * unofficial figure needs reconciling against the official one. Rendered
+   * prominently on the state page alongside the official-portal link.
+   */
+  rateCaveat?: string;
   lastUpdated: string; // ISO date
   source: string; // official portal URL
+}
+
+export type AreaType = "urban" | "rural";
+export type BuyerCategory = "male" | "female" | "joint";
+
+/** The effective rate for a given buyer + area, resolved from either the flat
+ *  or the area-wise data. */
+export interface ResolvedStampDuty {
+  stampDutyPct: number;
+  registrationPct: number;
+  /** The general/male rate for the SAME area, so a female/joint rebate shows. */
+  baseStampDutyPct: number;
+}
+
+/** Whether a state's rate depends on urban vs rural. */
+export function stampDutyVariesByArea(s: StateStampDuty): boolean {
+  return Boolean(s.areas);
+}
+
+/** Whether a state has ANY verified rate (flat or area-wise). */
+export function hasVerifiedRate(s: StateStampDuty): boolean {
+  return Boolean(s.areas) || (s.stampDuty !== null && s.registrationPct !== null);
+}
+
+/**
+ * Resolve the effective stamp-duty + registration for a buyer category and area.
+ * Area-wise data wins; otherwise the flat rate is used for every area. Returns
+ * null when the state has no verified rate at all (never guesses a number).
+ */
+export function resolveStampDutyRate(
+  s: StateStampDuty,
+  buyer: BuyerCategory,
+  area: AreaType,
+): ResolvedStampDuty | null {
+  if (s.areas) {
+    const a = s.areas[area];
+    return {
+      stampDutyPct: a.stampDuty[buyer],
+      registrationPct: a.registrationPct,
+      baseStampDutyPct: a.stampDuty.male,
+    };
+  }
+  if (s.stampDuty && s.registrationPct != null) {
+    return {
+      stampDutyPct: s.stampDuty[buyer],
+      registrationPct: s.registrationPct,
+      baseStampDutyPct: s.stampDuty.male,
+    };
+  }
+  return null;
 }
 
 const PORTAL_UNKNOWN = "";
@@ -168,18 +239,23 @@ export const STAMP_DUTY_BY_SLUG: Record<string, StateStampDuty> = {
     lastUpdated: "2026-01-01", source: "https://epanjeeyan.cg.gov.in/",
   },
 
-  // ---- Verification pending: sources genuinely conflict → shown as "coming soon" ----
   "madhya-pradesh": {
-    // Checked against the official MPIGR "Stamp Duty & Registration Fee Chart"
-    // (Conveyance): 5% principal stamp duty + 3% MUNICIPAL duty (urban) OR 1%
-    // JANPAD duty (rural) + 0.5% upkar (10% of principal) + 3% registration. The
-    // total is area-dependent (~8.5% urban vs ~6.5% rural) and can't be reduced
-    // to one honest number in this buyer-category model — so we keep it "coming
-    // soon" rather than show a misleading single rate (the widely-quoted "7.5%"
-    // matches neither official area figure).
+    // VERIFIED against the official MPIGR "Stamp Duty & Registration Fee Chart"
+    // (Conveyance, SR 46-57). The rate is AREA-WISE, not gender-wise: principal
+    // stamp duty 5% + a local-body duty (3% municipal in urban areas / 1% janpad
+    // in rural areas) + 0.5% upkar (10% of the 5% principal) + 3% registration.
+    //   urban = 5 + 3 + 0.5 = 8.5% stamp, 3% registration
+    //   rural = 5 + 1 + 0.5 = 6.5% stamp, 3% registration
+    // No women's concession on a normal sale (the chart's conveyance rows are
+    // gender-uniform), so male = female = joint within each area.
     slug: "madhya-pradesh", name: "Madhya Pradesh", code: "MP",
     stampDuty: null, registrationPct: null,
-    note: "Madhya Pradesh's rate depends on the local body: the official MPIGR chart charges 5% principal stamp duty plus a 3% municipal duty in urban areas (or 1% janpad duty in rural areas), a 0.5% upkar cess and 3% registration — so the total varies by location. We're finalising an area-wise view and will publish it rather than show a single misleading figure.",
+    areas: {
+      urban: { stampDuty: { male: 8.5, female: 8.5, joint: 8.5 }, registrationPct: 3 },
+      rural: { stampDuty: { male: 6.5, female: 6.5, joint: 6.5 }, registrationPct: 3 },
+    },
+    note: "Madhya Pradesh's stamp duty is area-based (official MPIGR chart): 5% principal duty plus a 3% municipal duty in urban/municipal areas or a 1% janpad duty in rural/panchayat areas, plus a 0.5% upkar cess — so about 8.5% in urban areas and 6.5% in rural areas, with 3% registration in both. Charged on the higher of the price or the government guideline (collector) value. There is no separate women's concession on a normal sale.",
+    rateCaveat: "Some websites list 7.5%. The official MPIGR chart works out to 8.5% in urban areas (5% conveyance + 3% municipal duty + 0.5% upkar). Always confirm with the official portal.",
     lastUpdated: "2026-09-16", source: "https://www.mpigr.gov.in/",
   },
   goa: {
@@ -204,7 +280,7 @@ export function allStampDutyStates(): StateStampDuty[] {
   return Object.values(STAMP_DUTY_BY_SLUG).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Only states with a verified rate (for "supported states" lists). */
+/** Only states with a verified rate — flat OR area-wise (for "supported" lists). */
 export function statesWithRates(): StateStampDuty[] {
-  return allStampDutyStates().filter((s) => s.stampDuty !== null);
+  return allStampDutyStates().filter(hasVerifiedRate);
 }

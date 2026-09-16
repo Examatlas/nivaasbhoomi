@@ -10,6 +10,9 @@ import {
   allStampDutyStates,
   getStateStampDuty,
   statesWithRates,
+  hasVerifiedRate,
+  stampDutyVariesByArea,
+  resolveStampDutyRate,
   type StateStampDuty,
 } from "@/data/stamp-duty-rates";
 import { StampDutyLeadTool } from "@/components/tools/stamp-duty-lead-tool";
@@ -21,8 +24,22 @@ export function generateStaticParams() {
   return allStampDutyStates().map((s) => ({ state: s.slug }));
 }
 
+/** Headline rate phrase used in the H1 blurb, meta description and FAQ —
+ *  area-aware (urban vs rural) for states like MP, gender-aware otherwise. */
+function rateBlurb(s: StateStampDuty): string | null {
+  const uM = resolveStampDutyRate(s, "male", "urban");
+  const uF = resolveStampDutyRate(s, "female", "urban");
+  if (!uM || !uF) return null;
+  if (stampDutyVariesByArea(s)) {
+    const rM = resolveStampDutyRate(s, "male", "rural")!;
+    return `about ${uM.stampDutyPct}% in urban (municipal) areas and ${rM.stampDutyPct}% in rural (panchayat) areas, plus ${uM.registrationPct}% registration`;
+  }
+  const femalePart = uF.stampDutyPct < uM.stampDutyPct ? ` and ${uF.stampDutyPct}% for women` : "";
+  return `about ${uM.stampDutyPct}% for general buyers${femalePart}, plus ${uM.registrationPct}% registration`;
+}
+
 function stateFaqs(s: StateStampDuty): { question: string; answer: string }[] {
-  if (!s.stampDuty || s.registrationPct == null) {
+  if (!hasVerifiedRate(s)) {
     return [
       {
         question: `What is the stamp duty rate in ${s.name}?`,
@@ -30,26 +47,39 @@ function stateFaqs(s: StateStampDuty): { question: string; answer: string }[] {
       },
     ];
   }
-  const r = s.stampDuty;
+  const uM = resolveStampDutyRate(s, "male", "urban")!;
+  const uF = resolveStampDutyRate(s, "female", "urban")!;
+  const varies = stampDutyVariesByArea(s);
+  const rM = varies ? resolveStampDutyRate(s, "male", "rural")! : null;
+
+  const rateAnswer = varies
+    ? `In ${s.name}, stamp duty is about ${uM.stampDutyPct}% in urban (municipal) areas and ${rM!.stampDutyPct}% in rural (panchayat) areas, plus a ${uM.registrationPct}% registration charge.${s.note ? ` ${s.note}` : ""}`
+    : `In ${s.name}, stamp duty is about ${uM.stampDutyPct}% for male/general buyers${
+        uF.stampDutyPct !== uM.stampDutyPct ? ` and ${uF.stampDutyPct}% for women` : ""
+      }, plus a ${uM.registrationPct}% registration charge.${s.note ? ` ${s.note}` : ""}`;
+
   const faqs = [
-    {
-      question: `What is the stamp duty rate in ${s.name}?`,
-      answer: `In ${s.name}, stamp duty is about ${r.male}% for male/general buyers${
-        r.female !== r.male ? ` and ${r.female}% for women` : ""
-      }, plus a ${s.registrationPct}% registration charge.${s.note ? ` ${s.note}` : ""}`,
-    },
+    { question: `What is the stamp duty rate in ${s.name}?`, answer: rateAnswer },
     {
       question: `Do women pay less stamp duty in ${s.name}?`,
       answer:
-        r.female < r.male
-          ? `Yes — women buyers in ${s.name} pay about ${r.female}% instead of ${r.male}%, a ${(
-              r.male - r.female
+        uF.stampDutyPct < uM.stampDutyPct
+          ? `Yes — women buyers in ${s.name} pay about ${uF.stampDutyPct}% instead of ${uM.stampDutyPct}%, a ${(
+              uM.stampDutyPct - uF.stampDutyPct
             ).toFixed(2)} percentage-point concession.`
-          : `${s.name} does not offer a stamp-duty concession for women; the rate is the same (${r.male}%) regardless of buyer.`,
+          : `${s.name} does not offer a stamp-duty concession for women; the rate is the same regardless of buyer.`,
     },
+    ...(varies
+      ? [
+          {
+            question: `Is stamp duty different in urban and rural areas of ${s.name}?`,
+            answer: `Yes. ${s.name} adds a local-body duty on top of the base stamp duty — more in urban/municipal areas than in rural/panchayat areas — so the total is about ${uM.stampDutyPct}% urban versus ${rM!.stampDutyPct}% rural. Registration is ${uM.registrationPct}% either way.`,
+          },
+        ]
+      : []),
     {
       question: `What are the registration charges in ${s.name}?`,
-      answer: `The registration charge in ${s.name} is about ${s.registrationPct}% of the property value${
+      answer: `The registration charge in ${s.name} is about ${uM.registrationPct}% of the property value${
         s.registrationCap ? `, capped at ${s.registrationCap}` : ""
       }. It is paid in addition to stamp duty.`,
     },
@@ -64,8 +94,9 @@ export async function generateMetadata(
   const s = getStateStampDuty(state);
   if (!s) return {};
   const canonical = absoluteUrl(`/tools/stamp-duty/${s.slug}`);
-  const desc = s.stampDuty
-    ? `Stamp duty in ${s.name} is ${s.stampDuty.male}% (male) / ${s.stampDuty.female}% (female) plus ${s.registrationPct}% registration charges. Calculate the exact stamp duty and registration charges in ${s.name} for any property value.`
+  const blurb = rateBlurb(s);
+  const desc = blurb
+    ? `Stamp duty in ${s.name} is ${blurb} charges. Calculate the exact stamp duty and registration charges in ${s.name} for any property value.`
     : `Stamp duty and registration charges in ${s.name} — calculator and official portal link.`;
   return {
     // Targets the real search queries: "<state> stamp duty", "stamp duty rate in
@@ -116,12 +147,28 @@ export default async function StampDutyStatePage({ params }: PageProps<"/tools/s
         <header className="mb-8 max-w-2xl">
           <h1 className="text-display-md">{s.name} stamp duty calculator</h1>
           <p className="mt-2 text-muted-foreground">
-            {s.stampDuty
-              ? `Stamp duty in ${s.name} is about ${s.stampDuty.male}% for general buyers${
-                  s.stampDuty.female < s.stampDuty.male ? ` and ${s.stampDuty.female}% for women` : ""
-                }, plus ${s.registrationPct}% registration. Enter your property value for the exact cost.`
+            {rateBlurb(s)
+              ? `Stamp duty in ${s.name} is ${rateBlurb(s)}. Enter your property value for the exact cost.`
               : `We're verifying ${s.name}'s official rates and will publish them soon.`}
           </p>
+          {s.rateCaveat && (
+            <p className="mt-3 rounded-card border border-clay-100 bg-clay-50 px-4 py-3 text-meta text-clay-800">
+              {s.rateCaveat}
+              {s.source ? (
+                <>
+                  {" "}
+                  <a
+                    href={s.source}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium underline"
+                  >
+                    {s.name} official portal
+                  </a>
+                </>
+              ) : null}
+            </p>
+          )}
         </header>
 
         <StampDutyLeadTool initialStateSlug={s.slug} />

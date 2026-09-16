@@ -5,7 +5,7 @@ import { Home } from "lucide-react";
 import { BRAND, absoluteUrl } from "@/lib/seo/site";
 import { breadcrumbJsonLd, faqPageJsonLd } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/shared/json-ld";
-import { allStampDutyStates, statesWithRates } from "@/data/stamp-duty-rates";
+import { allStampDutyStates, statesWithRates, hasVerifiedRate } from "@/data/stamp-duty-rates";
 import { StampDutyLeadTool } from "@/components/tools/stamp-duty-lead-tool";
 
 // Static / ISR (daily). Never dynamic — keeps the companion-cookie header intact.
@@ -92,7 +92,7 @@ export default function StampDutyIndexPage() {
                 className="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink-800 hover:border-clay-200 hover:bg-clay-50"
               >
                 {s.name}
-                {!s.stampDuty && <span className="ml-1 text-meta text-muted-foreground">(soon)</span>}
+                {!hasVerifiedRate(s) && <span className="ml-1 text-meta text-muted-foreground">(soon)</span>}
               </Link>
             ))}
           </div>

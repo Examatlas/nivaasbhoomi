@@ -10,7 +10,12 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 import { groupINR, inrWords } from "@/lib/utils/price";
-import { allStampDutyStates, getStateStampDuty } from "@/data/stamp-duty-rates";
+import {
+  allStampDutyStates,
+  getStateStampDuty,
+  hasVerifiedRate,
+  stampDutyVariesByArea,
+} from "@/data/stamp-duty-rates";
 import { useToolLead } from "@/components/tools/use-tool-lead";
 
 type BuyerType = "male" | "female" | "joint";
@@ -69,7 +74,10 @@ export function StampDutyLeadTool({ initialStateSlug }: { initialStateSlug?: str
 
   const lead = useToolLead<StampDutyOutput>("stamp_duty");
   const state = getStateStampDuty(stateSlug);
-  const hasRate = Boolean(state?.stampDuty);
+  const hasRate = state ? hasVerifiedRate(state) : false;
+  // The Area (urban/rural) selector only matters for states whose rate varies by
+  // area (e.g. MP's municipal vs janpad duty). Hidden for every other state.
+  const areaVaries = state ? stampDutyVariesByArea(state) : false;
 
   function calculate() {
     lead.start({ stateSlug, propertyValue: value, buyerType, propertyType, areaType });
@@ -159,7 +167,7 @@ export function StampDutyLeadTool({ initialStateSlug }: { initialStateSlug?: str
               {states.map((s) => (
                 <SelectItem key={s.slug} value={s.slug}>
                   {s.name}
-                  {!s.stampDuty ? " — coming soon" : ""}
+                  {!hasVerifiedRate(s) ? " — coming soon" : ""}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -205,15 +213,20 @@ export function StampDutyLeadTool({ initialStateSlug }: { initialStateSlug?: str
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Area</Label>
-            <Select value={areaType} onValueChange={setAreaType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {AREA_TYPES.map((a) => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          {areaVaries && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Area</Label>
+              <Select value={areaType} onValueChange={setAreaType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {AREA_TYPES.map((a) => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-meta text-muted-foreground">
+                {state?.name} charges more in urban (municipal) than rural (panchayat) areas.
+              </p>
+            </div>
+          )}
         </div>
 
         {lead.error && <p className="text-meta text-danger-700">{lead.error}</p>}

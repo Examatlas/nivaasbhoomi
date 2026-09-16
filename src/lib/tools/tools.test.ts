@@ -42,7 +42,7 @@ test("stampDutyTool.parse: accepts a verified state", () => {
 
 test("stampDutyTool.parse: REJECTS a null-rate state (never shows a guessed number)", () => {
   const res = stampDutyTool.parse({
-    stateSlug: "madhya-pradesh", propertyValue: 5_000_000,
+    stateSlug: "goa", propertyValue: 5_000_000, // still unverified
     buyerType: "male", propertyType: "residential", areaType: "urban",
   });
   assert.equal(res.ok, false);
@@ -62,6 +62,36 @@ test("stampDutyTool.compute: Delhi female gets the concession vs male", () => {
   assert.equal(out.stampDutyPct, 4); // Delhi female
   assert.equal(out.stampDuty, 400_000); // 4% of 1 crore
   assert.equal(out.rebate, 200_000); // vs 6% male → 2% saved
+});
+
+// ---- area-wise state (Madhya Pradesh: municipal vs janpad duty) ----
+test("stampDutyTool: MP rate depends on the area (urban 8.5% vs rural 6.5%)", () => {
+  const mk = (areaType: "urban" | "rural") =>
+    ({ stateSlug: "madhya-pradesh", propertyValue: 10_000_000, buyerType: "male", propertyType: "residential", areaType }) as const;
+
+  const urbanParsed = stampDutyTool.parse(mk("urban"));
+  const ruralParsed = stampDutyTool.parse(mk("rural"));
+  assert.equal(urbanParsed.ok, true);
+  assert.equal(ruralParsed.ok, true);
+  if (!urbanParsed.ok || !ruralParsed.ok) return;
+
+  const urban = stampDutyTool.compute(urbanParsed.input) as { stampDutyPct: number; stampDuty: number; registrationPct: number };
+  const rural = stampDutyTool.compute(ruralParsed.input) as { stampDutyPct: number; stampDuty: number };
+  assert.equal(urban.stampDutyPct, 8.5); // 5% + 3% municipal + 0.5% upkar
+  assert.equal(urban.stampDuty, 850_000);
+  assert.equal(urban.registrationPct, 3);
+  assert.equal(rural.stampDutyPct, 6.5); // 5% + 1% janpad + 0.5% upkar
+  assert.equal(rural.stampDuty, 650_000);
+});
+
+test("stampDutyTool: MP has no women's concession (female == male within an area)", () => {
+  const base = { stateSlug: "madhya-pradesh", propertyValue: 10_000_000, propertyType: "residential", areaType: "urban" } as const;
+  const female = stampDutyTool.parse({ ...base, buyerType: "female" });
+  assert.equal(female.ok, true);
+  if (!female.ok) return;
+  const out = stampDutyTool.compute(female.input) as { stampDutyPct: number; rebate: number };
+  assert.equal(out.stampDutyPct, 8.5);
+  assert.equal(out.rebate, 0); // no concession → no rebate
 });
 
 // ---- dedup extended with the tool source key ----

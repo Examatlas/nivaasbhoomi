@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { getStateStampDuty } from "@/data/stamp-duty-rates";
+import {
+  getStateStampDuty,
+  hasVerifiedRate,
+  resolveStampDutyRate,
+} from "@/data/stamp-duty-rates";
 import { computeStampDutyBreakdown } from "@/lib/calculators/stamp-duty";
 import type { ToolDefinition, ToolParseResult } from "@/lib/tools/types";
 
@@ -25,7 +29,7 @@ function parse(raw: unknown): ToolParseResult<StampDutyToolInput> {
   if (!parsed.success) return { ok: false, error: "Please check the calculator inputs." };
   const state = getStateStampDuty(parsed.data.stateSlug);
   if (!state) return { ok: false, error: "Unknown state." };
-  if (!state.stampDuty || state.registrationPct == null) {
+  if (!hasVerifiedRate(state)) {
     // We refuse to compute (and never show a wrong number) for a null-rate state.
     return { ok: false, error: `Stamp duty data for ${state.name} is coming soon.` };
   }
@@ -34,13 +38,15 @@ function parse(raw: unknown): ToolParseResult<StampDutyToolInput> {
 
 function compute(input: StampDutyToolInput) {
   const state = getStateStampDuty(input.stateSlug)!;
-  const rates = state.stampDuty!;
-  const stampDutyPct = rates[input.buyerType];
+  // Rate is resolved server-side from the buyer category AND the area type
+  // (area matters for states like MP with municipal/janpad duty; for the rest
+  // the same rate is returned for both areas).
+  const rate = resolveStampDutyRate(state, input.buyerType, input.areaType)!;
   const breakdown = computeStampDutyBreakdown({
     propertyValue: input.propertyValue,
-    stampDutyPct,
-    registrationPct: state.registrationPct!,
-    baseStampDutyPct: rates.male,
+    stampDutyPct: rate.stampDutyPct,
+    registrationPct: rate.registrationPct,
+    baseStampDutyPct: rate.baseStampDutyPct,
   });
   return {
     stateName: state.name,
