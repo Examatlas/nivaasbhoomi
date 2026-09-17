@@ -88,6 +88,77 @@ export function DeveloperApiCard({
   const searchExample = `curl "${searchUrl}?purpose=sale&limit=10" \\\n+  -H "X-Agent-Key: YOUR_API_KEY"`;
   const leadExample = `curl -X POST "${leadUrl}" \\\n+  -H "Content-Type: application/json" \\\n+  -H "X-Agent-Key: YOUR_API_KEY" \\\n+  -d '{"name":"Priya Sharma","phone":"9876543210","listingId":"LISTING_ID","message":"Interested in a site visit"}'`;
 
+  const searchResponse = JSON.stringify(
+    {
+      success: true,
+      data: {
+        dealer: {
+          id: "665f0a1b8c3d1a0011a2b3c4",
+          name: "Rahul Deshmukh",
+          businessName: "Deshmukh Realty",
+          slug: "deshmukh-realty-pune",
+          email: "rahul@deshmukhrealty.com",
+          phone: "919876543210",
+          profilePhoto: "https://res.cloudinary.com/…/profile.jpg",
+          tagline: "Trusted homes across Pune since 2012",
+          establishedYear: 2012,
+          yearsExperience: 14,
+          dealTypes: ["flat", "plot", "resale"],
+          languages: ["Hindi", "Marathi", "English"],
+          reraNumber: "P52100012345",
+          officeAddress: "Office 4, Baner Road, Pune",
+          verificationTier: 2,
+          status: "active",
+          rating: 4.6,
+          ratingCount: 38,
+          plan: "pro",
+          maxLeadsPerMonth: 100,
+          leadsUsedThisMonth: 23,
+          coverageCities: [{ name: "Pune", slug: "pune" }],
+          zenithConnected: true,
+          zenithNumber: "919812345678",
+          createdAt: "2023-04-11T08:12:00.000Z",
+          updatedAt: "2026-08-30T05:40:12.000Z",
+        },
+        items: [
+          {
+            id: "665f1c2a9b4e2a0012a3b4c5",
+            title: "2 BHK flat in Baner",
+            publicUrl: "https://www.nivaasbhoomi.com/property/2-bhk-flat-in-baner-xxxx",
+            price: 8500000,
+            city: "Pune",
+            locality: "Baner",
+            type: "flat",
+            purpose: "sale",
+            bhk: "2",
+            area: 950,
+            areaUnit: "sq.ft.",
+            description: "Spacious 2 BHK with covered parking…",
+            imageUrl: "https://res.cloudinary.com/…/cover.jpg",
+            status: "approved",
+            updatedAt: "2026-09-01T10:20:30.000Z",
+          },
+        ],
+        nextCursor: "665f1c2a9b4e2a0012a3b4c5",
+      },
+    },
+    null,
+    2,
+  );
+
+  const leadResponse = JSON.stringify(
+    {
+      success: true,
+      data: {
+        leadId: "665f2d3b0c5f3b0013b4c5d6",
+        deduped: false,
+        assigned: true,
+      },
+    },
+    null,
+    2,
+  );
+
   return (
     <section className="mt-8 rounded-card border border-border bg-surface p-6 shadow-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -172,14 +243,16 @@ export function DeveloperApiCard({
           <ApiExample
             title="Get my approved listings"
             url={searchUrl}
-            description="GET. Returns only this dealer’s approved, non-demo listings. Optional filters: city, locality, type, purpose (sale or rent), budget_min, budget_max, bhk, limit (max 25), and cursor."
+            description="GET. Returns your dealer profile (name, business name, contact details, verification tier, rating, coverage cities, plan/quota) plus only this dealer’s approved, non-demo listings. Optional filters: city, locality, type, purpose (sale or rent), budget_min, budget_max, bhk, limit (max 25), and cursor."
             code={searchExample}
+            response={searchResponse}
           />
           <ApiExample
             title="Create a lead"
             url={leadUrl}
             description="POST. Required: phone. Optional: name, listingId, message, and intent. Indian mobile numbers are accepted with or without +91."
             code={leadExample}
+            response={leadResponse}
           />
           <p className="rounded-control bg-ink-50 p-3 text-meta text-ink-700">
             Responses use <code>\u007b success, data \u007d</code>. The API allows 60
@@ -197,11 +270,13 @@ function ApiExample({
   url,
   description,
   code,
+  response,
 }: {
   title: string;
   url: string;
   description: string;
   code: string;
+  response: string;
 }) {
   return (
     <div>
@@ -210,8 +285,13 @@ function ApiExample({
         <code className="text-meta text-clay-700">{url}</code>
       </div>
       <p className="mt-1">{description}</p>
-      <pre className="mt-3 overflow-x-auto rounded-control bg-ink-950 p-3 text-meta leading-5 text-ink-50">
+      <p className="mt-3 text-meta font-medium text-muted-foreground">Request</p>
+      <pre className="mt-1 overflow-x-auto rounded-control bg-ink-950 p-3 text-meta leading-5 text-ink-50">
         <code>{code}</code>
+      </pre>
+      <p className="mt-3 text-meta font-medium text-muted-foreground">Sample response</p>
+      <pre className="mt-1 overflow-x-auto rounded-control bg-ink-950 p-3 text-meta leading-5 text-ink-50">
+        <code>{response}</code>
       </pre>
     </div>
   );

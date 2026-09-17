@@ -5,6 +5,7 @@ import { Listing } from "@/lib/db/models/Listing";
 import { City } from "@/lib/db/models/City";
 import { Locality } from "@/lib/db/models/Locality";
 import { absoluteUrl } from "@/lib/seo/site";
+import { getMyAgentDealer, type AgentDealerDetails } from "@/lib/agent/dealer";
 
 /**
  * Dealer-scoped property search for the Agent API. EVERY query is filtered by
@@ -48,6 +49,7 @@ export interface AgentListing {
 }
 
 export interface AgentSearchResult {
+  dealer: AgentDealerDetails;
   items: AgentListing[];
   nextCursor: string | null;
 }
@@ -132,6 +134,12 @@ export async function agentSearch(
 ): Promise<AgentSearchResult> {
   await connectDB();
 
+  // The key's own dealer profile — included on every response alongside the
+  // listings. Already authenticated (requireAgentDealer), so a miss here would
+  // be unexpected; let it surface as a 500 rather than silently omitting it.
+  const dealer = await getMyAgentDealer(dealerId);
+  if (!dealer) throw new Error(`agentSearch: dealer ${dealerId} not found after auth`);
+
   // dealerId + only publicly-visible, never-seed listings. ALWAYS server-set.
   const base: Record<string, unknown> = {
     dealerId: new mongoose.Types.ObjectId(dealerId),
@@ -142,14 +150,15 @@ export async function agentSearch(
   // Single-listing detail: it must belong to THIS dealer (base filter) — a
   // cross-dealer or seed id simply returns empty.
   if (params.listingId) {
-    if (!mongoose.Types.ObjectId.isValid(params.listingId)) return { items: [], nextCursor: null };
+    if (!mongoose.Types.ObjectId.isValid(params.listingId)) return { dealer, items: [], nextCursor: null };
     const l = await Listing.findOne(
       { ...base, _id: new mongoose.Types.ObjectId(params.listingId) },
       PROJECTION,
     ).lean();
-    if (!l) return { items: [], nextCursor: null };
+    if (!l) return { dealer, items: [], nextCursor: null };
     const n = await names([String(l.cityId)], [String(l.localityId)]);
     return {
+      dealer,
       items: [shape(l as never, n.city.get(String(l.cityId)) ?? "", n.locality.get(String(l.localityId)) ?? "", true)],
       nextCursor: null,
     };
@@ -158,14 +167,14 @@ export async function agentSearch(
   // Resolve city/locality SLUGS → ids. An unknown slug yields no matches.
   if (params.city) {
     const city = await City.findOne({ slug: params.city.toLowerCase() }, { _id: 1 }).lean();
-    if (!city) return { items: [], nextCursor: null };
+    if (!city) return { dealer, items: [], nextCursor: null };
     base.cityId = city._id;
     if (params.locality) {
       const loc = await Locality.findOne(
         { cityId: city._id, slug: params.locality.toLowerCase() },
         { _id: 1 },
       ).lean();
-      if (!loc) return { items: [], nextCursor: null };
+      if (!loc) return { dealer, items: [], nextCursor: null };
       base.localityId = loc._id;
     }
   }
@@ -206,5 +215,5 @@ export async function agentSearch(
     shape(l as never, n.city.get(String(l.cityId)) ?? "", n.locality.get(String(l.localityId)) ?? "", false),
   );
   const nextCursor = hasMore ? String(page[page.length - 1]!._id) : null;
-  return { items, nextCursor };
+  return { dealer, items, nextCursor };
 }
