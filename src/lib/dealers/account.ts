@@ -92,6 +92,8 @@ export interface MyDealer {
   zenithNumber?: string;
   zenithPlan?: string;
   zenithConnectedAt?: string;
+  /** Safe, non-secret integration-key status for the dealer dashboard. */
+  agentApiKey: { hasKey: boolean; last4?: string };
 }
 
 const DOC_META: { key: DocStatus["key"]; label: string; mandatory: boolean }[] = [
@@ -170,7 +172,12 @@ export async function getMyDealer(): Promise<MyDealer | null> {
 
   const docs = d.documents ?? {};
   const documents: DocStatus[] = DOC_META.map((m) => {
-    const doc = (docs as Record<string, { url?: string; verified?: boolean; number?: string; stateId?: unknown }>)[m.key];
+    const doc = (
+      docs as Record<
+        string,
+        { url?: string; verified?: boolean; number?: string; stateId?: unknown }
+      >
+    )[m.key];
     return {
       key: m.key,
       label: m.label,
@@ -227,6 +234,10 @@ export async function getMyDealer(): Promise<MyDealer | null> {
     zenithConnectedAt: d.zenithConnectedAt
       ? new Date(d.zenithConnectedAt).toISOString()
       : undefined,
+    agentApiKey: {
+      hasKey: Boolean(d.agentApiKeyHash),
+      last4: d.agentApiKeyLast4 ?? undefined,
+    },
   };
 }
 
@@ -353,9 +364,17 @@ export interface ProfileCompleteness {
 export function profileCompleteness(d: MyDealer): ProfileCompleteness {
   const p = d.profile;
   const items: CompletenessItem[] = [
-    { label: "Verified (Tier 1 or higher)", done: d.verificationTier >= 1, forIndex: true },
+    {
+      label: "Verified (Tier 1 or higher)",
+      done: d.verificationTier >= 1,
+      forIndex: true,
+    },
     { label: "3+ live listings", done: d.listingCounts.approved >= 3, forIndex: true },
-    { label: "About section written", done: Boolean(p.about && p.about.trim()), forIndex: true },
+    {
+      label: "About section written",
+      done: Boolean(p.about && p.about.trim()),
+      forIndex: true,
+    },
     { label: "Logo uploaded", done: Boolean(p.logoImage) },
     { label: "Banner uploaded", done: Boolean(p.bannerImage) },
     { label: "Tagline", done: Boolean(p.tagline && p.tagline.trim()) },
