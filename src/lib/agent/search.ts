@@ -43,6 +43,7 @@ export interface AgentListing {
   areaUnit: string;
   description: string;
   imageUrl: string | null;
+  images: string[];
   status: string;
   updatedAt: string;
 }
@@ -69,7 +70,11 @@ function shape(
   full: boolean,
 ): AgentListing {
   const photos = (l.photos as { url?: string }[]) ?? [];
-  const cover = photos[(l.coverPhotoIndex as number) ?? 0] ?? photos[0];
+  const rawCoverIndex = (l.coverPhotoIndex as number) ?? 0;
+  const coverIndex = photos[rawCoverIndex] ? rawCoverIndex : 0;
+  const cover = photos[coverIndex];
+  // Cover photo first, then the rest in their stored order.
+  const orderedPhotos = cover ? [cover, ...photos.filter((_, i) => i !== coverIndex)] : photos;
   const desc = ((l.description as string) ?? "").trim();
   return {
     id: String(l._id),
@@ -85,6 +90,7 @@ function shape(
     areaUnit: "sq.ft.",
     description: full ? desc : desc.length > 240 ? `${desc.slice(0, 240)}…` : desc,
     imageUrl: cover?.url ?? null,
+    images: orderedPhotos.map((p) => p.url).filter((u): u is string => Boolean(u)),
     status: (l.status as string) ?? "",
     updatedAt: ((l.updatedAt as Date) ?? (l.createdAt as Date) ?? new Date()).toISOString(),
   };

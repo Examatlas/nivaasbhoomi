@@ -138,6 +138,11 @@ export function DeveloperApiCard({
             areaUnit: "sq.ft.",
             description: "Spacious 2 BHK with covered parking…",
             imageUrl: "https://res.cloudinary.com/…/cover.jpg",
+            images: [
+              "https://res.cloudinary.com/…/cover.jpg",
+              "https://res.cloudinary.com/…/photo-2.jpg",
+              "https://res.cloudinary.com/…/photo-3.jpg",
+            ],
             status: "approved",
             updatedAt: "2026-09-01T10:20:30.000Z",
           },

@@ -131,6 +131,11 @@ Results are newest-first and cursor-paginated.
       "areaUnit": "sq.ft.",
       "description": "Spacious 2 BHK with covered parking…",
       "imageUrl": "https://res.cloudinary.com/…/cover.jpg",
+      "images": [
+        "https://res.cloudinary.com/…/cover.jpg",
+        "https://res.cloudinary.com/…/photo-2.jpg",
+        "https://res.cloudinary.com/…/photo-3.jpg"
+      ],
       "status": "approved",
       "updatedAt": "2026-09-01T10:20:30.000Z"
     }
@@ -139,6 +144,8 @@ Results are newest-first and cursor-paginated.
 }
 ```
 
+- `imageUrl` is the listing's single cover photo; `images` is every photo on
+  the listing, cover first, in display order.
 - `nextCursor` is `null` on the last page.
 - In list mode `description` is truncated to ~240 chars; a `listingId` detail
   request returns the full description.
