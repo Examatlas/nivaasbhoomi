@@ -67,7 +67,7 @@ export async function requireAgentDealer(req: NextRequest): Promise<AgentGuard> 
  *  stores the key or any PII; best-effort. */
 export async function logAgentRequest(
   dealerId: string,
-  endpoint: "search" | "lead",
+  endpoint: "search" | "lead" | "account",
   status: number,
   ms: number,
 ): Promise<void> {

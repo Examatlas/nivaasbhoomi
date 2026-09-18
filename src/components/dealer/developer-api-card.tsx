@@ -85,41 +85,44 @@ export function DeveloperApiCard({
 
   const searchUrl = `${apiBaseUrl}/search`;
   const leadUrl = `${apiBaseUrl}/lead`;
+  const accountUrl = `${apiBaseUrl}/account`;
   const searchExample = `curl "${searchUrl}?purpose=sale&limit=10" \\\n+  -H "X-Agent-Key: YOUR_API_KEY"`;
   const leadExample = `curl -X POST "${leadUrl}" \\\n+  -H "Content-Type: application/json" \\\n+  -H "X-Agent-Key: YOUR_API_KEY" \\\n+  -d '{"name":"Priya Sharma","phone":"9876543210","listingId":"LISTING_ID","message":"Interested in a site visit"}'`;
+  const accountExample = `curl "${accountUrl}" \\\n+  -H "X-Agent-Key: YOUR_API_KEY"`;
+
+  const sampleDealer = {
+    id: "665f0a1b8c3d1a0011a2b3c4",
+    name: "Rahul Deshmukh",
+    businessName: "Deshmukh Realty",
+    slug: "deshmukh-realty-pune",
+    email: "rahul@deshmukhrealty.com",
+    phone: "919876543210",
+    profilePhoto: "https://res.cloudinary.com/…/profile.jpg",
+    tagline: "Trusted homes across Pune since 2012",
+    establishedYear: 2012,
+    yearsExperience: 14,
+    dealTypes: ["flat", "plot", "resale"],
+    languages: ["Hindi", "Marathi", "English"],
+    reraNumber: "P52100012345",
+    officeAddress: "Office 4, Baner Road, Pune",
+    verificationTier: 2,
+    status: "active",
+    rating: 4.6,
+    ratingCount: 38,
+    plan: "pro",
+    maxLeadsPerMonth: 100,
+    leadsUsedThisMonth: 23,
+    coverageCities: [{ name: "Pune", slug: "pune" }],
+    zenithConnected: true,
+    zenithNumber: "919812345678",
+    createdAt: "2023-04-11T08:12:00.000Z",
+    updatedAt: "2026-08-30T05:40:12.000Z",
+  };
 
   const searchResponse = JSON.stringify(
     {
       success: true,
       data: {
-        dealer: {
-          id: "665f0a1b8c3d1a0011a2b3c4",
-          name: "Rahul Deshmukh",
-          businessName: "Deshmukh Realty",
-          slug: "deshmukh-realty-pune",
-          email: "rahul@deshmukhrealty.com",
-          phone: "919876543210",
-          profilePhoto: "https://res.cloudinary.com/…/profile.jpg",
-          tagline: "Trusted homes across Pune since 2012",
-          establishedYear: 2012,
-          yearsExperience: 14,
-          dealTypes: ["flat", "plot", "resale"],
-          languages: ["Hindi", "Marathi", "English"],
-          reraNumber: "P52100012345",
-          officeAddress: "Office 4, Baner Road, Pune",
-          verificationTier: 2,
-          status: "active",
-          rating: 4.6,
-          ratingCount: 38,
-          plan: "pro",
-          maxLeadsPerMonth: 100,
-          leadsUsedThisMonth: 23,
-          coverageCities: [{ name: "Pune", slug: "pune" }],
-          zenithConnected: true,
-          zenithNumber: "919812345678",
-          createdAt: "2023-04-11T08:12:00.000Z",
-          updatedAt: "2026-08-30T05:40:12.000Z",
-        },
         items: [
           {
             id: "665f1c2a9b4e2a0012a3b4c5",
@@ -158,6 +161,8 @@ export function DeveloperApiCard({
     null,
     2,
   );
+
+  const accountResponse = JSON.stringify({ success: true, data: sampleDealer }, null, 2);
 
   return (
     <section className="mt-8 rounded-card border border-border bg-surface p-6 shadow-card">
@@ -243,7 +248,7 @@ export function DeveloperApiCard({
           <ApiExample
             title="Get my approved listings"
             url={searchUrl}
-            description="GET. Returns your dealer profile (name, business name, contact details, verification tier, rating, coverage cities, plan/quota) plus only this dealer’s approved, non-demo listings. Optional filters: city, locality, type, purpose (sale or rent), budget_min, budget_max, bhk, limit (max 25), and cursor."
+            description="GET. Returns only this dealer’s approved, non-demo listings. Optional filters: city, locality, type, purpose (sale or rent), budget_min, budget_max, bhk, limit (max 25), and cursor."
             code={searchExample}
             response={searchResponse}
           />
@@ -253,6 +258,13 @@ export function DeveloperApiCard({
             description="POST. Required: phone. Optional: name, listingId, message, and intent. Indian mobile numbers are accepted with or without +91."
             code={leadExample}
             response={leadResponse}
+          />
+          <ApiExample
+            title="Get my dealer account"
+            url={accountUrl}
+            description="GET. Returns just your dealer profile — the same object sent as `dealer` in the listings API, without a page of listings alongside it. No params."
+            code={accountExample}
+            response={accountResponse}
           />
           <p className="rounded-control bg-ink-50 p-3 text-meta text-ink-700">
             Responses use <code>\u007b success, data \u007d</code>. The API allows 60

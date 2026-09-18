@@ -92,9 +92,8 @@ Error:
 
 ## `GET /api/agent/search`
 
-Returns the authenticated dealer's own profile plus their **approved,
-non-seed** listings. Scope is the dealer behind the key — never a request
-parameter.
+Returns the authenticated dealer's **approved, non-seed** listings. Scope is the
+dealer behind the key — never a request parameter.
 
 ### Query parameters
 
@@ -117,49 +116,6 @@ Results are newest-first and cursor-paginated.
 
 ```json
 {
-  "dealer": {
-    "id": "665f0a1b8c3d1a0011a2b3c4",
-    "name": "Rahul Deshmukh",
-    "businessName": "Deshmukh Realty",
-    "slug": "deshmukh-realty-pune",
-    "email": "rahul@deshmukhrealty.com",
-    "phone": "919876543210",
-    "profilePhoto": "https://res.cloudinary.com/…/profile.jpg",
-    "logoImage": "https://res.cloudinary.com/…/logo.jpg",
-    "bannerImage": "https://res.cloudinary.com/…/banner.jpg",
-    "tagline": "Trusted homes across Pune since 2012",
-    "about": "…",
-    "establishedYear": 2012,
-    "yearsExperience": 14,
-    "teamSize": 6,
-    "dealTypes": ["flat", "plot", "resale"],
-    "languages": ["Hindi", "Marathi", "English"],
-    "priceRangeMin": 2500000,
-    "priceRangeMax": 15000000,
-    "reraNumber": "P52100012345",
-    "gstNumber": "27AAAAA0000A1Z5",
-    "officeAddress": "Office 4, Baner Road, Pune",
-    "mapLat": 18.5599,
-    "mapLng": 73.7869,
-    "workingHours": [
-      { "day": "Mon", "open": "10:00", "close": "19:00", "closed": false }
-    ],
-    "verificationTier": 2,
-    "status": "active",
-    "rating": 4.6,
-    "ratingCount": 38,
-    "avgResponseMinutes": 12,
-    "totalLeadsReceived": 214,
-    "totalSiteVisits": 61,
-    "plan": "pro",
-    "maxLeadsPerMonth": 100,
-    "leadsUsedThisMonth": 23,
-    "coverageCities": [{ "name": "Pune", "slug": "pune" }],
-    "zenithConnected": true,
-    "zenithNumber": "919812345678",
-    "createdAt": "2023-04-11T08:12:00.000Z",
-    "updatedAt": "2026-08-30T05:40:12.000Z"
-  },
   "items": [
     {
       "id": "665f1c2a9b4e2a0012a3b4c5",
@@ -183,11 +139,6 @@ Results are newest-first and cursor-paginated.
 }
 ```
 
-- `dealer` is the same on every page — it's the key's own account (name,
-  business profile, verification, rating, coverage cities, plan/quota). Any
-  field the dealer hasn't filled in is simply omitted (e.g. `slug`, `tagline`,
-  `reraNumber`). Verification documents, password hash, and Zenith OAuth
-  tokens are never included.
 - `nextCursor` is `null` on the last page.
 - In list mode `description` is truncated to ~240 chars; a `listingId` detail
   request returns the full description.
@@ -212,6 +163,75 @@ curl -H "X-Agent-Key: $KEY" \
 # Next page
 curl -H "X-Agent-Key: $KEY" \
   "https://www.nivaasbhoomi.com/api/agent/search?limit=10&cursor=665f1c2a9b4e2a0012a3b4c5"
+```
+
+---
+
+## `GET /api/agent/account`
+
+Returns the authenticated key's own dealer account — no params, always "who am
+I". This is the same object as `dealer` in `/api/agent/search`'s response,
+available on its own for callers that only need the profile, not listings
+(e.g. rendering a "powered by" header, or answering "who am I speaking with"
+without pulling a page of properties).
+
+### Response `data`
+
+```json
+{
+  "id": "665f0a1b8c3d1a0011a2b3c4",
+  "name": "Rahul Deshmukh",
+  "businessName": "Deshmukh Realty",
+  "slug": "deshmukh-realty-pune",
+  "email": "rahul@deshmukhrealty.com",
+  "phone": "919876543210",
+  "profilePhoto": "https://res.cloudinary.com/…/profile.jpg",
+  "logoImage": "https://res.cloudinary.com/…/logo.jpg",
+  "bannerImage": "https://res.cloudinary.com/…/banner.jpg",
+  "tagline": "Trusted homes across Pune since 2012",
+  "about": "…",
+  "establishedYear": 2012,
+  "yearsExperience": 14,
+  "teamSize": 6,
+  "dealTypes": ["flat", "plot", "resale"],
+  "languages": ["Hindi", "Marathi", "English"],
+  "priceRangeMin": 2500000,
+  "priceRangeMax": 15000000,
+  "reraNumber": "P52100012345",
+  "gstNumber": "27AAAAA0000A1Z5",
+  "officeAddress": "Office 4, Baner Road, Pune",
+  "mapLat": 18.5599,
+  "mapLng": 73.7869,
+  "workingHours": [
+    { "day": "Mon", "open": "10:00", "close": "19:00", "closed": false }
+  ],
+  "verificationTier": 2,
+  "status": "active",
+  "rating": 4.6,
+  "ratingCount": 38,
+  "avgResponseMinutes": 12,
+  "totalLeadsReceived": 214,
+  "totalSiteVisits": 61,
+  "plan": "pro",
+  "maxLeadsPerMonth": 100,
+  "leadsUsedThisMonth": 23,
+  "coverageCities": [{ "name": "Pune", "slug": "pune" }],
+  "zenithConnected": true,
+  "zenithNumber": "919812345678",
+  "createdAt": "2023-04-11T08:12:00.000Z",
+  "updatedAt": "2026-08-30T05:40:12.000Z"
+}
+```
+
+Any field the dealer hasn't filled in is simply omitted (e.g. `slug`,
+`tagline`, `reraNumber`). Verification documents, password hash, and Zenith
+OAuth tokens are never included.
+
+### Example
+
+```bash
+curl -H "X-Agent-Key: $KEY" \
+  "https://www.nivaasbhoomi.com/api/agent/account"
 ```
 
 ---
@@ -300,7 +320,7 @@ Function-calling JSON schemas for a Zenith agent. The agent stores the dealer's
 ```json
 {
   "name": "search_properties",
-  "description": "Search this dealer's live NivaasBhoomi property listings. Returns the dealer's own profile (name, business name, verification, rating, coverage) plus only this dealer's approved listings (never other dealers', never demo listings). Use it to answer buyer questions about the dealer or what they have, filter listings by city/locality/type/budget/BHK, or fetch one listing's full detail by id.",
+  "description": "Search this dealer's live NivaasBhoomi property listings. Returns only this dealer's approved listings (never other dealers', never demo listings). Use it to answer buyer questions about what the dealer has, filter by city/locality/type/budget/BHK, or fetch one listing's full detail by id.",
   "parameters": {
     "type": "object",
     "properties": {
@@ -315,6 +335,20 @@ Function-calling JSON schemas for a Zenith agent. The agent stores the dealer's
       "limit": { "type": "number", "description": "Max results, 1–25. Default 10." },
       "cursor": { "type": "string", "description": "Pagination cursor from a previous response's nextCursor. Omit for the first page." }
     },
+    "required": []
+  }
+}
+```
+
+### `get_dealer_account`
+
+```json
+{
+  "name": "get_dealer_account",
+  "description": "Get this dealer's own account details — name, business name, contact info, verification tier, rating, coverage cities, and plan/quota. Use it to answer buyer questions about the dealer (e.g. \"who am I speaking with\", \"are you verified\", \"which areas do you cover\") without pulling a page of listings.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
     "required": []
   }
 }

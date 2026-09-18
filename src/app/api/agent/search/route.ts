@@ -7,9 +7,8 @@ import { agentSearch, type AgentSearchParams } from "@/lib/agent/search";
 /**
  * GET /api/agent/search   [dealer agent key]
  *
- * Returns the authenticated dealer's own profile (`dealer`) plus ONLY their
- * approved, non-seed listings (`items`). Scope is the dealerId from the key —
- * never a client param. Cursor-paginated.
+ * Returns ONLY the authenticated dealer's approved, non-seed listings. Scope is
+ * the dealerId from the key — never a client param. Cursor-paginated.
  * Params: city, locality, type, purpose, budget_min, budget_max, bhk,
  *         listingId, limit (default 10, max 25), cursor.
  */
